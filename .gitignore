@@ -1,0 +1,13 @@
+# Dependencias y builds
+node_modules/
+.next/
+out/
+
+# Variables de entorno (claves de Supabase: NUNCA al repo)
+.env
+.env*.local
+
+# Herramientas locales
+.gstack/
+.vercel/
+.DS_Store

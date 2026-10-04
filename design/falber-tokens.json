@@ -1,0 +1,388 @@
+{
+  "version": 1,
+  "color": {
+    "themes": [
+      {
+        "id": "dark",
+        "name": "Noir"
+      },
+      {
+        "id": "light",
+        "name": "Platinum"
+      }
+    ],
+    "tokens": [
+      {
+        "name": "carbon-black",
+        "value": {
+          "dark": "#0b0c0e",
+          "light": "#0b0c0e"
+        },
+        "usage": "Core brand black (#0B0C0E). The ground all marks sit on; page background in the Noir theme. A brand constant — same in both themes."
+      },
+      {
+        "name": "graphite",
+        "value": {
+          "dark": "#202226",
+          "light": "#202226"
+        },
+        "usage": "Brand graphite (#202226). Raised panels and the second colour of the palette. A brand constant — same in both themes."
+      },
+      {
+        "name": "platinum",
+        "value": {
+          "dark": "#bfc2c5",
+          "light": "#bfc2c5"
+        },
+        "usage": "Signature platinum (#BFC2C5). The metallic brand accent for marks, rules and emphasis. Place on carbon-black or graphite only — it is low-contrast on light surfaces."
+      },
+      {
+        "name": "surface",
+        "value": {
+          "dark": "#0b0c0e",
+          "light": "#f4f5f6"
+        },
+        "usage": "Page background. Carbon-black in Noir, a cool off-white in Platinum."
+      },
+      {
+        "name": "surface-raised",
+        "value": {
+          "dark": "#202226",
+          "light": "#ffffff"
+        },
+        "usage": "Cards, panels and nav resting on surface."
+      },
+      {
+        "name": "surface-overlay",
+        "value": {
+          "dark": "#2a2d32",
+          "light": "#eceef0"
+        },
+        "usage": "Menus, popovers and elevated layers above surface-raised."
+      },
+      {
+        "name": "border",
+        "value": {
+          "dark": "#34373c",
+          "light": "#d5d8db"
+        },
+        "usage": "Hairline dividers and default control borders on surface and surface-raised. 3:1 against both."
+      },
+      {
+        "name": "border-strong",
+        "value": {
+          "dark": "#4a4e53",
+          "light": "#b9bdc1"
+        },
+        "usage": "Emphasis borders and the resting outline of inputs on surface and surface-raised."
+      },
+      {
+        "name": "text",
+        "value": {
+          "dark": "#f3f4f5",
+          "light": "#0b0c0e"
+        },
+        "usage": "Primary heading and body text on surface and surface-raised. ≥12:1 in both themes."
+      },
+      {
+        "name": "text-secondary",
+        "value": {
+          "dark": "#c7cacd",
+          "light": "#3a3d42"
+        },
+        "usage": "Subtitles and secondary copy on surface and surface-raised. ≥7:1 in both themes."
+      },
+      {
+        "name": "text-muted",
+        "value": {
+          "dark": "#93969b",
+          "light": "#63676b"
+        },
+        "usage": "Captions, metadata and placeholder text on surface and surface-raised. ≥4.5:1 in both themes."
+      },
+      {
+        "name": "accent",
+        "value": {
+          "dark": "#bfc2c5",
+          "light": "#45494e"
+        },
+        "usage": "Interactive metallic accent: links, selected state, key emphasis on surface and surface-raised. Platinum in Noir; a graphite-silver in Platinum for contrast."
+      },
+      {
+        "name": "on-accent",
+        "value": {
+          "dark": "#0b0c0e",
+          "light": "#f4f5f6"
+        },
+        "usage": "Text and icons sitting on an accent fill (e.g. a platinum button). ≥8:1 on accent in both themes."
+      },
+      {
+        "name": "accent-strong",
+        "value": {
+          "dark": "#e6e8ea",
+          "light": "#202226"
+        },
+        "usage": "Hover and active state of accent; the brightest platinum sheen in Noir."
+      }
+    ]
+  },
+  "type": {
+    "fonts": [],
+    "families": {
+      "display": "\"Cinzel\", \"Trajan Pro\", \"Optima\", Georgia, serif",
+      "sans": "\"Montserrat\", \"Helvetica Neue\", Arial, sans-serif"
+    },
+    "groups": [
+      {
+        "name": "Display",
+        "family": "display",
+        "note": "",
+        "styles": [
+          {
+            "name": "display-xl",
+            "fontSize": "72px",
+            "lineHeight": "76px",
+            "fontWeight": "500",
+            "letterSpacing": "0.04em",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "display",
+            "sample": "",
+            "usage": "The FALBER name at hero scale. Always uppercase, in platinum on carbon-black."
+          },
+          {
+            "name": "display-lg",
+            "fontSize": "48px",
+            "lineHeight": "54px",
+            "fontWeight": "500",
+            "letterSpacing": "0.06em",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "",
+            "sample": "",
+            "usage": "Campaign headers and section covers. Uppercase."
+          },
+          {
+            "name": "wordmark-serif",
+            "fontSize": "36px",
+            "lineHeight": "40px",
+            "fontWeight": "600",
+            "letterSpacing": "0.14em",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "",
+            "sample": "",
+            "usage": "The engraved serif wordmark lockup. Uppercase, wide tracking, platinum."
+          }
+        ]
+      },
+      {
+        "name": "Headings",
+        "family": "sans",
+        "note": "",
+        "styles": [
+          {
+            "name": "wordmark",
+            "fontSize": "40px",
+            "lineHeight": "44px",
+            "fontWeight": "300",
+            "letterSpacing": "0.4em",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "",
+            "sample": "",
+            "usage": "The clean modern FALBER wordmark (thin, widely tracked) as on packaging. Uppercase; never below 0.3em tracking."
+          },
+          {
+            "name": "h1",
+            "fontSize": "32px",
+            "lineHeight": "38px",
+            "fontWeight": "300",
+            "letterSpacing": "0.02em",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "",
+            "sample": "",
+            "usage": "Page titles."
+          },
+          {
+            "name": "h2",
+            "fontSize": "24px",
+            "lineHeight": "30px",
+            "fontWeight": "400",
+            "letterSpacing": "0",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "",
+            "sample": "",
+            "usage": "Subsection titles."
+          },
+          {
+            "name": "h3",
+            "fontSize": "18px",
+            "lineHeight": "24px",
+            "fontWeight": "500",
+            "letterSpacing": "0.01em",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "",
+            "sample": "",
+            "usage": "Card and block titles."
+          }
+        ]
+      },
+      {
+        "name": "Text",
+        "family": "sans",
+        "note": "",
+        "styles": [
+          {
+            "name": "body",
+            "fontSize": "16px",
+            "lineHeight": "26px",
+            "fontWeight": "400",
+            "letterSpacing": "0",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "",
+            "sample": "",
+            "usage": "Default body copy in text on surface."
+          },
+          {
+            "name": "body-sm",
+            "fontSize": "14px",
+            "lineHeight": "22px",
+            "fontWeight": "400",
+            "letterSpacing": "0",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "",
+            "sample": "",
+            "usage": "Secondary copy and dense UI."
+          },
+          {
+            "name": "label",
+            "fontSize": "12px",
+            "lineHeight": "16px",
+            "fontWeight": "600",
+            "letterSpacing": "0.18em",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "",
+            "sample": "",
+            "usage": "Uppercase UI labels and eyebrows. Wide tracking, in text-muted or platinum."
+          },
+          {
+            "name": "caption",
+            "fontSize": "11px",
+            "lineHeight": "15px",
+            "fontWeight": "400",
+            "letterSpacing": "0.04em",
+            "fontStyle": "normal",
+            "opticalSize": null,
+            "family": "",
+            "sample": "",
+            "usage": "Fine print and metadata in text-muted."
+          }
+        ]
+      }
+    ]
+  },
+  "spacing": {
+    "note": "",
+    "tokens": [
+      {
+        "name": "space-1",
+        "value": "4px",
+        "usage": "Tight inline gaps, icon-to-label."
+      },
+      {
+        "name": "space-2",
+        "value": "8px",
+        "usage": "Compact padding, chip insets."
+      },
+      {
+        "name": "space-3",
+        "value": "12px",
+        "usage": "Default control padding."
+      },
+      {
+        "name": "space-4",
+        "value": "16px",
+        "usage": "Card padding; the base rhythm unit."
+      },
+      {
+        "name": "space-5",
+        "value": "24px",
+        "usage": "Padding of grouped blocks."
+      },
+      {
+        "name": "space-6",
+        "value": "32px",
+        "usage": "Separation between blocks."
+      },
+      {
+        "name": "space-8",
+        "value": "48px",
+        "usage": "Major section spacing."
+      },
+      {
+        "name": "space-10",
+        "value": "64px",
+        "usage": "Page gutters and hero spacing."
+      },
+      {
+        "name": "space-12",
+        "value": "96px",
+        "usage": "Editorial whitespace between large sections."
+      }
+    ]
+  },
+  "radius": {
+    "note": "",
+    "tokens": [
+      {
+        "name": "radius-none",
+        "value": "0",
+        "usage": "Default. Buttons, inputs, cards and panels — the brand reads sharp and engraved."
+      },
+      {
+        "name": "radius-sm",
+        "value": "2px",
+        "usage": "Subtle softening on small chips and tags."
+      },
+      {
+        "name": "radius-md",
+        "value": "4px",
+        "usage": "Image and media containers."
+      },
+      {
+        "name": "radius-pill",
+        "value": "999px",
+        "usage": "Fully rounded pills and avatars only."
+      }
+    ]
+  },
+  "shadow": {
+    "note": "Elevation reads mainly through surface lightness; shadows stay subtle.",
+    "tokens": [
+      {
+        "name": "shadow-raised",
+        "value": {
+          "dark": "0 1px 2px rgba(0,0,0,0.5)",
+          "light": "0 1px 2px rgba(11,12,14,0.08)"
+        },
+        "usage": "Resting elevation of cards on surface."
+      },
+      {
+        "name": "shadow-overlay",
+        "value": {
+          "dark": "0 12px 32px rgba(0,0,0,0.65)",
+          "light": "0 12px 32px rgba(11,12,14,0.14)"
+        },
+        "usage": "Menus, popovers and modals above the page."
+      }
+    ]
+  },
+  "name": "FALBER"
+}

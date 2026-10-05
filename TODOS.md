@@ -56,6 +56,22 @@
 **Priority:** P1 (antes del lanzamiento)
 **Depends on:** Fotos de la Fase 0.
 
+## Design system
+
+### Sincronizar el artifact con los cambios hechos en el código
+
+**What:** Copiar al design system "FALBER" en Claude Artifacts (https://claude.ai/artifact/8MRV6N7UQkE1uDYGWUBB9j) dos cambios que hoy solo existen en el repo:
+1. El token `error`: Noir `#e5867d`, Platinum `#a8332b`, con su regla de uso (`design/falber-tokens.json` → `color.tokens`).
+2. El estilo `wordmark` con `clamp()`: 28 px en mobile y 40 px en desktop, tracking 0.4em (`src/app/globals.css`).
+
+**Why:** El artifact es la fuente de verdad y la sincronización es manual, en un solo sentido (artifact → repo, DESIGN.md). Si se re-sincroniza sin estos cambios, el token `error` desaparece del JSON y `tokens.test.ts` falla; el `clamp()` del wordmark se perdería en silencio.
+
+**Context:** Los dos cambios están documentados en DESIGN.md (tabla de color, "Regla del error" y la nota de mobile en Tipografía). Al terminar, verificar con `npm test` que `tokens.test.ts` siga en verde.
+
+**Effort:** S
+**Priority:** P2 (antes de la próxima sincronización del design system)
+**Depends on:** None
+
 ## Marca
 
 ### Logo y monograma de FALBER en vectorial (SVG)

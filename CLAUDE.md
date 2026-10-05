@@ -21,9 +21,15 @@ Stack: Next.js (App Router) + TypeScript + Tailwind v4 + Supabase. Hosting: Netl
 
 ## Testing
 
-- Base de datos: `node supabase/tests/schema.test.cjs` (requiere `npm i -D @electric-sql/pglite`).
-- Lógica: Vitest. Flujos: Playwright (compra completa y protección de `/admin`).
+- Base de datos: `npm run test:db` (PGlite, sin Docker).
+- Lógica: `npm test` (Vitest, `src/**/*.test.{ts,tsx}`). Flujos: `npm run test:e2e` (Playwright, `e2e/`: compra completa y protección de `/admin`).
 - Todo cambio en la migración lleva su test en `schema.test.cjs`.
+
+## Desarrollo local
+
+- `cp .env.example .env.local` y completar con `npx supabase status`.
+- `npm run db:start` levanta Supabase (Docker); `npm run db:reset` re-aplica las migraciones; `npm run db:types` regenera `src/types/database.ts` después de cambiar el esquema.
+- Storage local no funciona con el CLI actual (ver `TODOS.md` → "Storage local").
 
 ## Git
 

@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generado por `npm run db:types`: no se edita ni se lintea a mano.
+    "src/types/database.ts",
   ]),
 ]);
 

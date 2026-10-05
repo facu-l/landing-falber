@@ -25,4 +25,10 @@ describe("Input", () => {
     );
     expect(screen.queryByText("Con código de área")).toBeNull();
   });
+
+  it('un error vacío ("") no esconde el hint ni marca el campo inválido', () => {
+    render(<Input label="WhatsApp" hint="Con código de área" error="" />);
+    expect(screen.getByText("Con código de área")).toBeTruthy();
+    expect(screen.getByLabelText("WhatsApp").getAttribute("aria-invalid")).toBeNull();
+  });
 });

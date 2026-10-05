@@ -17,7 +17,8 @@ export function Input({ label, hint, error, id, className, ...props }: InputProp
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const messageId = `${inputId}-message`;
-  const message = error ?? hint;
+  // || y no ??: un error vacío ("") no debe esconder el hint.
+  const message = error || hint;
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>

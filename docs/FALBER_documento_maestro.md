@@ -4,6 +4,7 @@ Tienda online de decants y perfumes · Next.js + Supabase · v2.1 · 2026-10-05
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
+**v2.2:** Fase 2 implementada en `feat/catalog`. Decisiones 26 a 33 (sección 3.G) y lecciones nuevas.
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -182,6 +183,19 @@ Navegador ──► Server Action
 | 23 | **Node 24** fijado en `.nvmrc` (lo leen CI, nvm y Netlify) y `@types/node@^24` | Los tipos tienen que corresponder al runtime real |
 | 24 | **CI en cada PR** (`.github/workflows/ci.yml`): lint con 0 warnings, `typecheck` (`next typegen` + `tsc`), `test:db`, Vitest y build en un job; Playwright (escritorio + Pixel 7) sobre la build de producción en otro | Tests en verde en una sola máquina no alcanzan; el CI encontró dos fallos que en local no aparecían |
 | 25 | **Git:** LF obligatorio (`.gitattributes`); lockfile validado en Linux (`npm ci` del runner); PRs con **merge commit** para conservar los commits atómicos. Sin protección de rama (repo privado en plan gratis): antes de mergear se verifica el CI en verde a mano, nunca con auto-merge | En el plan gratis, el auto-merge de GitHub no espera al CI |
+
+### G. Decisiones de la Fase 2 (catálogo, 2026-10-05)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 26 | **`products.is_featured`** (boolean, default false), editado en `0001` con su test. Los destacados se marcan a mano en Studio; un destacado agotado no se muestra | Regla explícita en vez de "los más nuevos", que es implícita y tarde o temprano se quiere controlar |
+| 27 | **CI con Supabase local + `supabase/seed.sql`** (`npm run db:start:lite`: solo db, auth y API) en vez de secrets de la nube | La build prerenderiza el catálogo y necesita datos. Con un seed fijo los tests no dependen de datos reales que cambian. Reemplaza la nota "secrets en el CI" de la Fase 2 |
+| 28 | **Fotos:** `image_path` es la ruta dentro del bucket; `productImageSrc()` arma la URL. `NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL=/product-images` en local y CI (placeholders en `public/product-images/`); vacía en producción usa Storage. `next.config.ts` habilita el host de Storage para `next/image` | La base guarda lo mismo en todos los entornos; solo cambia una variable |
+| 29 | **Caché:** `cacheComponents: true`. `getCatalog()` hace **una** consulta anidada (`products` + `product_variants`) con `'use cache'`, `cacheTag('catalog')` y `cacheLife('minutes')`, con un cliente anónimo **sin cookies**. `/catalogo` y `/producto` filtran sobre ese resultado | Una función cacheada no puede leer cookies. `cacheLife('minutes')` porque las ediciones en Studio no pueden invalidar el tag. Con pocos perfumes, una entrada de caché es más simple que una por filtro |
+| 30 | **`/producto/[slug]` sin `generateStaticParams`**. El detalle se lee dentro de `<Suspense>`; un slug inexistente o inactivo muestra `not-found` con **status 200 + `noindex`** (el stream ya empezó) | Con Cache Components, `generateStaticParams` tiene que devolver al menos un slug: un catálogo vacío (ej. el primer deploy) rompería la build |
+| 31 | **Filtros en la URL** (`?q=&marca=&genero=&tipo=`) con un form GET. Búsqueda sin tildes ni mayúsculas, palabra por palabra. Género **exacto** (Masculino no trae Unisex) | Funciona sin JavaScript, se puede compartir el link y es predecible |
+| 32 | **Route group `(store)`** con header y footer propios; el admin tendrá otro layout. `wordmark` escala con `clamp()` (28 → 40 px) como `display-xl` | El header no entraba en mobile con 40 px |
+| 33 | **El detalle no tiene botón de carrito** hasta la Fase 3. Un producto agotado enlaza a `/encargos?producto=<slug>`: **la Fase 4 tiene que leer ese parámetro** | No se muestra un botón que no hace nada |
 
 ---
 
@@ -407,7 +421,7 @@ Después, en la misma sesión: CI de GitHub Actions para los PR, `.gitattributes
 - Si `next dev` ya corre, `npm ci` falla con `EPERM` en Windows: frená el dev server antes de reinstalar dependencias.
 - "En mi máquina anda" no alcanza: el CI encontró dos cosas que en local pasaban (tipos de Next sin generar y un lockfile incompleto para Linux).
 
-### Fase 2 — Tienda (catálogo y producto)
+### Fase 2 — Tienda (catálogo y producto) (implementada en `feat/catalog`, 2026-10-05)
 
 ```text
 Usá taste-skill siguiendo DESIGN.md (tema Noir, esquinas rectas, Cinzel solo
@@ -419,9 +433,15 @@ Antes de codear, decime qué dirección de diseño inferís.
 
 **Por qué esos diales:** la marca pide sobriedad. Motion bajo (3) porque el lujo está en la quietud y el espacio, no en la animación.
 
-**Antes de empezar (pendientes de la Fase 1):**
-- Cuando la build lea el catálogo, el CI necesita las variables de Supabase: GitHub → Settings → Secrets and variables → Actions, y pasarlas en `ci.yml`.
-- Fotos en local: Storage local no funciona (decisión 22, TODOS.md → "Storage local"). Alternativa mientras tanto: imágenes de prueba en `public/`.
+**Dirección de diseño inferida:** tienda de perfumería de lujo sobrio para quien llega desde Instagram con el celular; lenguaje editorial oscuro sobre el design system propio. Cuando taste-skill choca con DESIGN.md, gana DESIGN.md (Cinzel solo en el hero, siempre Noir, acento = platino). Cada sección de la home tiene un layout distinto: hero partido, destacados (uno grande + dos), decants en fila con scroll-snap, frascos en grilla con desfase, franja de encargos.
+
+Los pendientes de la Fase 1 se resolvieron con las decisiones 27 (CI) y 28 (fotos).
+
+**Lecciones:**
+- En Windows, `next dev` **no detecta carpetas nuevas** para Tailwind: las clases de una ruta nueva no aparecen hasta reiniciar el dev server. Si un breakpoint "no anda" en una página recién creada, reiniciar antes de debuggear.
+- `npm run db:start` (stack completo) falla el health check por el bug de Storage local. Usar `npm run db:start:lite`.
+- Next 16 conserva la ruta anterior **oculta en el DOM** para volver atrás al instante: en Playwright, acotar las búsquedas a la página actual (ej. `page.getByRole("article")`).
+- `error.tsx` en Next 16 usa `retry()` (vuelve a pedir los datos), no `reset()`.
 
 ### Fase 3 — Carrito, checkout, pedidos y WhatsApp
 
@@ -434,7 +454,9 @@ revalidateTag('catalog'), /pedido/[id] con get_order_summary y el botón de
 WhatsApp. Test E2E de Playwright: compra completa.
 ```
 
-**Antes de empezar:** DESIGN.md no define un color semántico de error. Hoy `Input` marca el error con borde `accent-strong` y el texto del mensaje (sin depender solo del color). Definirlo en el design system antes del checkout.
+**Antes de empezar:** en Next 16, una Server Action que cambia el stock y después muestra datos frescos debería usar `updateTag('catalog')` (lectura inmediata de lo que acaba de escribir) en vez de `revalidateTag`, que sirve datos viejos mientras revalida. Confirmarlo en `node_modules/next/dist/docs/` antes de implementar. El carrito se agrega en `/producto/[slug]` (decisión 33).
+
+DESIGN.md no define un color semántico de error. Hoy `Input` marca el error con borde `accent-strong` y el texto del mensaje (sin depender solo del color). Definirlo en el design system antes del checkout.
 
 ### Fase 4 — Encargos
 
@@ -442,6 +464,8 @@ WhatsApp. Test E2E de Playwright: compra completa.
 Implementá /encargos y "Solicitar disponibilidad" en productos agotados con
 create_perfume_request (Turnstile + hash de IP). Seguí DESIGN.md.
 ```
+
+**Antes de empezar:** el botón "Solicitar disponibilidad" ya enlaza a `/encargos?producto=<slug>` (decisión 33). El form tiene que leer ese parámetro y precargar el perfume.
 
 ### Fase 5 — Admin de pedidos
 
@@ -479,8 +503,8 @@ Fase 1 base + DS ─► Fase 2 tienda (taste-skill) ─► Fase 3 checkout (TDD)
 | Capa | Herramienta | Qué cubre |
 |---|---|---|
 | Base de datos | `schema.test.cjs` (PGlite) | Todas las reglas de la sección 7, el flujo de `create_order` y los tres caminos de Storage (decisión 22) |
-| Lógica pura | Vitest | Ya existen: tokens vs `falber-tokens.json`, contrato de `Button`/`Input`, `required()` de env. Por venir: `whatsapp.ts` (mensaje y URL), `phone.ts` (formatos reales + inválidos), `cart.ts` (agregar, quitar, cantidad máx.), `order-errors.ts` (cada código + desconocido), schema zod del checkout |
-| Flujos | Playwright | Ya existe: smoke de la home (tema Noir, `es-AR`, sin desborde en mobile). Por venir: compra completa (carrito → pedido → link de WhatsApp correcto); `/admin` sin sesión → login; no-admin no ve pedidos |
+| Lógica pura | Vitest | Ya existen: tokens vs `falber-tokens.json`, contrato de `Button`/`Input`/`Select`, `required()` de env, reglas del catálogo (filtros, precio "desde", agotados, destacados), mapeo de filas, URL de fotos y `formatARS`. Por venir: `whatsapp.ts` (mensaje y URL), `phone.ts` (formatos reales + inválidos), `cart.ts` (agregar, quitar, cantidad máx.), `order-errors.ts` (cada código + desconocido), schema zod del checkout |
+| Flujos | Playwright | Ya existen: smoke de la home (tema Noir, `es-AR`, sin desborde en mobile) y catálogo (home → destacado → detalle, filtros por URL, búsqueda sin tildes, estado vacío, agotado, inexistente/inactivo). Por venir: compra completa (carrito → pedido → link de WhatsApp correcto); `/admin` sin sesión → login; no-admin no ve pedidos |
 
 Las tres capas corren en el CI en cada PR (decisión 24): `npm run test:db`, `npm test` y `npm run test:e2e`.
 

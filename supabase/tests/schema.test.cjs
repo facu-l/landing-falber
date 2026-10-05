@@ -142,6 +142,8 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   console.log('\n[2] Tipos, etiqueta y ledger de stock');
   await expectError(db, 'enum: un género inválido se rechaza',
     `insert into products (name, brand, slug, gender) values ('A', 'B', 'a-b', 'otro')`, 'invalid input value for enum');
+  eq('is_featured: un producto nuevo no es destacado',
+    (await one(db, `select is_featured from products where id='${P1}'`)).is_featured, false);
   eq('label generado para decant', (await one(db, `select label from product_variants where id='${V1}'`)).label, 'Decant 5 ml');
   eq('label generado para frasco', (await one(db, `select label from product_variants where id='${V4}'`)).label, 'Frasco 100 ml');
   eq('initial_stock carga la caché de stock', await stockOf(V1), 30);
@@ -274,6 +276,8 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   eq('anon ve solo productos activos', (await one(db, 'select count(*) c from products')).c, 2);
   eq('anon NO ve pedidos', (await one(db, 'select count(*) c from orders')).c, 0);
   eq('anon NO ve clientes', (await one(db, 'select count(*) c from customers')).c, 0);
+  eq('anon NO puede marcar un producto como destacado',
+    (await db.query(`update products set is_featured = true returning id`)).rows.length, 0);
   await reset(db);
   await expectError(db, 'anon NO puede llamar create_order', `set role anon; ${orderCall({ items: `[${item(V1, 1)}]` })}`, 'permission denied');
   await expectError(db, 'anon NO puede llamar next_order_number (quemar la secuencia)', 'set role anon; select public.next_order_number()', 'permission denied');

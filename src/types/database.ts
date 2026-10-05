@@ -108,13 +108,13 @@ isOneToOne: false
                   ]
                 },"products": {
                   Row: {
-                    "brand": string,"created_at": string,"description": string | null,"gender": Database["public"]['Enums']["product_gender"] | null,"id": string,"image_path": string | null,"name": string,"slug": string,"status": Database["public"]['Enums']["product_status"],"updated_at": string
+                    "brand": string,"created_at": string,"description": string | null,"gender": Database["public"]['Enums']["product_gender"] | null,"id": string,"image_path": string | null,"is_featured": boolean,"name": string,"slug": string,"status": Database["public"]['Enums']["product_status"],"updated_at": string
                   }
                   Insert: {
-                    "brand": string,"created_at"?: string,"description"?: string | null,"gender"?: Database["public"]['Enums']["product_gender"] | null,"id"?: string,"image_path"?: string | null,"name": string,"slug": string,"status"?: Database["public"]['Enums']["product_status"],"updated_at"?: string
+                    "brand": string,"created_at"?: string,"description"?: string | null,"gender"?: Database["public"]['Enums']["product_gender"] | null,"id"?: string,"image_path"?: string | null,"is_featured"?: boolean,"name": string,"slug": string,"status"?: Database["public"]['Enums']["product_status"],"updated_at"?: string
                   }
                   Update: {
-                    "brand"?: string,"created_at"?: string,"description"?: string | null,"gender"?: Database["public"]['Enums']["product_gender"] | null,"id"?: string,"image_path"?: string | null,"name"?: string,"slug"?: string,"status"?: Database["public"]['Enums']["product_status"],"updated_at"?: string
+                    "brand"?: string,"created_at"?: string,"description"?: string | null,"gender"?: Database["public"]['Enums']["product_gender"] | null,"id"?: string,"image_path"?: string | null,"is_featured"?: boolean,"name"?: string,"slug"?: string,"status"?: Database["public"]['Enums']["product_status"],"updated_at"?: string
                   }
                   Relationships: [
                     

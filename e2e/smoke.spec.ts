@@ -18,6 +18,15 @@ test("la home renderiza FALBER con el tema Noir", async ({ page }) => {
   expect(background).toBe("rgb(11, 12, 14)");
 });
 
+// Sin scroll horizontal no alcanza: el nav del header puede desbordar sin agrandar la página.
+test("el header entra entero en la pantalla", async ({ page }) => {
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Principal" });
+  const box = (await nav.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+});
+
 test("el hero no desborda el ancho en mobile", async ({ page }) => {
   await page.goto("/");
   const overflow = await page.evaluate(

@@ -81,6 +81,21 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   try { await db.exec(fs.readFileSync(MIGRATION, 'utf8')); ok('la migración se aplica sin errores'); }
   catch (e) { bad('aplicar migración', e.message); process.exit(1); }
 
+  // Storage condicional: con las tablas (nube) crea bucket y policies...
+  eq('storage: crea el bucket product-images público',
+    (await one(db, `select public from storage.buckets where id = 'product-images'`))?.public, true);
+  eq('storage: crea las 3 policies de escritura del admin',
+    (await one(db, `select count(*) n from pg_policies where schemaname = 'storage' and policyname like 'product-images:%'`)).n, 3);
+
+  // ...y sin ellas (supabase start: storage-api las crea después) no rompe la migración.
+  {
+    const bare = new PGlite();
+    await bare.exec(SUPABASE_STUB.replace(/^create table storage\..*$|^alter table storage\..*$/gm, ''));
+    try { await bare.exec(fs.readFileSync(MIGRATION, 'utf8')); ok('storage: sin tablas de storage la migración igual se aplica'); }
+    catch (e) { bad('storage: sin tablas de storage la migración igual se aplica', e.message); }
+    await bare.close();
+  }
+
   // Seed (como el rol postgres = Supabase SQL Editor)
   const P1 = 'aaaaaaaa-0000-0000-0000-000000000001', P2 = 'aaaaaaaa-0000-0000-0000-000000000002', P3 = 'aaaaaaaa-0000-0000-0000-000000000003';
   const V1 = 'bbbbbbbb-0000-0000-0000-000000000001', V2 = 'bbbbbbbb-0000-0000-0000-000000000002';

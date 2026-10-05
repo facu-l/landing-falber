@@ -980,23 +980,37 @@ create policy "profiles: read own or admin"
 
 -- -----------------------------------------------------------------------------
 -- Storage: fotos de productos (lectura pública, escritura solo admin)
+-- Las tablas storage.* las crea el servicio de Storage, no Postgres. En la nube
+-- ya existen al migrar; con `supabase start` todavía no (storage-api arranca
+-- después de las migraciones). Por eso esta sección es condicional: si las
+-- tablas no existen, avisa con un NOTICE en vez de romper la migración.
+-- Ver TODOS.md → "Storage local".
 -- -----------------------------------------------------------------------------
 
-insert into storage.buckets (id, name, public)
-values ('product-images', 'product-images', true)
-on conflict (id) do nothing;
+do $storage$
+begin
+  if to_regclass('storage.objects') is null then
+    raise notice 'storage.objects no existe todavía: se omiten bucket y policies de product-images';
+    return;
+  end if;
 
-create policy "product-images: admin uploads"
-  on storage.objects for insert to authenticated
-  with check (bucket_id = 'product-images' and public.is_admin());
+  insert into storage.buckets (id, name, public)
+  values ('product-images', 'product-images', true)
+  on conflict (id) do nothing;
 
-create policy "product-images: admin updates"
-  on storage.objects for update to authenticated
-  using (bucket_id = 'product-images' and public.is_admin());
+  create policy "product-images: admin uploads"
+    on storage.objects for insert to authenticated
+    with check (bucket_id = 'product-images' and public.is_admin());
 
-create policy "product-images: admin deletes"
-  on storage.objects for delete to authenticated
-  using (bucket_id = 'product-images' and public.is_admin());
+  create policy "product-images: admin updates"
+    on storage.objects for update to authenticated
+    using (bucket_id = 'product-images' and public.is_admin());
+
+  create policy "product-images: admin deletes"
+    on storage.objects for delete to authenticated
+    using (bucket_id = 'product-images' and public.is_admin());
+end
+$storage$;
 
 -- =============================================================================
 -- Alta del primer admin (manual, una sola vez):

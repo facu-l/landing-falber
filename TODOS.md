@@ -42,6 +42,20 @@
 **Priority:** P2
 **Depends on:** Una versión del CLI que lo corrija.
 
+## Catálogo
+
+### Reemplazar las fotos placeholder por fotos reales
+
+**What:** Subir las fotos reales de cada producto al bucket `product-images` y la del hero (hoy `public/brand/hero-placeholder.webp`).
+
+**Why:** Las imágenes de `public/product-images/` y el hero son placeholders generados (un frasco genérico sobre carbón) para desarrollo y CI. En producción `NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL` va vacía y las fotos salen de Storage.
+
+**Context:** Formato vertical 4:5, fondo oscuro o neutro (DESIGN.md → Fotos de producto). El nombre del archivo en el bucket es lo que va en `products.image_path`. El hero no es un producto: va en `public/brand/` (o en el bucket, si se prefiere editarlo sin deploy).
+
+**Effort:** S
+**Priority:** P1 (antes del lanzamiento)
+**Depends on:** Fotos de la Fase 0.
+
 ## Marca
 
 ### Logo y monograma de FALBER en vectorial (SVG)

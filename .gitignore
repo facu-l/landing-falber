@@ -2,12 +2,28 @@
 node_modules/
 .next/
 out/
+build/
+*.tsbuildinfo
+next-env.d.ts
 
 # Variables de entorno (claves de Supabase: NUNCA al repo)
-.env
-.env*.local
+# Solo se versiona la plantilla .env.example
+.env*
+!.env.example
+
+# Tests
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Logs
+npm-debug.log*
 
 # Herramientas locales
 .gstack/
 .vercel/
+.netlify/
 .DS_Store
+*.pem

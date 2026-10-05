@@ -471,7 +471,8 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 - [ ] Migraciones probadas una vez contra `supabase start`.
 - [ ] La `service_role key` no aparece en el cliente ni con `NEXT_PUBLIC_`.
 - [ ] Cada acción del admin empieza con `requireAdmin()`.
-- [ ] Turnstile activo en checkout y encargos.
+- [ ] Turnstile activo en checkout y encargos, con claves reales (no las de prueba de `.env.example`).
+- [ ] Supabase → Authentication → Sign In / Providers: registro público desactivado (solo existe el admin).
 - [ ] Pedido de prueba completo en el celular: WhatsApp abre con el mensaje correcto.
 - [ ] Doble click en "Realizar compra" crea un solo pedido.
 - [ ] Cancelar un pedido devuelve el stock y la tienda lo muestra.

@@ -49,14 +49,16 @@ async function expectError(db, name, sql, fragment, detailFragment) {
   catch (e) {
     const msgOk = e.message.includes(fragment);
     const detailOk = !detailFragment || String(e.detail || '').includes(detailFragment);
-    msgOk && detailOk ? ok(name) : bad(name, `${e.message} | detail: ${e.detail}`);
+    if (msgOk && detailOk) ok(name);
+    else bad(name, `${e.message} | detail: ${e.detail}`);
   }
   finally { await reset(db); }
 }
 async function one(db, sql) { return (await db.query(sql)).rows[0]; }
 function eq(name, actual, expected) {
   const same = typeof expected === 'number' ? Number(actual) === expected : String(actual) === String(expected);
-  same ? ok(name) : bad(name, `esperado ${expected}, obtuve ${actual}`);
+  if (same) ok(name);
+  else bad(name, `esperado ${expected}, obtuve ${actual}`);
 }
 
 const key = () => 'client-' + randomUUID(); // hash de IP simulado (>= 16 caracteres)
@@ -80,6 +82,37 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   console.log('\n[1] Migración');
   try { await db.exec(fs.readFileSync(MIGRATION, 'utf8')); ok('la migración se aplica sin errores'); }
   catch (e) { bad('aplicar migración', e.message); process.exit(1); }
+
+  // Storage condicional: con las tablas (nube) crea bucket y policies...
+  eq('storage: crea el bucket product-images público',
+    (await one(db, `select public from storage.buckets where id = 'product-images'`))?.public, true);
+  eq('storage: crea las 3 policies de escritura del admin',
+    (await one(db, `select count(*) n from pg_policies where schemaname = 'storage' and policyname like 'product-images:%'`)).n, 3);
+
+  // ...sin ellas, en local (rol marcador de supabase/roles.sql) sigue con un NOTICE...
+  const STUB_WITHOUT_STORAGE_TABLES = SUPABASE_STUB.replace(/^create table storage\..*$|^alter table storage\..*$/gm, '');
+  {
+    const local = new PGlite();
+    await local.exec(STUB_WITHOUT_STORAGE_TABLES);
+    await local.exec(fs.readFileSync(path.join(__dirname, '..', 'roles.sql'), 'utf8'));
+    try { await local.exec(fs.readFileSync(MIGRATION, 'utf8')); ok('storage local: sin tablas la migración igual se aplica'); }
+    catch (e) { bad('storage local: sin tablas la migración igual se aplica', e.message); }
+    eq('storage local: no deja policies a medias',
+      (await one(local, `select count(*) n from pg_policies where schemaname = 'storage'`)).n, 0);
+    eq('storage local: el resto del esquema queda completo (create_order existe)',
+      (await one(local, `select exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public' and p.proname = 'create_order') as ok`)).ok, true);
+    await local.close();
+  }
+
+  // ...y sin ellas fuera de local (nube sin Storage listo) la migración FALLA en vez de seguir en silencio.
+  {
+    const cloud = new PGlite();
+    await cloud.exec(STUB_WITHOUT_STORAGE_TABLES);
+    await expectError(cloud, 'storage nube: sin tablas la migración falla con STORAGE_TABLES_MISSING',
+      fs.readFileSync(MIGRATION, 'utf8'), 'STORAGE_TABLES_MISSING');
+    await cloud.close();
+  }
 
   // Seed (como el rol postgres = Supabase SQL Editor)
   const P1 = 'aaaaaaaa-0000-0000-0000-000000000001', P2 = 'aaaaaaaa-0000-0000-0000-000000000002', P3 = 'aaaaaaaa-0000-0000-0000-000000000003';

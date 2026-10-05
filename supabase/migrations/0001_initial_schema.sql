@@ -980,23 +980,44 @@ create policy "profiles: read own or admin"
 
 -- -----------------------------------------------------------------------------
 -- Storage: fotos de productos (lectura pública, escritura solo admin)
+-- Las tablas storage.* las crea el servicio de Storage, no Postgres. En la nube
+-- ya existen al migrar; con `supabase start` todavía no (storage-api arranca
+-- después de las migraciones). Por eso, si las tablas no existen:
+--   - en local (existe el rol marcador falber_local_dev, creado en supabase/roles.sql)
+--     se omite la sección con un NOTICE;
+--   - en cualquier otro entorno la migración FALLA: mejor un deploy frenado que
+--     producción sin bucket ni policies de fotos.
+-- Ver TODOS.md → "Storage local".
 -- -----------------------------------------------------------------------------
 
-insert into storage.buckets (id, name, public)
-values ('product-images', 'product-images', true)
-on conflict (id) do nothing;
+do $storage$
+begin
+  if to_regclass('storage.objects') is null then
+    if exists (select 1 from pg_roles where rolname = 'falber_local_dev') then
+      raise notice 'storage.objects no existe todavía (local): se omiten bucket y policies de product-images';
+      return;
+    end if;
+    raise exception 'STORAGE_TABLES_MISSING'
+      using detail = 'storage.objects no existe: el bucket product-images y sus policies no se pueden crear';
+  end if;
 
-create policy "product-images: admin uploads"
-  on storage.objects for insert to authenticated
-  with check (bucket_id = 'product-images' and public.is_admin());
+  insert into storage.buckets (id, name, public)
+  values ('product-images', 'product-images', true)
+  on conflict (id) do nothing;
 
-create policy "product-images: admin updates"
-  on storage.objects for update to authenticated
-  using (bucket_id = 'product-images' and public.is_admin());
+  create policy "product-images: admin uploads"
+    on storage.objects for insert to authenticated
+    with check (bucket_id = 'product-images' and public.is_admin());
 
-create policy "product-images: admin deletes"
-  on storage.objects for delete to authenticated
-  using (bucket_id = 'product-images' and public.is_admin());
+  create policy "product-images: admin updates"
+    on storage.objects for update to authenticated
+    using (bucket_id = 'product-images' and public.is_admin());
+
+  create policy "product-images: admin deletes"
+    on storage.objects for delete to authenticated
+    using (bucket_id = 'product-images' and public.is_admin());
+end
+$storage$;
 
 -- =============================================================================
 -- Alta del primer admin (manual, una sola vez):

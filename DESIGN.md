@@ -72,10 +72,19 @@ aparecen las licenciadas, se cambian en un solo lugar.
 
 En mobile, `display-xl` baja a ~44px manteniendo el tracking: el hero no puede romper el ancho.
 
+**En el código:** cada estilo es una utilidad `text-<estilo>` (tamaño, línea, tracking y peso), definida en
+`src/app/globals.css`. La familia y las mayúsculas se agregan aparte: `font-display uppercase text-display-xl`,
+`uppercase text-label`. Los colores semánticos son `bg-surface`, `text-text`, `text-text-muted`, `border-border`, etc.
+
 ## Espaciado y forma
 
 - Escala: `space-1` 4 · `space-2` 8 · `space-3` 12 · `space-4` 16 (unidad base) · `space-5` 24 · `space-6` 32 · `space-8` 48 · `space-10` 64 · `space-12` 96 px.
 - Las secciones grandes respiran con `space-10` a `space-12`: el espacio generoso es parte de la marca.
+- **En el código se usa la escala de Tailwind** (también de 4px). Ojo: los nombres no coinciden a partir de `space-5`.
+
+  | DESIGN.md | `space-1` | `space-2` | `space-3` | `space-4` | `space-5` | `space-6` | `space-8` | `space-10` | `space-12` |
+  |---|---|---|---|---|---|---|---|---|---|
+  | Tailwind | `1` | `2` | `3` | `4` | `6` | `8` | `12` | `16` | `24` |
 - **Esquinas rectas:** `radius-none` en botones, inputs y cards (como las marcas grabadas y el frasco rectangular). `radius-sm` 2px para chips, `radius-md` 4px para fotos, `radius-pill` solo en pills y avatares.
 - La elevación se lee por la luminosidad de la superficie. `shadow-raised` y `shadow-overlay` se usan con moderación.
 

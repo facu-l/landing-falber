@@ -145,7 +145,7 @@ Navegador ──► Server Action
                idempotencia → validación → límite IP → cliente → límite pendientes
                → pedido → ítems (FOR UPDATE, precio y stock reales) → reserva de stock
                       │
-               4. revalidateTag('catalog')  (el stock cambió)
+               4. updateTag('catalog')  (el stock cambió; decisión 34)
                5. redirect('/pedido/<uuid>')
 ```
 
@@ -155,7 +155,7 @@ Navegador ──► Server Action
 |---|---|
 | 1 | Design system: tokens → CSS + Tailwind; Button/Input/Card reimplementados (el bundle pide React 18) |
 | 2 | Noir en la tienda, Platinum en `/admin` |
-| 3 | Catálogo cacheado; se invalida (`revalidateTag('catalog')`) al editar en el admin **y** al crear o cancelar pedidos |
+| 3 | Catálogo cacheado; se invalida (`updateTag('catalog')`, decisión 34) al editar en el admin **y** al crear o cancelar pedidos |
 | 4 | Errores: `message` = código estable (`INSUFFICIENT_STOCK`), `detail` = dato; mapa en TS |
 | 5 | Tipos generados con `supabase gen types`; estados y métodos como enums |
 | 6 | Columna generada `product_variants.label` |
@@ -196,6 +196,12 @@ Navegador ──► Server Action
 | 31 | **Filtros en la URL** (`?q=&marca=&genero=&tipo=`) con un form GET. Búsqueda sin tildes ni mayúsculas, palabra por palabra. Género **exacto** (Masculino no trae Unisex) | Funciona sin JavaScript, se puede compartir el link y es predecible |
 | 32 | **Route group `(store)`** con header y footer propios; el admin tendrá otro layout. `wordmark` escala con `clamp()` (28 → 40 px) como `display-xl` | El header no entraba en mobile con 40 px |
 | 33 | **El detalle no tiene botón de carrito** hasta la Fase 3. Un producto agotado enlaza a `/encargos?producto=<slug>`: **la Fase 4 tiene que leer ese parámetro** | No se muestra un botón que no hace nada |
+
+### H. Decisiones de la Fase 3 (checkout, 2026-10-05)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 34 | **`updateTag('catalog')` en las Server Actions** que cambian stock o productos (crear pedido, cancelar, editar en el admin). `revalidateTag(tag, 'max')` solo fuera de una Server Action (Route Handler, webhook). Reemplaza a `revalidateTag('catalog')` de la decisión 3 | `updateTag` vence el caché al instante y el próximo request espera los datos nuevos (leer lo que uno acaba de escribir). `revalidateTag` con `'max'` sirve stock viejo mientras revalida, y sin perfil está deprecado. Fuente: `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/updateTag.md` y `revalidateTag.md` (Next 16.3) |
 
 ---
 
@@ -450,11 +456,11 @@ Usá superpowers:test-driven-development. Implementá: carrito (localStorage, so
 variant_id + cantidad), normalización de WhatsApp argentino, checkout con zod +
 Turnstile + request_id (UUID al cargar) + botón deshabilitado al enviar, Server
 Action que llama create_order con service_role y hash de IP, mapa ORDER_ERRORS,
-revalidateTag('catalog'), /pedido/[id] con get_order_summary y el botón de
+updateTag('catalog'), /pedido/[id] con get_order_summary y el botón de
 WhatsApp. Test E2E de Playwright: compra completa.
 ```
 
-**Antes de empezar:** en Next 16, una Server Action que cambia el stock y después muestra datos frescos debería usar `updateTag('catalog')` (lectura inmediata de lo que acaba de escribir) en vez de `revalidateTag`, que sirve datos viejos mientras revalida. Confirmarlo en `node_modules/next/dist/docs/` antes de implementar. El carrito se agrega en `/producto/[slug]` (decisión 33).
+**Antes de empezar:** confirmado en la doc de Next 16.3: la Server Action usa `updateTag('catalog')`, no `revalidateTag` (decisión 34). El carrito se agrega en `/producto/[slug]` (decisión 33).
 
 Color de error: resuelto con el token `error` (Noir `#e5867d`, Platinum `#a8332b`), ya aplicado en `Input` (DESIGN.md → Regla del error). Falta copiarlo al artifact del design system.
 
@@ -473,7 +479,7 @@ create_perfume_request (Turnstile + hash de IP). Seguí DESIGN.md.
 Construí /admin/login y /admin/pedidos con tema Platinum según DESIGN.md:
 lista (pendientes primero, alerta de más de 48 h), detalle, cambio de estado
 (solo transiciones válidas) y costo de envío. requireAdmin() en cada acción,
-sesión del usuario (nunca service_role), revalidateTag('catalog') al cancelar.
+sesión del usuario (nunca service_role), updateTag('catalog') al cancelar.
 Test E2E: /admin sin sesión redirige y un no-admin no ve pedidos.
 ```
 
@@ -575,7 +581,7 @@ npm run test:db
 | `create_order` | Sin stock al confirmar | Sí (esquema) | `INSUFFICIENT_STOCK` | Mensaje claro |
 | Checkout | Doble click / reintento de red | Sí (esquema) + E2E | `request_id` | Mismo pedido |
 | Checkout | Ataque con números inventados | Sí (esquema) | Turnstile + límite IP | `RATE_LIMITED` |
-| Catálogo | Stock viejo en caché | E2E (fase 3) | `revalidateTag` | — |
+| Catálogo | Stock viejo en caché | E2E (fase 3) | `updateTag` | — |
 | Admin | Acción sin sesión | E2E (fase 5) | `requireAdmin()` + RLS | Redirige a login |
 | Supabase Free | Pausa tras 7 días sin uso | Manual | Keepalive diario | **Silencioso sin el keepalive** |
 | `/pedido/[id]` | ID adivinado | Sí (esquema) | UUID + resumen sin datos sensibles | — |

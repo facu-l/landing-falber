@@ -456,7 +456,7 @@ WhatsApp. Test E2E de Playwright: compra completa.
 
 **Antes de empezar:** en Next 16, una Server Action que cambia el stock y después muestra datos frescos debería usar `updateTag('catalog')` (lectura inmediata de lo que acaba de escribir) en vez de `revalidateTag`, que sirve datos viejos mientras revalida. Confirmarlo en `node_modules/next/dist/docs/` antes de implementar. El carrito se agrega en `/producto/[slug]` (decisión 33).
 
-DESIGN.md no define un color semántico de error. Hoy `Input` marca el error con borde `accent-strong` y el texto del mensaje (sin depender solo del color). Definirlo en el design system antes del checkout.
+Color de error: resuelto con el token `error` (Noir `#e5867d`, Platinum `#a8332b`), ya aplicado en `Input` (DESIGN.md → Regla del error). Falta copiarlo al artifact del design system.
 
 ### Fase 4 — Encargos
 

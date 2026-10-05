@@ -33,6 +33,7 @@
   --accent: #bfc2c5;
   --on-accent: #0b0c0e;
   --accent-strong: #e6e8ea;
+  --error: #e5867d;
 
   --elevation-raised: 0 1px 2px rgba(0, 0, 0, 0.5);
   --elevation-overlay: 0 12px 32px rgba(0, 0, 0, 0.65);
@@ -53,6 +54,7 @@
   --accent: #45494e;
   --on-accent: #f4f5f6;
   --accent-strong: #202226;
+  --error: #a8332b;
 
   --elevation-raised: 0 1px 2px rgba(11, 12, 14, 0.08);
   --elevation-overlay: 0 12px 32px rgba(11, 12, 14, 0.14);
@@ -81,6 +83,8 @@
   --color-accent: var(--accent);
   --color-on-accent: var(--on-accent);
   --color-accent-strong: var(--accent-strong);
+  /* Errores: siempre junto a texto explícito y aria-invalid, nunca como única señal */
+  --color-error: var(--error);
 
   /* Familias: las variables --font-cinzel / --font-montserrat las crea next/font en layout.tsx */
   --font-display: var(--font-cinzel), "Trajan Pro", "Optima", Georgia, serif;

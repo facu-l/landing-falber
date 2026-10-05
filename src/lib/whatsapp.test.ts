@@ -9,7 +9,7 @@ const order: OrderSummary = {
   paymentMethod: "transfer",
   deliveryMethod: "pickup",
   subtotal: 38500,
-  shippingCost: 0,
+  shippingCost: null,
   total: 38500,
   createdAt: "2026-10-05T12:00:00Z",
   customerFirstName: "Ana",

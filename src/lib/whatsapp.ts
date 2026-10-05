@@ -16,7 +16,7 @@ export function buildWhatsAppMessage(order: OrderSummary): string {
     (i) => `• ${i.quantity}x ${i.productName} — ${i.variantLabel} (${price(i.lineTotal)})`,
   );
   // El costo de envío lo carga el admin después; si ya está, el total lo incluye.
-  const shipping = order.shippingCost > 0 ? [`Envío: ${price(order.shippingCost)}`] : [];
+  const shipping = order.shippingCost ? [`Envío: ${price(order.shippingCost)}`] : [];
 
   return [
     `Hola FALBER. Quiero confirmar mi pedido ${order.orderNumber}.`,

@@ -49,14 +49,16 @@ async function expectError(db, name, sql, fragment, detailFragment) {
   catch (e) {
     const msgOk = e.message.includes(fragment);
     const detailOk = !detailFragment || String(e.detail || '').includes(detailFragment);
-    msgOk && detailOk ? ok(name) : bad(name, `${e.message} | detail: ${e.detail}`);
+    if (msgOk && detailOk) ok(name);
+    else bad(name, `${e.message} | detail: ${e.detail}`);
   }
   finally { await reset(db); }
 }
 async function one(db, sql) { return (await db.query(sql)).rows[0]; }
 function eq(name, actual, expected) {
   const same = typeof expected === 'number' ? Number(actual) === expected : String(actual) === String(expected);
-  same ? ok(name) : bad(name, `esperado ${expected}, obtuve ${actual}`);
+  if (same) ok(name);
+  else bad(name, `esperado ${expected}, obtuve ${actual}`);
 }
 
 const key = () => 'client-' + randomUUID(); // hash de IP simulado (>= 16 caracteres)

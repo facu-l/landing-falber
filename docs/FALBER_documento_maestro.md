@@ -1,10 +1,11 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v2.1 · 2026-10-05
+Tienda online de decants y perfumes · Next.js + Supabase · v3.0 · 2026-10-05
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
 **v2.2:** Fase 2 implementada en `feat/catalog`. Decisiones 26 a 33 (sección 3.G) y lecciones nuevas.
+**v3.0:** Fase 3 implementada en `feat/checkout` (PR #5): carrito, checkout, pedidos y WhatsApp. Decisiones 34 a 43 (sección 3.H), diagrama de la Server Action actualizado, lecciones, plan de tests y checklist de publicación.
 
 | Archivo | Para qué sirve |
 |---|---|

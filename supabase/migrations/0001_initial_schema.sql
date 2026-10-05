@@ -113,6 +113,8 @@ create table public.products (
   image_path  text,  -- ruta dentro del bucket product-images, no la URL completa
   gender      public.product_gender,
   status      public.product_status not null default 'active',
+  -- Aparece en "Destacados" de la home. Se marca a mano desde Studio.
+  is_featured boolean not null default false,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );

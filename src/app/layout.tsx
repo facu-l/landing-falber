@@ -18,7 +18,7 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: {
-    default: "FALBER — Fragrance experience",
+    default: "FALBER · Fragrance experience",
     template: "%s · FALBER",
   },
   description: "Decants y perfumes FALBER. Fragrance experience.",

@@ -70,7 +70,7 @@ aparecen las licenciadas, se cambian en un solo lugar.
 | `label` | sans | 12/16 | 600 | 0.18em | Labels y eyebrows, MAYÚSCULAS |
 | `caption` | sans | 11/15 | 400 | 0.04em | Letra chica |
 
-En mobile, `display-xl` baja a ~44px manteniendo el tracking: el hero no puede romper el ancho.
+En mobile, `display-xl` baja a ~44px y `wordmark` a ~28px, manteniendo el tracking: ni el hero ni el header pueden romper el ancho.
 
 **En el código:** cada estilo es una utilidad `text-<estilo>` (tamaño, línea, tracking y peso), definida en
 `src/app/globals.css`. La familia y las mayúsculas se agregan aparte: `font-display uppercase text-display-xl`,

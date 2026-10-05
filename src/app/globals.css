@@ -125,9 +125,9 @@
   --text-wordmark-serif--letter-spacing: 0.14em;
   --text-wordmark-serif--font-weight: 600;
 
-  /* Tracking nunca menor a 0.3em */
-  --text-wordmark: 2.5rem;
-  --text-wordmark--line-height: 2.75rem;
+  /* Tracking nunca menor a 0.3em. 40px en desktop, ~28px en mobile para que entre en el header */
+  --text-wordmark: clamp(1.75rem, 1rem + 3vw, 2.5rem);
+  --text-wordmark--line-height: 1.1;
   --text-wordmark--letter-spacing: 0.4em;
   --text-wordmark--font-weight: 300;
 

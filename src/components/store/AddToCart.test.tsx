@@ -48,6 +48,7 @@ describe("AddToCart", () => {
 
     expect(storedCart()).toEqual([{ variantId: decant10.id, quantity: 1 }]);
     expect(screen.getByRole("status").textContent).toMatch("Agregado al carrito");
+    expect(screen.getByRole("link", { name: "Ver carrito" }).getAttribute("href")).toBe("/carrito");
   });
 
   it(`avisa cuando ya hay ${MAX_QUANTITY} unidades de esa presentación`, () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { type AddOutcome, MAX_LINES, MAX_QUANTITY } from "@/lib/cart/cart";
@@ -72,8 +73,13 @@ export function AddToCart({ variants }: { variants: CatalogVariant[] }) {
         <Button onClick={handleAdd} disabled={!selectedId}>
           Agregar al carrito
         </Button>
-        <p role="status" className="text-body-sm text-text-secondary">
+        <p role="status" className="flex flex-wrap gap-x-3 text-body-sm text-text-secondary">
           {outcome && MESSAGES[outcome]}
+          {outcome && (
+            <Link href="/carrito" className="text-text underline underline-offset-4">
+              Ver carrito
+            </Link>
+          )}
         </p>
       </div>
     </div>

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Un push nuevo al mismo PR cancela la corrida anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, tipos, tests y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+      - name: Tipos
+        run: npm run typecheck
+      - name: Esquema de la base (PGlite)
+        run: npm run test:db
+      - name: Tests unitarios (Vitest)
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+      # Con CI=true, playwright.config.ts hace build + start (producción).
+      - name: Playwright
+        run: npm run test:e2e
+      - name: Subir reporte si falla
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

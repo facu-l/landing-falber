@@ -65,6 +65,12 @@ describe("parseCheckout", () => {
     });
   });
 
+  it("acepta que falten los campos opcionales (con retiro, el form no muestra la dirección)", () => {
+    const { requestId, fullName, whatsapp, deliveryMethod, paymentMethod, items } = valid;
+    const required = { requestId, fullName, whatsapp, deliveryMethod, paymentMethod, items };
+    expect(parseCheckout(required)).toMatchObject({ success: true, data: { email: null, address: null, note: null } });
+  });
+
   it("con retiro descarta la dirección que haya quedado cargada", () => {
     const result = parseCheckout({ ...valid, address: "Calle 7 1234", city: "La Plata" });
     expect(result).toMatchObject({ success: true, data: { address: null, city: null } });

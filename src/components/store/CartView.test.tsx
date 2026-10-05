@@ -40,6 +40,25 @@ describe("CartView", () => {
     expect(screen.getByTestId("cart-total").textContent).toMatch(/\$\s?20\.000/);
   });
 
+  it("con todo disponible lleva al checkout", () => {
+    withCart([{ variantId: SAUVAGE_5, quantity: 1 }]);
+    render(<CartView index={index} />);
+    expect(screen.getByRole("link", { name: "Finalizar compra" }).getAttribute("href")).toBe("/checkout");
+  });
+
+  it.each([
+    ["sin stock", SAUVAGE_100],
+    ["que ya no existe", GONE],
+  ])("con un producto %s no deja seguir al checkout", (_, variantId) => {
+    withCart([
+      { variantId: SAUVAGE_5, quantity: 1 },
+      { variantId, quantity: 1 },
+    ]);
+    render(<CartView index={index} />);
+    expect(screen.queryByRole("link", { name: "Finalizar compra" })).toBeNull();
+    expect(screen.getByText("Quitá los productos sin stock o no disponibles para seguir.")).toBeTruthy();
+  });
+
   it("cambiar la cantidad actualiza el carrito y el total", () => {
     withCart([{ variantId: SAUVAGE_5, quantity: 1 }]);
     render(<CartView index={index} />);

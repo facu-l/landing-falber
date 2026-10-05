@@ -91,7 +91,11 @@ export type CheckoutParseResult =
   | { success: true; data: CheckoutData }
   | { success: false; fieldErrors: CheckoutFieldErrors };
 
-export function parseCheckout(input: Record<string, unknown>): CheckoutParseResult {
+// Campos opcionales: un input que no se renderiza (ej. la dirección con retiro) no llega en el FormData.
+const OPTIONAL_FIELDS = { email: "", address: "", city: "", postalCode: "", reference: "", note: "" };
+
+export function parseCheckout(rawInput: Record<string, unknown>): CheckoutParseResult {
+  const input = { ...OPTIONAL_FIELDS, ...rawInput };
   const result = checkoutSchema.safeParse(input);
   const fieldErrors = crossFieldErrors(input);
 

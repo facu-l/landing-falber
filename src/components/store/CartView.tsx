@@ -23,7 +23,7 @@ export function CartView({ index }: { index: VariantIndex }) {
   if (!isClient) return <CartSkeleton />;
   if (cart.length === 0) return <EmptyCart />;
 
-  const { items, missing, total } = resolveCart(cart, index);
+  const { items, missing, total, canCheckout } = resolveCart(cart, index);
 
   return (
     <div className="grid gap-12 md:grid-cols-[1fr_20rem] md:gap-16">
@@ -55,6 +55,13 @@ export function CartView({ index }: { index: VariantIndex }) {
           </span>
         </div>
         <p className="text-caption text-text-muted">El envío, si corresponde, se coordina por WhatsApp.</p>
+        {canCheckout ? (
+          <Link href="/checkout" className={buttonClasses("primary", "w-full")}>
+            Finalizar compra
+          </Link>
+        ) : (
+          <p className="text-body-sm text-text-secondary">Quitá los productos sin stock o no disponibles para seguir.</p>
+        )}
       </aside>
     </div>
   );
@@ -112,7 +119,7 @@ function CartItem({ item }: { item: CartItemView }) {
   );
 }
 
-function EmptyCart() {
+export function EmptyCart() {
   return (
     <div className="flex flex-col items-start gap-6">
       <p className="text-body text-text-secondary">Tu carrito está vacío.</p>

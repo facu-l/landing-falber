@@ -40,7 +40,7 @@ jobs:
       # Supabase local con el seed fijo (supabase/seed.sql), no la nube: los tests no
       # dependen de datos reales que cambian. Solo db, auth y API (sin Studio ni Storage).
       - name: Supabase local
-        run: npx supabase start -x storage-api,imgproxy,studio,postgres-meta,edge-runtime,logflare,vector,realtime,mailpit,supavisor
+        run: npm run db:start:lite
       - name: Variables de Supabase local
         run: |
           npx supabase status -o env             --override-name api.url=NEXT_PUBLIC_SUPABASE_URL             --override-name auth.publishable_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY             | grep '^NEXT_PUBLIC_SUPABASE_' | sed 's/"//g' >> "$GITHUB_ENV"
@@ -65,7 +65,7 @@ jobs:
       # Supabase local con el seed fijo (supabase/seed.sql), no la nube: los tests no
       # dependen de datos reales que cambian. Solo db, auth y API (sin Studio ni Storage).
       - name: Supabase local
-        run: npx supabase start -x storage-api,imgproxy,studio,postgres-meta,edge-runtime,logflare,vector,realtime,mailpit,supavisor
+        run: npm run db:start:lite
       - name: Variables de Supabase local
         run: |
           npx supabase status -o env             --override-name api.url=NEXT_PUBLIC_SUPABASE_URL             --override-name auth.publishable_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY             | grep '^NEXT_PUBLIC_SUPABASE_' | sed 's/"//g' >> "$GITHUB_ENV"

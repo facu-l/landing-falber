@@ -982,16 +982,23 @@ create policy "profiles: read own or admin"
 -- Storage: fotos de productos (lectura pública, escritura solo admin)
 -- Las tablas storage.* las crea el servicio de Storage, no Postgres. En la nube
 -- ya existen al migrar; con `supabase start` todavía no (storage-api arranca
--- después de las migraciones). Por eso esta sección es condicional: si las
--- tablas no existen, avisa con un NOTICE en vez de romper la migración.
+-- después de las migraciones). Por eso, si las tablas no existen:
+--   - en local (existe el rol marcador falber_local_dev, creado en supabase/roles.sql)
+--     se omite la sección con un NOTICE;
+--   - en cualquier otro entorno la migración FALLA: mejor un deploy frenado que
+--     producción sin bucket ni policies de fotos.
 -- Ver TODOS.md → "Storage local".
 -- -----------------------------------------------------------------------------
 
 do $storage$
 begin
   if to_regclass('storage.objects') is null then
-    raise notice 'storage.objects no existe todavía: se omiten bucket y policies de product-images';
-    return;
+    if exists (select 1 from pg_roles where rolname = 'falber_local_dev') then
+      raise notice 'storage.objects no existe todavía (local): se omiten bucket y policies de product-images';
+      return;
+    end if;
+    raise exception 'STORAGE_TABLES_MISSING'
+      using detail = 'storage.objects no existe: el bucket product-images y sus policies no se pueden crear';
   end if;
 
   insert into storage.buckets (id, name, public)

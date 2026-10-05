@@ -87,13 +87,29 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   eq('storage: crea las 3 policies de escritura del admin',
     (await one(db, `select count(*) n from pg_policies where schemaname = 'storage' and policyname like 'product-images:%'`)).n, 3);
 
-  // ...y sin ellas (supabase start: storage-api las crea después) no rompe la migración.
+  // ...sin ellas, en local (rol marcador de supabase/roles.sql) sigue con un NOTICE...
+  const STUB_WITHOUT_STORAGE_TABLES = SUPABASE_STUB.replace(/^create table storage\..*$|^alter table storage\..*$/gm, '');
   {
-    const bare = new PGlite();
-    await bare.exec(SUPABASE_STUB.replace(/^create table storage\..*$|^alter table storage\..*$/gm, ''));
-    try { await bare.exec(fs.readFileSync(MIGRATION, 'utf8')); ok('storage: sin tablas de storage la migración igual se aplica'); }
-    catch (e) { bad('storage: sin tablas de storage la migración igual se aplica', e.message); }
-    await bare.close();
+    const local = new PGlite();
+    await local.exec(STUB_WITHOUT_STORAGE_TABLES);
+    await local.exec(fs.readFileSync(path.join(__dirname, '..', 'roles.sql'), 'utf8'));
+    try { await local.exec(fs.readFileSync(MIGRATION, 'utf8')); ok('storage local: sin tablas la migración igual se aplica'); }
+    catch (e) { bad('storage local: sin tablas la migración igual se aplica', e.message); }
+    eq('storage local: no deja policies a medias',
+      (await one(local, `select count(*) n from pg_policies where schemaname = 'storage'`)).n, 0);
+    eq('storage local: el resto del esquema queda completo (create_order existe)',
+      (await one(local, `select exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public' and p.proname = 'create_order') as ok`)).ok, true);
+    await local.close();
+  }
+
+  // ...y sin ellas fuera de local (nube sin Storage listo) la migración FALLA en vez de seguir en silencio.
+  {
+    const cloud = new PGlite();
+    await cloud.exec(STUB_WITHOUT_STORAGE_TABLES);
+    await expectError(cloud, 'storage nube: sin tablas la migración falla con STORAGE_TABLES_MISSING',
+      fs.readFileSync(MIGRATION, 'utf8'), 'STORAGE_TABLES_MISSING');
+    await cloud.close();
   }
 
   // Seed (como el rol postgres = Supabase SQL Editor)

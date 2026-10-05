@@ -477,7 +477,7 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 - [ ] Doble click en "Realizar compra" crea un solo pedido.
 - [ ] Cancelar un pedido devuelve el stock y la tienda lo muestra.
 - [ ] pg_cron activo (`select * from cron.job`).
-- [ ] Bucket `product-images` y sus 3 policies creados (`select * from storage.buckets`; `select policyname from pg_policies where schemaname = 'storage'`). La sección de Storage de `0001` es condicional: si no existieran, solo deja un NOTICE.
+- [ ] Bucket `product-images` y sus 3 policies creados (`select * from storage.buckets`; `select policyname from pg_policies where schemaname = 'storage'`). Si las tablas de Storage no existieran al migrar, `0001` falla con `STORAGE_TABLES_MISSING` (solo en local, con el rol `falber_local_dev` de `supabase/roles.sql`, se omite con un NOTICE).
 - [ ] GitHub Action de keepalive + backup corriendo.
 - [ ] Deploy en Netlify (no Vercel Hobby: prohíbe uso comercial).
 - [ ] Prueba en iPhone y Android; aviso de datos personales en el checkout.
@@ -487,8 +487,7 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 ## Anexo — Correr los tests del esquema
 
 ```bash
-npm i -D @electric-sql/pglite
-node supabase/tests/schema.test.cjs
+npm run test:db
 ```
 
 **Huecos en la numeración:** un pedido rechazado consume un número de la secuencia. Que exista `FAL-0003` y después `FAL-0005` es normal.

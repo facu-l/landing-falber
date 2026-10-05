@@ -1,8 +1,9 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v2.0 · 2026-10-04
+Tienda online de decants y perfumes · Next.js + Supabase · v2.1 · 2026-10-05
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
+**v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -31,7 +32,7 @@ En vez de crear las tablas con clicks en Supabase, se escriben en un `.sql` que 
 - **Queda en Git:** se ve quién cambió qué y cuándo.
 - **Es incremental:** después del primer deploy, `0001` no se toca más; cada cambio es un archivo nuevo (`0003_...`). **Mientras no haya deploy, `0001` se edita directamente** (decisión 15e).
 
-Para aplicarla: Supabase → *SQL Editor* → pegar `0001` → *Run*; habilitar la extensión `pg_cron` → pegar `0002` → *Run*.
+Para aplicarla: Supabase → *SQL Editor* → pegar `0001` → *Run*; habilitar la extensión `pg_cron` → pegar `0002` → *Run*. En local: `npm run db:start` (o `npm run db:reset`) aplica las dos solas.
 
 ### Por qué la lógica está en la base de datos
 
@@ -166,6 +167,21 @@ Navegador ──► Server Action
 | 13 | Hosting: **Netlify Free** (permite uso comercial; Vercel Hobby no) + keepalive y backup diario de Supabase |
 | 14 | Un solo punto de retiro: "Retiro en La Plata" |
 | 15 | Ajustes: caché también tras pedidos; `requireAdmin()` en cada acción; idempotencia busca primero; errores de constraints mapeados + log; probar 0001 contra `supabase start` |
+
+### F. Decisiones de la Fase 1 (implementación, 2026-10-05)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 16 | **Tokens en `src/app/globals.css`:** variables por tema (`:root` = Noir, `[data-theme="light"]` = Platinum) + `@theme inline`. Estilos de texto como utilidades `text-<estilo>` en `rem`; `display-xl` con `clamp()` (44 → 72 px). Un test (`src/styles/tokens.test.ts`) falla si el CSS se desfasa de `falber-tokens.json` | La sincronización es manual: un hex mal copiado no rompe nada visible |
+| 17 | **Espaciado: escala de Tailwind, sin redefinirla.** Tabla de equivalencias en DESIGN.md (`space-5` = `6`, `space-12` = `24`) | Redefinirla rompería lo que se sabe de Tailwind; los nombres no coinciden a partir de `space-5` |
+| 18 | **Sin `tailwind-merge`:** `cn()` solo une clases; el `className` de un componente es para layout | `tailwind-merge` confunde `text-label` con un color y lo borra en silencio |
+| 19 | **Tres clientes de Supabase:** `client.ts` (navegador), `server.ts` (sesión por cookies, para el admin) y `service.ts` (`service_role`, solo para las 3 RPC). Los dos de servidor importan `server-only` | Si la clave de servicio se importa desde el cliente, la build falla |
+| 20 | **Variables de entorno:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (clave publishable nueva, no la anon), `SUPABASE_SERVICE_ROLE_KEY` (acepta la secret `sb_secret_...`), `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `IP_HASH_SECRET`. Plantilla en `.env.example` con las claves de prueba de Turnstile (`1x00000000000000000000BB`: invisible, siempre pasa) | Un solo lugar documenta qué necesita cada entorno |
+| 21 | **Registro público de Auth desactivado** (en local por `config.toml`; en la nube a mano, en el checklist) | Solo existe el admin: cualquier cuenta nueva es superficie de ataque gratis |
+| 22 | **Storage en `0001`:** si faltan las tablas de Storage, la migración falla con `STORAGE_TABLES_MISSING`, salvo en local, donde existe el rol marcador `falber_local_dev` (`supabase/roles.sql`, que corre antes de las migraciones). Storage local no funciona con CLI 2.119 (TODOS.md) | En local `storage-api` crea sus tablas después de las migraciones; en la nube es mejor un deploy frenado que producción sin bucket ni policies |
+| 23 | **Node 24** fijado en `.nvmrc` (lo leen CI, nvm y Netlify) y `@types/node@^24` | Los tipos tienen que corresponder al runtime real |
+| 24 | **CI en cada PR** (`.github/workflows/ci.yml`): lint con 0 warnings, `typecheck` (`next typegen` + `tsc`), `test:db`, Vitest y build en un job; Playwright (escritorio + Pixel 7) sobre la build de producción en otro | Tests en verde en una sola máquina no alcanzan; el CI encontró dos fallos que en local no aparecían |
+| 25 | **Git:** LF obligatorio (`.gitattributes`); lockfile validado en Linux (`npm ci` del runner); PRs con **merge commit** para conservar los commits atómicos. Sin protección de rama (repo privado en plan gratis): antes de mergear se verifica el CI en verde a mano, nunca con auto-merge | En el plan gratis, el auto-merge de GitHub no espera al CI |
 
 ---
 
@@ -370,17 +386,26 @@ Una **sesión nueva por fase**, una **rama por fase** (`git switch -c feat/...`)
 - Fotos reales de productos (fondo oscuro o neutro), catálogo inicial, número de WhatsApp.
 - Cuentas: Supabase, Netlify y Cloudflare (Turnstile). Docker instalado (para `supabase start`).
 
-### Fase 1 — Base + Supabase + design system
+### Fase 1 — Base + Supabase + design system (hecha: PR #1, 2026-10-05)
 
 ```text
-Leé docs/FALBER_documento_maestro.md y DESIGN.md. Creá el proyecto Next.js +
-TypeScript + Tailwind v4. Pasá design/falber-tokens.json a variables CSS por tema
-(Noir/Platinum) + @theme de Tailwind, cargá Cinzel y Montserrat con next/font y
-reimplementá Button, Input y Card en src/components/ui. Configurá Supabase
-(supabase init, clientes browser/server), aplicá las migraciones contra
+Leé docs/FALBER_documento_maestro.md, DESIGN.md y CLAUDE.md. Arrancamos la Fase 1
+en la rama feat/base. Creá el proyecto Next.js + TypeScript + Tailwind v4. Pasá
+design/falber-tokens.json a variables CSS por tema (Noir/Platinum) + @theme de
+Tailwind, cargá Cinzel y Montserrat con next/font y reimplementá Button, Input y
+Card en src/components/ui. Configurá Supabase (supabase CLI como devDependency,
+supabase init, clientes browser/server), aplicá las migraciones contra
 `supabase start`, corré supabase/tests/schema.test.cjs y generá los tipos con
-`supabase gen types`. Configurá Vitest y Playwright.
+`supabase gen types`. Configurá Vitest y Playwright. Para Turnstile usá las claves
+de prueba de Cloudflare. Commits atómicos por cada paso.
 ```
+
+Después, en la misma sesión: CI de GitHub Actions para los PR, `.gitattributes` (LF), `/review` y merge con merge commit. Las decisiones que salieron están en la sección 3.F.
+
+**Lecciones para las próximas fases:**
+- Liberá espacio antes de `supabase start`: las imágenes de Docker pesan ~6 GB, y con el disco lleno el primer arranque deja todo a medias.
+- Si `next dev` ya corre, `npm ci` falla con `EPERM` en Windows: frená el dev server antes de reinstalar dependencias.
+- "En mi máquina anda" no alcanza: el CI encontró dos cosas que en local pasaban (tipos de Next sin generar y un lockfile incompleto para Linux).
 
 ### Fase 2 — Tienda (catálogo y producto)
 
@@ -394,6 +419,10 @@ Antes de codear, decime qué dirección de diseño inferís.
 
 **Por qué esos diales:** la marca pide sobriedad. Motion bajo (3) porque el lujo está en la quietud y el espacio, no en la animación.
 
+**Antes de empezar (pendientes de la Fase 1):**
+- Cuando la build lea el catálogo, el CI necesita las variables de Supabase: GitHub → Settings → Secrets and variables → Actions, y pasarlas en `ci.yml`.
+- Fotos en local: Storage local no funciona (decisión 22, TODOS.md → "Storage local"). Alternativa mientras tanto: imágenes de prueba en `public/`.
+
 ### Fase 3 — Carrito, checkout, pedidos y WhatsApp
 
 ```text
@@ -404,6 +433,8 @@ Action que llama create_order con service_role y hash de IP, mapa ORDER_ERRORS,
 revalidateTag('catalog'), /pedido/[id] con get_order_summary y el botón de
 WhatsApp. Test E2E de Playwright: compra completa.
 ```
+
+**Antes de empezar:** DESIGN.md no define un color semántico de error. Hoy `Input` marca el error con borde `accent-strong` y el texto del mensaje (sin depender solo del color). Definirlo en el design system antes del checkout.
 
 ### Fase 4 — Encargos
 
@@ -421,6 +452,10 @@ lista (pendientes primero, alerta de más de 48 h), detalle, cambio de estado
 sesión del usuario (nunca service_role), revalidateTag('catalog') al cancelar.
 Test E2E: /admin sin sesión redirige y un no-admin no ve pedidos.
 ```
+
+**Antes de empezar (pendientes de la Fase 1):**
+- Hoy el layout raíz fija `<html data-theme="dark">`. Para Platinum en `/admin`, el layout de admin pone `data-theme="light"` en un contenedor con `bg-surface` (los tokens funcionan en cualquier elemento) o se usan route groups con layouts raíz separados.
+- Falta `src/proxy.ts` (el middleware de Next 16) para refrescar la sesión en cada navegación. Solo redirige: la seguridad sigue en `requireAdmin()` + RLS.
 
 ### Fase 6 — Operación y lanzamiento
 
@@ -443,9 +478,11 @@ Fase 1 base + DS ─► Fase 2 tienda (taste-skill) ─► Fase 3 checkout (TDD)
 
 | Capa | Herramienta | Qué cubre |
 |---|---|---|
-| Base de datos | `schema.test.cjs` (PGlite) | Todas las reglas de la sección 7 y el flujo de `create_order` |
-| Lógica pura | Vitest | `whatsapp.ts` (mensaje y URL), `phone.ts` (formatos reales + inválidos), `cart.ts` (agregar, quitar, cantidad máx.), `order-errors.ts` (cada código + desconocido), schema zod del checkout |
-| Flujos | Playwright | Compra completa (carrito → pedido → link de WhatsApp correcto); `/admin` sin sesión → login; no-admin no ve pedidos |
+| Base de datos | `schema.test.cjs` (PGlite) | Todas las reglas de la sección 7, el flujo de `create_order` y los tres caminos de Storage (decisión 22) |
+| Lógica pura | Vitest | Ya existen: tokens vs `falber-tokens.json`, contrato de `Button`/`Input`, `required()` de env. Por venir: `whatsapp.ts` (mensaje y URL), `phone.ts` (formatos reales + inválidos), `cart.ts` (agregar, quitar, cantidad máx.), `order-errors.ts` (cada código + desconocido), schema zod del checkout |
+| Flujos | Playwright | Ya existe: smoke de la home (tema Noir, `es-AR`, sin desborde en mobile). Por venir: compra completa (carrito → pedido → link de WhatsApp correcto); `/admin` sin sesión → login; no-admin no ve pedidos |
+
+Las tres capas corren en el CI en cada PR (decisión 24): `npm run test:db`, `npm test` y `npm run test:e2e`.
 
 Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", carrito con un producto que ya no existe o está inactivo, sin stock al confirmar, efectivo + envío.
 

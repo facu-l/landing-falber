@@ -36,6 +36,15 @@ jobs:
         run: npm run test:db
       - name: Tests unitarios (Vitest)
         run: npm test
+      # La build prerenderiza el catálogo: necesita una base con datos.
+      # Supabase local con el seed fijo (supabase/seed.sql), no la nube: los tests no
+      # dependen de datos reales que cambian. Solo db, auth y API (sin Studio ni Storage).
+      - name: Supabase local
+        run: npx supabase start -x storage-api,imgproxy,studio,postgres-meta,edge-runtime,logflare,vector,realtime,mailpit,supavisor
+      - name: Variables de Supabase local
+        run: |
+          npx supabase status -o env             --override-name api.url=NEXT_PUBLIC_SUPABASE_URL             --override-name auth.publishable_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY             | grep '^NEXT_PUBLIC_SUPABASE_' | sed 's/"//g' >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL=/product-images" >> "$GITHUB_ENV"
       - name: Build
         run: npm run build
 
@@ -52,6 +61,15 @@ jobs:
       - run: npm ci
       - name: Instalar Chromium
         run: npx playwright install --with-deps chromium
+      # La build prerenderiza el catálogo: necesita una base con datos.
+      # Supabase local con el seed fijo (supabase/seed.sql), no la nube: los tests no
+      # dependen de datos reales que cambian. Solo db, auth y API (sin Studio ni Storage).
+      - name: Supabase local
+        run: npx supabase start -x storage-api,imgproxy,studio,postgres-meta,edge-runtime,logflare,vector,realtime,mailpit,supavisor
+      - name: Variables de Supabase local
+        run: |
+          npx supabase status -o env             --override-name api.url=NEXT_PUBLIC_SUPABASE_URL             --override-name auth.publishable_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY             | grep '^NEXT_PUBLIC_SUPABASE_' | sed 's/"//g' >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL=/product-images" >> "$GITHUB_ENV"
       # Build en un paso propio: si falla (ej. Google Fonts), el error es claro
       # y no consume el timeout del webServer de Playwright.
       - name: Build

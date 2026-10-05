@@ -37,6 +37,8 @@ Stack: Next.js (App Router) + TypeScript + Tailwind v4 + Supabase. Hosting: Netl
 
 Commits atómicos en inglés: `type(scope): description` (feat, fix, refactor, docs, test, chore, style). Una rama por fase.
 
+Al cerrar cada fase (una vez por PR, no en cada cambio), regenerar el PDF del documento maestro con el skill `make-pdf` (`--cover --toc --author "Facundo"`) y commitearlo como `docs(architecture): regenerate master document PDF for vX.Y`. Es binario (~900 KB): cada versión queda entera en el historial.
+
 ## Skill routing
 
 When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.

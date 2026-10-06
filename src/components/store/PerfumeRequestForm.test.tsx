@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useEffect } from "react";
+import { Activity, useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RequestPrefill } from "@/lib/requests/prefill";
 import type { RequestState } from "@/lib/requests/state";
@@ -146,6 +146,68 @@ describe("PerfumeRequestForm al enviar", () => {
     expect(confirmation.textContent).toMatch(/te escribimos por WhatsApp/i);
     expect(confirmation.textContent).not.toMatch(/[!¡]/);
     expect(screen.queryByRole("button", { name: "Enviar encargo" })).toBeNull();
+  });
+
+  it("si Next esconde la página (Activity) después de un encargo, al volver muestra el formulario vacío", async () => {
+    mocks.createPerfumeRequest.mockResolvedValue({ status: "success", perfumeName: "Sauvage EDT" });
+    const { rerender } = render(
+      <Activity mode="visible">
+        <PerfumeRequestForm prefill={null} />
+      </Activity>,
+    );
+    type("Perfume", "Sauvage EDT");
+    fillCustomer();
+    submit();
+    await screen.findByRole("status");
+
+    rerender(
+      <Activity mode="hidden">
+        <PerfumeRequestForm prefill={null} />
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <PerfumeRequestForm prefill={null} />
+      </Activity>,
+    );
+
+    // El reset corre en una transición: hay que esperarlo.
+    expect(((await screen.findByLabelText("Perfume", { exact: true })) as HTMLInputElement).value).toBe("");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("en un encargo libre la confirmación se queda (no se resetea sola en el próximo render)", async () => {
+    mocks.createPerfumeRequest.mockResolvedValue({ status: "success", perfumeName: "Oud Wood" });
+    render(<PerfumeRequestForm prefill={null} />);
+    type("Perfume", "Oud Wood");
+    fillCustomer();
+    submit();
+
+    await screen.findByRole("status");
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+    expect(screen.getByRole("status").textContent).toMatch("Oud Wood");
+  });
+
+  it("si Next esconde la página a mitad de un borrador, lo escrito se conserva", () => {
+    const { rerender } = render(
+      <Activity mode="visible">
+        <PerfumeRequestForm prefill={null} />
+      </Activity>,
+    );
+    type("Perfume", "Borrador");
+
+    rerender(
+      <Activity mode="hidden">
+        <PerfumeRequestForm prefill={null} />
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <PerfumeRequestForm prefill={null} />
+      </Activity>,
+    );
+
+    expect(field("Perfume").value).toBe("Borrador");
   });
 
   it("con error muestra los mensajes, conserva lo escrito y pide un token nuevo", async () => {

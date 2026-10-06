@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useLayoutEffect, useRef, useState } from "react";
 import { createPerfumeRequest } from "@/app/(store)/encargos/actions";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -19,18 +19,45 @@ import { TurnstileField } from "./TurnstileField";
  *   entre las agotadas; su id va como variantId.
  * - El botón se deshabilita mientras la acción corre (doble click).
  * - Al terminar, la confirmación reemplaza al formulario en la misma página.
+ * - Con Cache Components, Next esconde la página al salir (<Activity>) en vez de
+ *   desmontarla: sin el reset de abajo, volver por un link mostraría la confirmación vieja.
  */
+const RESET = "reset";
+
 export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null }) {
   const variants = prefill?.variants ?? [];
-  const [variantId, setVariantId] = useState(variants[0]?.id ?? "");
+  // String y no el array: sin prefill, `variants` es un [] nuevo en cada render y el
+  // layout effect de abajo correría (y resetearía) en cada render.
+  const firstVariantId = variants[0]?.id ?? "";
+  const [variantId, setVariantId] = useState(firstVariantId);
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const resetWhenHidden = useRef(false);
 
-  const [state, formAction, pending] = useActionState(async (prev: RequestState, formData: FormData) => {
-    const next = await createPerfumeRequest(prev, formData);
-    // El token ya se usó (o era inválido): Turnstile tiene que dar uno nuevo.
-    if (next.status === "error") setTurnstileResetKey((key) => key + 1);
-    return next;
-  }, INITIAL_REQUEST_STATE);
+  const [state, formAction, pending] = useActionState(
+    async (prev: RequestState, input: FormData | typeof RESET) => {
+      if (input === RESET) return INITIAL_REQUEST_STATE;
+      const next = await createPerfumeRequest(prev, input);
+      // El token ya se usó (o era inválido): Turnstile tiene que dar uno nuevo.
+      if (next.status === "error") setTurnstileResetKey((key) => key + 1);
+      if (next.status === "success") resetWhenHidden.current = true;
+      return next;
+    },
+    INITIAL_REQUEST_STATE,
+  );
+
+  /*
+   * Patrón de la guía de Next (preserving-ui-state.md): la limpieza de un layout effect
+   * corre cuando Activity esconde la página. Solo se resetea después de un encargo
+   * enviado: un borrador a medio escribir se conserva al ir y volver.
+   */
+  useLayoutEffect(() => {
+    return () => {
+      if (!resetWhenHidden.current) return;
+      resetWhenHidden.current = false;
+      setVariantId(firstVariantId);
+      startTransition(() => formAction(RESET));
+    };
+  }, [formAction, firstVariantId]);
 
   if (state.status === "success") return <Confirmation perfumeName={state.perfumeName} />;
 

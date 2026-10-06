@@ -47,6 +47,25 @@ test("encargo desde un producto agotado: llega con el perfume precargado", async
   await expect(confirmation).toContainText("Te escribimos por WhatsApp");
 });
 
+test("un segundo encargo en la misma pestaña empieza con el formulario vacío", async ({ page }) => {
+  await page.goto("/encargos");
+  await field(page, "Perfume").fill("Primer encargo");
+  await fillCustomer(page);
+  await send(page);
+  await expect(page.getByRole("status").filter({ hasText: "Encargo recibido" })).toBeVisible();
+
+  // Solo links: con Cache Components, Next esconde la página en vez de desmontarla
+  // (Activity) y un page.goto recargaría todo, escondiendo el problema.
+  await page.getByRole("link", { name: "Volver al catálogo" }).click();
+  await expect(page).toHaveURL("/catalogo");
+  await page.getByRole("link", { name: "FALBER, inicio" }).click();
+  await page.getByRole("link", { name: "Hacer un encargo" }).click();
+
+  await expect(page).toHaveURL("/encargos");
+  await expect(page.getByRole("status").filter({ hasText: "Encargo recibido" })).toHaveCount(0);
+  await expect(field(page, "Perfume")).toHaveValue("");
+});
+
 test("encargo libre, sin producto", async ({ page }) => {
   await page.goto("/encargos");
   await expect(field(page, "Perfume")).toHaveValue("");

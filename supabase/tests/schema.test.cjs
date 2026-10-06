@@ -326,6 +326,18 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   eq('el ranking agrupa "Oud Wood" y " oud wood "', (await one(db, `select total_requests from perfume_requests_ranking where perfume_key='oud wood'`)).total_requests, 2);
   await expectError(db, 'encargo de una variante inexistente → VARIANT_NOT_FOUND',
     `select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', 'Algo', null, null, null, 'bbbbbbbb-0000-0000-0000-00000000dead')`, 'VARIANT_NOT_FOUND');
+  await db.exec(`select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', 'Largo', repeat('m', 60), repeat('p', 60), null)`);
+  ok('encargo con marca y presentación de 60 caracteres (el máximo)');
+  await expectError(db, 'encargo con marca de 61 caracteres → INVALID_BRAND',
+    `select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', 'Algo', repeat('m', 61), null, null)`, 'INVALID_BRAND');
+  await expectError(db, 'encargo con presentación de 61 caracteres → INVALID_PRESENTATION',
+    `select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', 'Algo', null, repeat('p', 61), null)`, 'INVALID_PRESENTATION');
+  await expectError(db, 'Studio tampoco guarda una marca de 61 caracteres (check de la tabla)',
+    `insert into perfume_requests (customer_id, customer_name, perfume_name, brand)
+     select id, 'Ana', 'Algo', repeat('m', 61) from customers limit 1`, 'check constraint');
+  await expectError(db, 'Studio tampoco guarda una presentación de 61 caracteres (check de la tabla)',
+    `insert into perfume_requests (customer_id, customer_name, perfume_name, presentation)
+     select id, 'Ana', 'Algo', repeat('p', 61) from customers limit 1`, 'check constraint');
   await db.exec(`select setval('order_number_seq', 12344)`);
   eq('numeración no se trunca después de 9999', (await one(db, 'select public.next_order_number() n')).n, 'FAL-12345');
 

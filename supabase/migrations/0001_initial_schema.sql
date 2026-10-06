@@ -369,8 +369,8 @@ create table public.perfume_requests (
   customer_name text not null, -- snapshot, igual que en orders
   variant_id    uuid references public.product_variants (id), -- caso A: existe pero está agotado
   perfume_name  text not null check (length(trim(perfume_name)) between 2 and 120),
-  brand         text,
-  presentation  text,
+  brand         text check (length(brand) <= 60),
+  presentation  text check (length(presentation) <= 60),
   note          varchar(100),
   status        public.request_status not null default 'pending',
   created_at    timestamptz not null default now(),
@@ -722,6 +722,8 @@ as $$
 declare
   v_name        text := trim(coalesce(p_full_name, ''));
   v_perfume     text := trim(coalesce(p_perfume_name, ''));
+  v_brand        text := nullif(trim(coalesce(p_brand, '')), '');
+  v_presentation text := nullif(trim(coalesce(p_presentation, '')), '');
   v_note        text := nullif(trim(coalesce(p_note, '')), '');
   v_customer_id uuid;
   v_request_id  uuid;
@@ -734,6 +736,12 @@ begin
   end if;
   if length(v_perfume) not between 2 and 120 then
     raise exception using message = 'INVALID_PERFUME_NAME';
+  end if;
+  if length(v_brand) > 60 then
+    raise exception using message = 'INVALID_BRAND';
+  end if;
+  if length(v_presentation) > 60 then
+    raise exception using message = 'INVALID_PRESENTATION';
   end if;
   if v_note is not null and length(v_note) > 100 then
     raise exception using message = 'NOTE_TOO_LONG';
@@ -755,8 +763,7 @@ begin
 
   insert into perfume_requests (customer_id, customer_name, variant_id, perfume_name, brand, presentation, note)
   values (
-    v_customer_id, v_name, p_variant_id, v_perfume,
-    nullif(trim(coalesce(p_brand, '')), ''), nullif(trim(coalesce(p_presentation, '')), ''), v_note
+    v_customer_id, v_name, p_variant_id, v_perfume, v_brand, v_presentation, v_note
   )
   returning id into v_request_id;
 

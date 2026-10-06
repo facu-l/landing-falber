@@ -115,7 +115,16 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
         </FormSection>
 
         <FormSection title="Entrega">
-          <RadioGroup legend="Cómo querés recibir tu pedido" error={errors.deliveryMethod}>
+          {/*
+            key: después de la acción React resetea el <form> y cada radio vuelve a su
+            defaultChecked, que React marca solo al montarlo. Sin remontar el grupo con
+            lo que se mandó, el DOM volvería a "Retiro" aunque el estado diga "Envío".
+          */}
+          <RadioGroup
+            key={values.deliveryMethod ?? "initial"}
+            legend="Cómo querés recibir tu pedido"
+            error={errors.deliveryMethod}
+          >
             <RadioOption
               name="deliveryMethod"
               value="pickup"
@@ -175,7 +184,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
         </FormSection>
 
         <FormSection title="Pago">
-          <RadioGroup legend="Cómo vas a pagar" error={errors.paymentMethod}>
+          <RadioGroup key={values.paymentMethod ?? "initial"} legend="Cómo vas a pagar" error={errors.paymentMethod}>
             <RadioOption
               name="paymentMethod"
               value="transfer"

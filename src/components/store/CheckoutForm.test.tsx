@@ -161,6 +161,28 @@ describe("CheckoutForm", () => {
     expect(localStorage.getItem(CART_STORAGE_KEY)).not.toBeNull();
   });
 
+  it("después de un error conserva la entrega y el pago elegidos (el reset del form no los desmarca)", async () => {
+    mocks.createOrder.mockResolvedValue({
+      status: "error",
+      message: "Demasiados intentos. Probá de nuevo en un rato.",
+      values: { deliveryMethod: "delivery", paymentMethod: "transfer" },
+    });
+    render(<CheckoutForm index={index} />);
+    fireEvent.click(screen.getByRole("radio", { name: /Envío a domicilio/ }));
+    fillValidForm();
+    submit();
+    await screen.findByRole("alert");
+
+    expect(screen.getByRole("radio", { name: /Envío a domicilio/ })).toHaveProperty("checked", true);
+    expect(screen.getByRole("radio", { name: /Retiro en La Plata/ })).toHaveProperty("checked", false);
+    expect(screen.getByRole("radio", { name: /Transferencia/ })).toHaveProperty("checked", true);
+
+    // El reintento sale con envío, no con retiro.
+    submit();
+    await waitFor(() => expect(mocks.createOrder).toHaveBeenCalledTimes(2));
+    expect(sentForm().get("deliveryMethod")).toBe("delivery");
+  });
+
   it("reintenta con el mismo request_id (si el primer intento llegó a crear el pedido, no se duplica)", async () => {
     mocks.createOrder.mockResolvedValue({ status: "error", message: "Error", values: {} });
     render(<CheckoutForm index={index} />);

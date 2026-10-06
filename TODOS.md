@@ -177,3 +177,13 @@
 **Depends on:** None
 
 ## Completed
+
+### Reintento de un pedido justo en el límite por IP
+
+**What:** En `create_order`, volver a buscar el `request_id` después de tomar el lock de `enforce_rate_limit`, antes de contar.
+
+**Why:** Con el advisory lock (decisión 52), dos envíos simultáneos con el mismo `request_id` se serializan: si el primero era el 5º de la hora, el segundo recibe `RATE_LIMITED` en vez del pedido existente. Caso límite (el botón ya se deshabilita al enviar). Visto en el re-chequeo del `/review` de la Fase 4.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** —

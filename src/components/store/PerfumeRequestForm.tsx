@@ -95,7 +95,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
         {prefill && (
           <Link
             href="/encargos"
-            className="self-start text-caption text-text-secondary uppercase underline underline-offset-4"
+            className="self-start text-caption text-text-secondary uppercase underline underline-offset-4 transition-colors duration-150 hover:text-text"
           >
             Encargar otro perfume
           </Link>
@@ -154,7 +154,7 @@ function Confirmation({ perfumeName }: { perfumeName: string }) {
     <div role="status" className="flex max-w-2xl flex-col items-start gap-6 border-t border-border pt-8">
       <h2 className="text-label text-text-secondary uppercase">Encargo recibido</h2>
       <p className="text-body text-text">
-        Registramos tu pedido de {perfumeName}. Te escribimos por WhatsApp para contarte disponibilidad y precio.
+        Registramos tu encargo de {perfumeName}. Te escribimos por WhatsApp para contarte disponibilidad y precio.
       </p>
       <Link href="/catalogo" className={buttonClasses("secondary")}>
         Volver al catálogo

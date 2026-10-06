@@ -266,6 +266,26 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await expectError(db, 'Studio (postgres): editar un ítem se rechaza',
     `update order_items set quantity = 99 where order_id='${envio.order_id}'`, 'ORDER_ITEMS_ARE_IMMUTABLE');
 
+  // El admin muestra solo los estados válidos con una copia en TS (src/lib/admin/order-transitions.ts).
+  // Las dos copias se prueban contra el mismo fixture: si cambia la regla, fallan las dos.
+  {
+    const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'order-transitions.json'), 'utf8'));
+    delete fixture._comment;
+    const { rows } = await db.query(`
+      select p.pay || '/' || d.del as combo, f.s::text as from_status,
+             coalesce(array_agg(t.s::text order by t.s) filter (where t.s <> f.s
+               and public.is_valid_order_transition(f.s, t.s, p.pay::payment_method, d.del::delivery_method)), '{}') as next
+      from unnest(enum_range(null::order_status)) f(s)
+      cross join unnest(enum_range(null::order_status)) t(s)
+      cross join (values ('transfer'), ('cash')) p(pay)
+      cross join (values ('pickup'), ('delivery')) d(del)
+      group by p.pay, d.del, f.s`);
+    const fromDb = {};
+    for (const r of rows) (fromDb[r.combo] ??= {})[r.from_status] = r.next;
+    const sorted = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, Object.keys(o[k]).sort().map((s) => [s, o[k][s]])]));
+    eq('transiciones: el fixture de order-transitions.json coincide con is_valid_order_transition', sorted(fromDb), sorted(fixture));
+  }
+
   console.log('\n[8] Cancelación automática de pedidos abandonados');
   const stale = (await one(db, orderCall({ wa: '+5492215550005', items: `[${item(V2, 1)}]` }))).r;
   const fresh = (await one(db, orderCall({ wa: '+5492215550006', items: `[${item(V2, 1)}]` }))).r;

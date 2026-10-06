@@ -4,8 +4,6 @@
 
 export const ADMIN_LOGIN_PATH = "/admin/login";
 export const ADMIN_ORDERS_PATH = "/admin/pedidos";
-/** Logueado pero sin perfil de admin: el login lo explica y ofrece salir (no reintenta). */
-export const FORBIDDEN_LOGIN_PATH = `${ADMIN_LOGIN_PATH}?motivo=sin-acceso`;
 
 const isAdminPath = (pathname: string) => pathname === "/admin" || pathname.startsWith("/admin/");
 

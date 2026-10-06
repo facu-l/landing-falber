@@ -433,6 +433,10 @@ begin
     raise exception using message = 'INVALID_CLIENT_KEY';
   end if;
 
+  -- Sin lock, N requests simultáneas de la misma IP leen count < max y pasan todas.
+  -- El lock serializa solo las de la misma acción y clave, hasta el fin de la transacción.
+  perform pg_advisory_xact_lock(hashtext(p_action || ':' || p_client_key));
+
   select count(*) into v_count
   from rate_limit_events
   where action = p_action

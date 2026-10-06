@@ -11,6 +11,7 @@ import { clearCart, useCart } from "@/lib/cart/cart-store";
 import { type ResolvedCart, resolveCart, type VariantIndex } from "@/lib/cart/resolve";
 import { type CheckoutState, INITIAL_CHECKOUT_STATE } from "@/lib/checkout/state";
 import { cn } from "@/lib/cn";
+import { LIMITS } from "@/lib/forms/limits";
 import { formatARS } from "@/lib/format";
 import { useIsClient } from "@/lib/use-is-client";
 import { CartSkeleton, EmptyCart } from "./CartView";
@@ -89,7 +90,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
             label="Nombre y apellido"
             name="fullName"
             autoComplete="name"
-            maxLength={80}
+            maxLength={LIMITS.fullName}
             defaultValue={values.fullName}
             error={errors.fullName}
           />
@@ -149,7 +150,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
                 label="Dirección"
                 name="address"
                 autoComplete="street-address"
-                maxLength={120}
+                maxLength={LIMITS.address}
                 defaultValue={values.address}
                 error={errors.address}
                 className="md:col-span-2"
@@ -158,7 +159,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
                 label="Ciudad"
                 name="city"
                 autoComplete="address-level2"
-                maxLength={60}
+                maxLength={LIMITS.city}
                 defaultValue={values.city}
                 error={errors.city}
               />
@@ -166,7 +167,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
                 label="Código postal"
                 name="postalCode"
                 autoComplete="postal-code"
-                maxLength={10}
+                maxLength={LIMITS.postalCode}
                 hint="Opcional."
                 defaultValue={values.postalCode}
                 error={errors.postalCode}
@@ -174,7 +175,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
               <Input
                 label="Referencia"
                 name="reference"
-                maxLength={120}
+                maxLength={LIMITS.reference}
                 hint="Opcional. Ej.: timbre, entre calles."
                 defaultValue={values.reference}
                 error={errors.reference}
@@ -209,8 +210,8 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
         <Input
           label="Aclaración"
           name="note"
-          maxLength={100}
-          hint="Opcional. Hasta 100 caracteres."
+          maxLength={LIMITS.note}
+          hint={`Opcional. Hasta ${LIMITS.note} caracteres.`}
           defaultValue={values.note}
           error={errors.note}
         />

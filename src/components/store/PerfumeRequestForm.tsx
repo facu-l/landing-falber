@@ -6,6 +6,7 @@ import { createPerfumeRequest } from "@/app/(store)/encargos/actions";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { LIMITS } from "@/lib/forms/limits";
 import type { RequestPrefill } from "@/lib/requests/prefill";
 import { INITIAL_REQUEST_STATE, type RequestState } from "@/lib/requests/state";
 import { FormSection } from "./FormSection";
@@ -71,7 +72,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
         <Input
           label="Perfume"
           name="perfumeName"
-          maxLength={120}
+          maxLength={LIMITS.perfumeName}
           readOnly={!!prefill}
           defaultValue={prefill?.perfumeName ?? values.perfumeName}
           error={errors.perfumeName}
@@ -79,7 +80,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
         <Input
           label="Marca"
           name="brand"
-          maxLength={60}
+          maxLength={LIMITS.brand}
           readOnly={!!prefill}
           hint={prefill ? undefined : "Opcional."}
           defaultValue={prefill?.brand ?? values.brand}
@@ -113,7 +114,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
           <Input
             label="Presentación"
             name="presentation"
-            maxLength={60}
+            maxLength={LIMITS.presentation}
             hint="Opcional. Ej.: decant de 10 ml o frasco de 100 ml."
             defaultValue={values.presentation}
             error={errors.presentation}
@@ -134,7 +135,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
           label="Nombre y apellido"
           name="fullName"
           autoComplete="name"
-          maxLength={80}
+          maxLength={LIMITS.fullName}
           defaultValue={values.fullName}
           error={errors.fullName}
         />
@@ -151,8 +152,8 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
         <Input
           label="Aclaración"
           name="note"
-          maxLength={100}
-          hint="Opcional. Hasta 100 caracteres."
+          maxLength={LIMITS.note}
+          hint={`Opcional. Hasta ${LIMITS.note} caracteres.`}
           defaultValue={values.note}
           error={errors.note}
         />

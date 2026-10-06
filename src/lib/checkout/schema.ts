@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_LINES, MAX_QUANTITY } from "@/lib/cart/cart";
 import { fullNameField, optionalText as text, whatsappField } from "@/lib/forms/fields";
+import { LIMITS } from "@/lib/forms/limits";
 
 /*
  * Validación del checkout. Corre en la Server Action (la frontera de confianza):
@@ -48,11 +49,11 @@ const checkoutSchema = z
       .transform((value) => value || null),
     deliveryMethod: z.enum(["pickup", "delivery"], { error: "Elegí cómo querés recibir tu pedido." }),
     paymentMethod: z.enum(["transfer", "cash"], { error: "Elegí cómo vas a pagar." }),
-    address: text(120, "La dirección puede tener hasta 120 caracteres."),
-    city: text(60, "La ciudad puede tener hasta 60 caracteres."),
-    postalCode: text(10, "El código postal puede tener hasta 10 caracteres."),
-    reference: text(120, "La referencia puede tener hasta 120 caracteres."),
-    note: text(100, "La aclaración puede tener hasta 100 caracteres."),
+    address: text(LIMITS.address, `La dirección puede tener hasta ${LIMITS.address} caracteres.`),
+    city: text(LIMITS.city, `La ciudad puede tener hasta ${LIMITS.city} caracteres.`),
+    postalCode: text(LIMITS.postalCode, `El código postal puede tener hasta ${LIMITS.postalCode} caracteres.`),
+    reference: text(LIMITS.reference, `La referencia puede tener hasta ${LIMITS.reference} caracteres.`),
+    note: text(LIMITS.note, `La aclaración puede tener hasta ${LIMITS.note} caracteres.`),
     items,
   })
   // Con retiro, la dirección no se guarda aunque haya quedado escrita en el formulario.

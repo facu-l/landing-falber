@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { normalizeArgentineWhatsApp } from "@/lib/phone";
+import { LIMITS } from "./limits";
 
 /*
  * Campos de zod que comparten los formularios de la tienda (checkout y encargos).
@@ -22,7 +23,7 @@ export const fullNameField = z
   .string()
   .trim()
   .min(2, "Escribí tu nombre y apellido.")
-  .max(80, "El nombre puede tener hasta 80 caracteres.");
+  .max(LIMITS.fullName, `El nombre puede tener hasta ${LIMITS.fullName} caracteres.`);
 
 /** Texto opcional con largo máximo; vacío → null. */
 export const optionalText = (max: number, tooLong: string) =>

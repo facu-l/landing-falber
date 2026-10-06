@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { fullNameField, optionalText, whatsappField } from "@/lib/forms/fields";
+import { LIMITS } from "@/lib/forms/limits";
 
 /*
  * Validación de /encargos. Corre en la Server Action (la frontera de confianza).
@@ -14,10 +15,10 @@ const requestSchema = z.object({
     .string()
     .trim()
     .min(2, "Escribí el nombre del perfume.")
-    .max(120, "El nombre del perfume puede tener hasta 120 caracteres."),
-  brand: optionalText(60, "La marca puede tener hasta 60 caracteres."),
-  presentation: optionalText(60, "La presentación puede tener hasta 60 caracteres."),
-  note: optionalText(100, "La aclaración puede tener hasta 100 caracteres."),
+    .max(LIMITS.perfumeName, `El nombre del perfume puede tener hasta ${LIMITS.perfumeName} caracteres.`),
+  brand: optionalText(LIMITS.brand, `La marca puede tener hasta ${LIMITS.brand} caracteres.`),
+  presentation: optionalText(LIMITS.presentation, `La presentación puede tener hasta ${LIMITS.presentation} caracteres.`),
+  note: optionalText(LIMITS.note, `La aclaración puede tener hasta ${LIMITS.note} caracteres.`),
   // Solo cuando el encargo sale de un producto del catálogo (?producto=<slug>).
   variantId: z
     .union([z.literal(""), z.uuid()], { error: "Elegí una de las presentaciones." })

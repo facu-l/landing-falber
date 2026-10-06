@@ -5,6 +5,11 @@
 export type OrderActionState =
   | { status: "idle" }
   | { status: "success"; message: string }
-  | { status: "error"; message: string };
+  | {
+      status: "error";
+      message: string;
+      /** Lo escrito en el form: React lo resetea después de la acción. */
+      values?: Record<string, string>;
+    };
 
 export const INITIAL_ORDER_ACTION_STATE: OrderActionState = { status: "idle" };

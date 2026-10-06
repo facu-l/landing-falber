@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ADMIN_ORDER_ERRORS, GENERIC_ADMIN_ORDER_ERROR } from "@/lib/admin/order-errors";
+import { SHIPPING_COST_ERRORS } from "@/lib/admin/shipping";
+import { formatARS } from "@/lib/format";
 
 const mocks = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
@@ -15,7 +17,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ updateTag: mocks.updateTag, refresh: mocks.refresh }));
 vi.mock("@/lib/admin/auth", () => ({ requireAdmin: mocks.requireAdmin }));
 
-const { updateOrderStatus } = await import("./actions");
+const { setShippingCost, updateOrderStatus } = await import("./actions");
 
 const ORDER_ID = "f060303b-8447-45e5-ab0c-c59cd1705419";
 
@@ -103,5 +105,54 @@ describe("updateOrderStatus", () => {
 
     const state = await updateOrderStatus({ status: "idle" }, form({ orderId: ORDER_ID, status: "confirmed" }));
     expect(state).toEqual({ status: "error", message: "No encontramos el pedido. Volvé a la lista de pedidos." });
+  });
+});
+
+describe("setShippingCost", () => {
+  it("sin admin no escribe nada", async () => {
+    mocks.requireAdmin.mockRejectedValue(new Error("NEXT_REDIRECT"));
+
+    await expect(setShippingCost({ status: "idle" }, form({ orderId: ORDER_ID, shippingCost: "4500" }))).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("guarda el costo en pesos y refresca; no toca el catálogo", async () => {
+    await expect(
+      setShippingCost({ status: "idle" }, form({ orderId: ORDER_ID, shippingCost: "$ 4.500" })),
+    ).resolves.toEqual({ status: "success", message: `Costo de envío guardado: ${formatARS(4500)}.` });
+
+    expect(mocks.update).toHaveBeenCalledWith({ shipping_cost: 4500 });
+    expect(mocks.eq).toHaveBeenCalledWith("id", ORDER_ID);
+    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.updateTag).not.toHaveBeenCalled();
+  });
+
+  it("vacío vuelve a 'a coordinar' (null)", async () => {
+    await expect(setShippingCost({ status: "idle" }, form({ orderId: ORDER_ID, shippingCost: "" }))).resolves.toEqual({
+      status: "success",
+      message: "Costo de envío borrado: queda a coordinar.",
+    });
+    expect(mocks.update).toHaveBeenCalledWith({ shipping_cost: null });
+  });
+
+  it("un monto mal escrito no llega a la base y conserva lo escrito", async () => {
+    await expect(
+      setShippingCost({ status: "idle" }, form({ orderId: ORDER_ID, shippingCost: "4500,50" })),
+    ).resolves.toEqual({ status: "error", message: SHIPPING_COST_ERRORS.format, values: { shippingCost: "4500,50" } });
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("si la base lo rechaza (pedido ya enviado), lo explica y conserva lo escrito", async () => {
+    databaseAnswers({ data: null, error: { message: "SHIPPING_COST_LOCKED", details: "shipped" } });
+
+    await expect(
+      setShippingCost({ status: "idle" }, form({ orderId: ORDER_ID, shippingCost: "4500" })),
+    ).resolves.toEqual({
+      status: "error",
+      message: ADMIN_ORDER_ERRORS.SHIPPING_COST_LOCKED,
+      values: { shippingCost: "4500" },
+    });
   });
 });

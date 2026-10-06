@@ -5,10 +5,12 @@ import { Suspense } from "react";
 import { AdminOrderDetail } from "@/components/admin/AdminOrderDetail";
 import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
 import { OrderStatusForm } from "@/components/admin/OrderStatusForm";
+import { ShippingCostForm } from "@/components/admin/ShippingCostForm";
 import { FormSection } from "@/components/ui/FormSection";
 import { requireAdmin } from "@/lib/admin/auth";
 import { getAdminOrder } from "@/lib/admin/orders";
 import { ADMIN_ORDERS_PATH } from "@/lib/admin/paths";
+import { canSetShippingCost } from "@/lib/admin/shipping";
 
 export const metadata: Metadata = { title: "Pedido" };
 
@@ -46,6 +48,11 @@ async function Order({ params }: Pick<PageProps<"/admin/pedidos/[id]">, "params"
         <FormSection title="Estado">
           <OrderStatusForm order={order} />
         </FormSection>
+        {canSetShippingCost(order) && (
+          <FormSection title="Costo de envío">
+            <ShippingCostForm orderId={order.id} shippingCost={order.shipping_cost} />
+          </FormSection>
+        )}
       </div>
     </>
   );

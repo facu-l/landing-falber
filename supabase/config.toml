@@ -221,7 +221,10 @@ web3 = 30
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
-enable_signup = false
+# OJO: en el CLI esto prende o apaga el PROVEEDOR de email entero (también el login:
+# "Email logins are disabled"). El registro público se cierra con [auth] enable_signup = false
+# (decisión 21); acá va true para que el admin pueda ingresar con email y contraseña.
+enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true

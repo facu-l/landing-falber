@@ -14,7 +14,6 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
-import { fileURLToPath } from "node:url";
 import type { Database } from "../src/types/database";
 
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost"]);
@@ -75,8 +74,8 @@ export async function ensureLocalUser({ email, password, admin }: LocalUser): Pr
   return userId!;
 }
 
-// npm run db:admin [email]
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// npm run db:admin [email]. Sin import.meta: Playwright compila este archivo a CommonJS.
+if (/local-users\.ts$/.test(process.argv[1] ?? "")) {
   const email = process.argv[2] ?? "admin@falber.test";
   const password = randomPassword();
   ensureLocalUser({ email, password, admin: true })

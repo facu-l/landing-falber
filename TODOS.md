@@ -54,6 +54,18 @@
 **Priority:** P2
 **Depends on:** —
 
+### Puerto ocupado en el runner de CI
+
+**What:** Si el CI vuelve a fallar con `address already in use` en el puerto 54322, subir el rango de puertos efímeros del runner en `.github/workflows/ci.yml`, antes de `supabase start` (en los dos jobs): `sudo sysctl -w net.ipv4.ip_local_port_range="60000 65000"`.
+
+**Why:** El CI de `main` después del merge de la Fase 4 falló una vez en E2E porque `supabase start` no pudo tomar el 54322: el kernel del runner ya lo había dado como puerto efímero a otra conexión. El reintento pasó con el mismo árbol (comparado con `git rev-parse <commit>^{tree}`), así que no fue el código. Con el rango efímero arriba de 60000, los puertos de Supabase (54321-54327) quedan afuera.
+
+**Context:** No se cambió el CI por una sola falla (un cambio en el workflow sin un rojo reproducible no se puede verificar). Señal: una segunda falla con el mismo error.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** —
+
 ## Checkout
 
 ### Largos máximos de los datos de envío en la base

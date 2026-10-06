@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { randomWhatsApp, useRandomIp, waitForTurnstile } from "./helpers";
 
 /*
  * Compra completa contra la app real: Supabase local (seed), Turnstile con las claves
@@ -15,13 +16,8 @@ import { expect, type Page, test } from "@playwright/test";
 const PRODUCT_PATH = "/producto/dior-sauvage-edt";
 const FALBER_WHATSAPP = "5492355481449";
 
-const randomDigits = (length: number) =>
-  Array.from({ length }, () => Math.floor(Math.random() * 10)).join("");
-
 test.beforeEach(async ({ page }) => {
-  await page.setExtraHTTPHeaders({
-    "x-forwarded-for": `10.${randomDigits(2)}.${randomDigits(2)}.${randomDigits(2)}`,
-  });
+  await useRandomIp(page);
 });
 
 async function addSauvageToCart(page: Page) {
@@ -34,13 +30,7 @@ async function addSauvageToCart(page: Page) {
 
 async function fillCustomer(page: Page) {
   await page.getByLabel("Nombre y apellido", { exact: true }).fill("Prueba E2E");
-  // Formato real de La Plata con 0 y 15: la normalización la hace el servidor.
-  await page.getByLabel("WhatsApp", { exact: true }).fill(`0221 15 5${randomDigits(2)}-${randomDigits(4)}`);
-}
-
-// Turnstile (invisible, clave de prueba) tarda unos segundos en entregar el token.
-async function waitForTurnstile(page: Page) {
-  await expect(page.locator('input[name="cf-turnstile-response"]')).not.toHaveValue("", { timeout: 15_000 });
+  await page.getByLabel("WhatsApp", { exact: true }).fill(randomWhatsApp());
 }
 
 test("compra completa: producto → carrito → checkout → pedido con el link de WhatsApp", async ({ page }) => {

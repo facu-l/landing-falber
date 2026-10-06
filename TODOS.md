@@ -68,6 +68,18 @@
 **Priority:** P2
 **Depends on:** —
 
+### Llevar el foco al primer campo con error
+
+**What:** Cuando la Server Action devuelve errores por campo, mover el foco (y el scroll) al primer campo inválido del checkout y de `/encargos`.
+
+**Why:** En el celular el botón queda abajo y los errores de los primeros campos (ej. "Perfume") quedan fuera de la pantalla: el cliente ve que no pasó nada. Visto en la revisión visual de la Fase 4 (375 px).
+
+**Context:** Los dos formularios usan `useActionState` y ya marcan `aria-invalid`. Un efecto que, con `state.status === "error"` y `fieldErrors`, haga `form.querySelector('[aria-invalid="true"]')?.focus()` resuelve los dos; se puede compartir junto con `TurnstileField`. Test de componente: después de un error, `document.activeElement` es el primer campo inválido. Señal: antes del lanzamiento.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
 ## Catálogo
 
 ### Reemplazar las fotos placeholder por fotos reales
@@ -86,13 +98,15 @@
 
 ### Sincronizar el artifact con los cambios hechos en el código
 
-**What:** Copiar al design system "FALBER" en Claude Artifacts (https://claude.ai/artifact/8MRV6N7UQkE1uDYGWUBB9j) dos cambios que hoy solo existen en el repo:
+**What:** Copiar al design system "FALBER" en Claude Artifacts (https://claude.ai/artifact/8MRV6N7UQkE1uDYGWUBB9j) cuatro cambios que hoy solo existen en el repo:
 1. El token `error`: Noir `#e5867d`, Platinum `#a8332b`, con su regla de uso (`design/falber-tokens.json` → `color.tokens`).
 2. El estilo `wordmark` con `clamp()`: 28 px en mobile y 40 px en desktop, tracking 0.4em (`src/app/globals.css`).
+3. `Input` de solo lectura: fondo `surface-raised`, borde `border`, texto `text-secondary` (Fase 4).
+4. `Select` con mensaje de error, igual que `Input` (Fase 4).
 
-**Why:** El artifact es la fuente de verdad y la sincronización es manual, en un solo sentido (artifact → repo, DESIGN.md). Si se re-sincroniza sin estos cambios, el token `error` desaparece del JSON y `tokens.test.ts` falla; el `clamp()` del wordmark se perdería en silencio.
+**Why:** El artifact es la fuente de verdad y la sincronización es manual, en un solo sentido (artifact → repo, DESIGN.md). Si se re-sincroniza sin estos cambios, el token `error` desaparece del JSON y `tokens.test.ts` falla; el `clamp()` del wordmark y los estados de los controles se perderían en silencio.
 
-**Context:** Los dos cambios están documentados en DESIGN.md (tabla de color, "Regla del error" y la nota de mobile en Tipografía). Al terminar, verificar con `npm test` que `tokens.test.ts` siga en verde.
+**Context:** Los cambios están documentados en DESIGN.md (tabla de color, "Regla del error", la nota de mobile en Tipografía y la tabla de Componentes base). Al terminar, verificar con `npm test` que `tokens.test.ts` siga en verde.
 
 **Effort:** S
 **Priority:** P2 (antes de la próxima sincronización del design system)

@@ -8,7 +8,7 @@
 
 **Why:** En el MVP esto se opera desde Supabase Studio (decisión 10 de la revisión). Sirve para arrancar, pero cargar productos con fotos ahí es incómodo y lento.
 
-**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `revalidateTag('catalog')` al guardar. Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana.
+**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana.
 
 **Effort:** M
 **Priority:** P2
@@ -42,6 +42,32 @@
 **Priority:** P2
 **Depends on:** Una versión del CLI que lo corrija.
 
+### Vulnerabilidades de `npm audit`
+
+**What:** Revisar las 5 vulnerabilidades altas que reporta `npm audit` (entre ellas `braces`, denegación de servicio con patrones anidados) y actualizar lo que se pueda sin cambios incompatibles.
+
+**Why:** Estaban antes de la Fase 3. La única solución que ofrece npm es `npm audit fix --force`, que salta a versiones con cambios incompatibles. Son dependencias de herramientas (build, tests), no código que corre con datos del cliente, pero hay que confirmarlo.
+
+**Context:** Correr `npm audit` y ver, por cada una, si es de `dependencies` o de `devDependencies` y si llega al bundle o al servidor. Cualquier cambio en el lockfile se valida en Linux (memoria del proyecto: npm en Windows borra `@emnapi/*`). Señal: antes de la Fase 6 (lanzamiento).
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
+## Checkout
+
+### Largos máximos de los datos de envío en la base
+
+**What:** `check` en `orders` (o validación en `create_order`) para el largo de `delivery_address` (120), `delivery_city` (60), `delivery_postal_code` (10) y `delivery_reference` (120), los mismos topes que hoy aplica solo zod.
+
+**Why:** Las reglas de negocio viven en la base (CLAUDE.md). Hoy esos largos existen solo en el schema del checkout (decisión 40). Alcanza porque `create_order` solo se llama desde esa Server Action, pero si otra vía la llama (admin, script), la base aceptaría textos de cualquier largo.
+
+**Context:** Como ya hubo deploy o no según cuándo se haga: hasta el primer deploy se edita `0001_initial_schema.sql`; después, migración nueva. Lleva su test en `schema.test.cjs` y un código de error nuevo (ej. `ADDRESS_TOO_LONG`) en `ORDER_ERRORS`: el test de `order-errors.test.ts` falla si falta el mensaje. Señal: antes del primer deploy, que es cuando todavía se edita `0001`.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
 ## Catálogo
 
 ### Reemplazar las fotos placeholder por fotos reales
@@ -55,6 +81,22 @@
 **Effort:** S
 **Priority:** P1 (antes del lanzamiento)
 **Depends on:** Fotos de la Fase 0.
+
+## Design system
+
+### Sincronizar el artifact con los cambios hechos en el código
+
+**What:** Copiar al design system "FALBER" en Claude Artifacts (https://claude.ai/artifact/8MRV6N7UQkE1uDYGWUBB9j) dos cambios que hoy solo existen en el repo:
+1. El token `error`: Noir `#e5867d`, Platinum `#a8332b`, con su regla de uso (`design/falber-tokens.json` → `color.tokens`).
+2. El estilo `wordmark` con `clamp()`: 28 px en mobile y 40 px en desktop, tracking 0.4em (`src/app/globals.css`).
+
+**Why:** El artifact es la fuente de verdad y la sincronización es manual, en un solo sentido (artifact → repo, DESIGN.md). Si se re-sincroniza sin estos cambios, el token `error` desaparece del JSON y `tokens.test.ts` falla; el `clamp()` del wordmark se perdería en silencio.
+
+**Context:** Los dos cambios están documentados en DESIGN.md (tabla de color, "Regla del error" y la nota de mobile en Tipografía). Al terminar, verificar con `npm test` que `tokens.test.ts` siga en verde.
+
+**Effort:** S
+**Priority:** P2 (antes de la próxima sincronización del design system)
+**Depends on:** None
 
 ## Marca
 

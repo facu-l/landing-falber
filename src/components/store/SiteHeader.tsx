@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CartLink } from "./CartLink";
 
 const linkClasses =
   "text-label uppercase text-text-secondary transition-colors duration-150 hover:text-text";
@@ -11,7 +12,7 @@ export function SiteHeader() {
         <Link href="/" aria-label="FALBER, inicio" className="text-wordmark text-platinum uppercase">
           FALBER
         </Link>
-        <nav aria-label="Principal" className="flex items-center gap-6 md:gap-10">
+        <nav aria-label="Principal" className="flex items-center gap-5 md:gap-10">
           <Link href="/catalogo?tipo=decant" className={`${linkClasses} hidden md:inline`}>
             Decants
           </Link>
@@ -21,6 +22,7 @@ export function SiteHeader() {
           <Link href="/catalogo" className={linkClasses}>
             Catálogo
           </Link>
+          <CartLink className={linkClasses} />
         </nav>
       </div>
     </header>

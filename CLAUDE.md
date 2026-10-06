@@ -31,7 +31,9 @@ Stack: Next.js (App Router) + TypeScript + Tailwind v4 + Supabase. Hosting: Netl
 - `npm run db:start:lite` levanta Supabase (Docker: db, auth y API, igual que el CI). `npm run db:start` levanta el stack completo, pero falla el health check por Storage. `npm run db:reset` re-aplica las migraciones y `supabase/seed.sql` (catálogo de prueba). `npm run db:types` regenera `src/types/database.ts` después de cambiar el esquema.
 - Storage local no funciona con el CLI actual (ver `TODOS.md` → "Storage local"). Las fotos de prueba están en `public/product-images/` (`NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL=/product-images`).
 - Catálogo: `getCatalog()` en `src/lib/catalog/queries.ts` (una consulta, tag `'catalog'`). Las reglas puras están en `src/lib/catalog/catalog.ts`.
-- Si creás una carpeta nueva en `src/app` con el dev server corriendo, reinicialo: en Windows Tailwind no detecta sus clases.
+- Compra: carrito en `src/lib/cart/` (reglas puras + store de `localStorage`), checkout en `src/lib/checkout/schema.ts` y la Server Action `src/app/(store)/checkout/actions.ts`, pedido en `src/lib/orders/`. Los E2E de compra escriben en la base: si se agota el stock del seed, `npm run db:reset`.
+- Dependencias: en Windows, `npm install` borra `@emnapi/*` del lockfile. Editar `package.json` y el lockfile a mano y validar con `docker run node:24 npm install --package-lock-only` (documento maestro → Fase 3, lecciones).
+- Reiniciá el dev server si creás una carpeta nueva en `src/app` (en Windows Tailwind no detecta sus clases) o después de cambiar de rama (puede quedar con un `next.config.ts` viejo, ej. "enable the feature flag `cacheComponents`").
 
 ## Git
 

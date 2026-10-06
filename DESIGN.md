@@ -43,6 +43,9 @@ Usar SIEMPRE el token semántico, nunca el hex directo.
 | `accent` | #bfc2c5 | #45494e | Links, selección, énfasis interactivo |
 | `on-accent` | #0b0c0e | #f4f5f6 | Texto sobre un fondo `accent` |
 | `accent-strong` | #e6e8ea | #202226 | Hover/active de `accent` |
+| `error` | #e5867d | #a8332b | Texto de error y borde del campo inválido (≥5:1 en las tres superficies) |
+
+**Regla del error:** rojo desaturado, nunca decorativo. Siempre va con texto explícito (qué pasó y cómo arreglarlo) y `aria-invalid`: el color refuerza, no informa solo. En Noir tiene casi la misma luminosidad que `text-muted`, así que sin el texto un error y un hint se confundirían.
 
 **Regla del platino:** `platinum` es solo para marcas, filetes y énfasis **sobre fondos oscuros**. Sobre fondo claro tiene poco contraste: ahí se usa `accent`.
 
@@ -95,7 +98,7 @@ Se **reimplementan en `src/components/ui/`** con los tokens. El bundle del artif
 | Componente | Comportamiento |
 |---|---|
 | `Button` | Acción principal: label en MAYÚSCULAS con tracking amplio, caja de esquinas rectas. Variantes: primario (fondo `accent`, texto `on-accent`) y secundario (borde `border-strong`) |
-| `Input` | Label en MAYÚSCULAS arriba, campo, hint opcional abajo. Borde `border-strong`, foco visible |
+| `Input` | Label en MAYÚSCULAS arriba, campo, hint opcional abajo. Borde `border-strong`, foco visible. Con error: borde y mensaje en `error` (también con foco) |
 | `Card` | Panel en `surface-raised` con borde fino `border` y esquinas rectas |
 
 ## Logos

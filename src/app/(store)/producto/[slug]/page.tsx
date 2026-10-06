@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { AddToCart } from "@/components/store/AddToCart";
 import { ProductImage } from "@/components/store/ProductImage";
 import { buttonClasses } from "@/components/ui/Button";
 import { type CatalogProduct, GENDER_LABELS, isSoldOut, sortVariants } from "@/lib/catalog/catalog";
@@ -69,7 +70,7 @@ async function ProductDetails({ params }: Pick<PageProps<"/producto/[slug]">, "p
   );
 }
 
-// Presentaciones con precio y disponibilidad. El selector y el carrito llegan con el checkout.
+// Con stock: selector + carrito (decisión 33). Agotado: la lista y el pedido de disponibilidad.
 function Variants({ product }: { product: CatalogProduct }) {
   const soldOut = isSoldOut(product);
 
@@ -78,6 +79,14 @@ function Variants({ product }: { product: CatalogProduct }) {
       <h2 id="presentaciones" className="text-label text-text-secondary uppercase">
         Presentaciones
       </h2>
+      {soldOut ? <SoldOutVariants product={product} /> : <AddToCart variants={sortVariants(product.variants)} />}
+    </section>
+  );
+}
+
+function SoldOutVariants({ product }: { product: CatalogProduct }) {
+  return (
+    <>
       <ul className="flex flex-col border-t border-border">
         {sortVariants(product.variants).map((v) => (
           <li key={v.id} className="flex items-baseline justify-between gap-4 border-b border-border py-4">
@@ -91,17 +100,15 @@ function Variants({ product }: { product: CatalogProduct }) {
           </li>
         ))}
       </ul>
-      {soldOut && (
-        <div className="flex flex-col items-start gap-4">
-          <p className="text-body-sm text-text-secondary">
-            Por ahora no tenemos stock. Dejanos tus datos y te avisamos cuando vuelva.
-          </p>
-          <Link href={`/encargos?producto=${product.slug}`} className={buttonClasses("primary")}>
-            Solicitar disponibilidad
-          </Link>
-        </div>
-      )}
-    </section>
+      <div className="flex flex-col items-start gap-4">
+        <p className="text-body-sm text-text-secondary">
+          Por ahora no tenemos stock. Dejanos tus datos y te avisamos cuando vuelva.
+        </p>
+        <Link href={`/encargos?producto=${product.slug}`} className={buttonClasses("primary")}>
+          Solicitar disponibilidad
+        </Link>
+      </div>
+    </>
   );
 }
 

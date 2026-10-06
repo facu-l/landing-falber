@@ -1,10 +1,11 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v2.1 · 2026-10-05
+Tienda online de decants y perfumes · Next.js + Supabase · v3.0 · 2026-10-05
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
 **v2.2:** Fase 2 implementada en `feat/catalog`. Decisiones 26 a 33 (sección 3.G) y lecciones nuevas.
+**v3.0:** Fase 3 implementada en `feat/checkout` (PR #5): carrito, checkout, pedidos y WhatsApp. Decisiones 34 a 43 (sección 3.H), diagrama de la Server Action actualizado, lecciones, plan de tests y checklist de publicación.
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -135,18 +136,18 @@ Los navegadores bloquean abrir otra app después de una espera, y así el client
 ### D. ¿Quién crea pedidos? → Solo el servidor
 
 ```
-Navegador ──► Server Action
-               1. verifica Turnstile (captcha invisible)
-               2. valida con zod, normaliza WhatsApp, calcula hash de la IP
-               3. supabase.rpc('create_order', { p_request_id, p_client_key, ... })  ← service_role
+Navegador ──► Server Action (src/app/(store)/checkout/actions.ts)
+               1. valida con zod y normaliza WhatsApp (sin red; decisión 35)
+               2. verifica Turnstile con la IP real (captcha invisible)
+               3. HMAC de la IP + supabase.rpc('create_order', { p_request_id, p_client_key, ... })  ← service_role
                       │
                       ▼
                create_order (DB, una transacción)
                idempotencia → validación → límite IP → cliente → límite pendientes
                → pedido → ítems (FOR UPDATE, precio y stock reales) → reserva de stock
                       │
-               4. revalidateTag('catalog')  (el stock cambió)
-               5. redirect('/pedido/<uuid>')
+               4. updateTag('catalog')  (el stock cambió; decisión 34)
+               5. devuelve { orderId } → el navegador vacía el carrito y va a /pedido/<uuid> (decisión 36)
 ```
 
 ### E. Las 15 decisiones de la revisión de ingeniería
@@ -155,7 +156,7 @@ Navegador ──► Server Action
 |---|---|
 | 1 | Design system: tokens → CSS + Tailwind; Button/Input/Card reimplementados (el bundle pide React 18) |
 | 2 | Noir en la tienda, Platinum en `/admin` |
-| 3 | Catálogo cacheado; se invalida (`revalidateTag('catalog')`) al editar en el admin **y** al crear o cancelar pedidos |
+| 3 | Catálogo cacheado; se invalida (`updateTag('catalog')`, decisión 34) al editar en el admin **y** al crear o cancelar pedidos |
 | 4 | Errores: `message` = código estable (`INSUFFICIENT_STOCK`), `detail` = dato; mapa en TS |
 | 5 | Tipos generados con `supabase gen types`; estados y métodos como enums |
 | 6 | Columna generada `product_variants.label` |
@@ -196,6 +197,21 @@ Navegador ──► Server Action
 | 31 | **Filtros en la URL** (`?q=&marca=&genero=&tipo=`) con un form GET. Búsqueda sin tildes ni mayúsculas, palabra por palabra. Género **exacto** (Masculino no trae Unisex) | Funciona sin JavaScript, se puede compartir el link y es predecible |
 | 32 | **Route group `(store)`** con header y footer propios; el admin tendrá otro layout. `wordmark` escala con `clamp()` (28 → 40 px) como `display-xl` | El header no entraba en mobile con 40 px |
 | 33 | **El detalle no tiene botón de carrito** hasta la Fase 3. Un producto agotado enlaza a `/encargos?producto=<slug>`: **la Fase 4 tiene que leer ese parámetro** | No se muestra un botón que no hace nada |
+
+### H. Decisiones de la Fase 3 (checkout, 2026-10-05)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 34 | **`updateTag('catalog')` en las Server Actions** que cambian stock o productos (crear pedido, cancelar, editar en el admin). `revalidateTag(tag, 'max')` solo fuera de una Server Action (Route Handler, webhook). Reemplaza a `revalidateTag('catalog')` de la decisión 3 | `updateTag` vence el caché al instante y el próximo request espera los datos nuevos (leer lo que uno acaba de escribir). `revalidateTag` con `'max'` sirve stock viejo mientras revalida, y sin perfil está deprecado. Fuente: `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/updateTag.md` y `revalidateTag.md` (Next 16.3) |
+| 35 | **zod antes que Turnstile** en `createOrder` (cambia el orden del diagrama D) | El token de Turnstile sirve una sola vez: verificarlo primero lo gastaría en un error de tipeo. Validar no toca la red ni la base, así que la seguridad no cambia: Turnstile sigue corriendo antes de `create_order` |
+| 36 | **La acción devuelve `{ orderId }`; el navegador vacía el carrito y navega** con `router.replace('/pedido/<id>')`. No se usa `redirect()` | Con `redirect()` el navegador no se entera de que la compra salió bien y no puede vaciar el carrito. Vaciarlo al entrar a `/pedido` borraría un carrito nuevo si el cliente reabre el link. El checkout ya necesita JavaScript (carrito y Turnstile) |
+| 37 | **IP del cliente:** `x-nf-client-connection-ip` (Netlify) y, solo si falta, el primer valor de `x-forwarded-for` (local y CI); sin ninguno, `"unknown"`. **`p_client_key` = HMAC-SHA256(ip, `IP_HASH_SECRET`)**, secreto de 32 caracteres o más | `x-forwarded-for` lo puede inventar el cliente para saltear el límite por IP; el header de Netlify lo pone el proxy. HMAC es la construcción estándar de un hash con clave: sin secreto largo, el hash de una IPv4 se revierte probando las ~4.300 millones posibles |
+| 38 | **Turnstile:** render explícito, `"response-field": false` y el token en estado de React (input oculto propio). Se resetea después de **cualquier** error del servidor. La verificación del servidor **falla cerrado** (timeout de 5 s, HTTP o JSON raro = rechazado) | El form se monta después de leer el carrito, cuando el render implícito ya pasó. Con el token en estado, el form se testea sin el script de Cloudflare. Un pedido rechazado se reintenta; uno falso reserva stock 48 h |
+| 39 | **Los precios salen siempre del servidor:** `/carrito` y `/checkout` cruzan el carrito con el índice de variantes del catálogo cacheado (`resolveCart`). Una variante sin stock o inexistente bloquea "Finalizar compra" | El carrito de `localStorage` lo puede editar cualquiera; además los precios cambian. El total es "estimado": el real lo fija `create_order` |
+| 40 | **Reglas cruzadas del checkout fuera de zod** (`crossFieldErrors`: efectivo solo con retiro, dirección y ciudad con envío). Los largos de dirección (120), ciudad (60), código postal (10) y referencia (120) existen **solo en zod** | zod 4 no corre un refine del objeto si otro campo ya falló: el cliente vería los errores de a uno. La base no limita esos largos (pendiente en TODOS.md) |
+| 41 | **En mobile el carrito del header es un ícono** de bolsa con la cantidad; desde `md`, la palabra "Carrito". El nombre accesible es siempre "Carrito, N unidades" | Con la palabra, el header necesitaba 396 px y en 375 px hay 343. "Catálogo" queda siempre visible: es la entrada principal desde Instagram |
+| 42 | **`/pedido/[id]` sin caché**, dentro de `<Suspense>`. Un id que no es UUID es "no encontrado" sin consultar; un error de la base o una respuesta con forma inesperada lanza (`error.tsx`). El botón de WhatsApp lleva `rel="noopener noreferrer"` | El resumen es de una sola persona y cambia cuando el admin confirma. Postgres responde 400 a un id que no es UUID. Sin `noreferrer`, WhatsApp recibiría la URL privada del pedido |
+| 43 | **Los E2E de compra escriben en la base:** cada test manda su propia IP (`x-forwarded-for`) y su propio WhatsApp, y compran el decant de 5 ml de Sauvage (24 en el seed). En CI: clave secreta de Supabase, claves de prueba de Turnstile e `IP_HASH_SECRET` nuevo por corrida | Sin eso, la segunda corrida choca con el límite de 5 pedidos por hora por IP o de 3 pendientes por cliente. Si el stock se agota en local: `npm run db:reset` |
 
 ---
 
@@ -341,6 +357,8 @@ export const ORDER_ERRORS: Record<string, string> = {
 // Desconocido (o una violación de constraint 23514): mensaje genérico + console.error con el error crudo.
 ```
 
+Implementado en `src/lib/order-errors.ts` (el código es la fuente; este bloque es el resumen). Un test lee la migración y falla si `create_order` o `enforce_rate_limit` levantan un código sin mensaje. En los errores de stock, `detail` trae el `variant_id` y el checkout marca ese producto.
+
 ### WhatsApp: código y primer test
 
 ```ts
@@ -367,6 +385,8 @@ export function buildWhatsAppUrl(phone: string, message: string): string {
 
 > **Trampa con números argentinos:** en `wa.me` el número va con 54 + 9 y **sin** el 0 ni el 15: `0221 15 555-1234` → `5492215551234`.
 
+Implementado en `src/lib/whatsapp.ts`. Dos diferencias con el bloque de arriba: los precios van sin el espacio duro de `Intl` (`$10.000`), y si el admin ya cargó el costo de envío se agrega la línea `Envío: $X` antes del total (`shipping_cost` es `null` hasta entonces). El número de FALBER sale de `NEXT_PUBLIC_WHATSAPP_NUMBER` (`src/lib/store-env.ts` rechaza un formato que no sea 549 + área + número). El número del cliente lo normaliza `src/lib/phone.ts` a `+549` + 10 dígitos.
+
 ---
 
 ## 7. Seguridad
@@ -385,8 +405,8 @@ Al implementar:
 1. `SUPABASE_SERVICE_ROLE_KEY` solo en el servidor, **nunca** con `NEXT_PUBLIC_`.
 2. **`requireAdmin()` en la primera línea de cada Server Action del admin.** El middleware (en Next 16, `proxy.ts`) solo redirige; no es una frontera de seguridad (antecedente: CVE-2025-29927).
 3. Las acciones del admin usan el cliente con la **sesión del usuario**, nunca `service_role`: así RLS sigue protegiendo.
-4. Turnstile verificado en el servidor antes de llamar a la RPC.
-5. Hash de la IP (`sha256(ip + secreto)`) como `p_client_key`: nunca se guarda la IP en crudo.
+4. Turnstile verificado en el servidor antes de llamar a la RPC (después de zod, decisión 35). Falla cerrado.
+5. HMAC-SHA256 de la IP con `IP_HASH_SECRET` (32 caracteres o más) como `p_client_key`: nunca se guarda la IP en crudo. La IP sale de `x-nf-client-connection-ip`, no de `x-forwarded-for` (decisión 37).
 6. Aviso de uso de datos personales (Ley 25.326) en el checkout.
 
 ---
@@ -443,20 +463,31 @@ Los pendientes de la Fase 1 se resolvieron con las decisiones 27 (CI) y 28 (foto
 - Next 16 conserva la ruta anterior **oculta en el DOM** para volver atrás al instante: en Playwright, acotar las búsquedas a la página actual (ej. `page.getByRole("article")`).
 - `error.tsx` en Next 16 usa `retry()` (vuelve a pedir los datos), no `reset()`.
 
-### Fase 3 — Carrito, checkout, pedidos y WhatsApp
+### Fase 3 — Carrito, checkout, pedidos y WhatsApp (implementada en `feat/checkout`, 2026-10-05)
 
 ```text
 Usá superpowers:test-driven-development. Implementá: carrito (localStorage, solo
 variant_id + cantidad), normalización de WhatsApp argentino, checkout con zod +
 Turnstile + request_id (UUID al cargar) + botón deshabilitado al enviar, Server
 Action que llama create_order con service_role y hash de IP, mapa ORDER_ERRORS,
-revalidateTag('catalog'), /pedido/[id] con get_order_summary y el botón de
+updateTag('catalog'), /pedido/[id] con get_order_summary y el botón de
 WhatsApp. Test E2E de Playwright: compra completa.
 ```
 
-**Antes de empezar:** en Next 16, una Server Action que cambia el stock y después muestra datos frescos debería usar `updateTag('catalog')` (lectura inmediata de lo que acaba de escribir) en vez de `revalidateTag`, que sirve datos viejos mientras revalida. Confirmarlo en `node_modules/next/dist/docs/` antes de implementar. El carrito se agrega en `/producto/[slug]` (decisión 33).
+**Antes de empezar:** confirmado en la doc de Next 16.3: la Server Action usa `updateTag('catalog')`, no `revalidateTag` (decisión 34). El carrito se agrega en `/producto/[slug]` (decisión 33).
 
-DESIGN.md no define un color semántico de error. Hoy `Input` marca el error con borde `accent-strong` y el texto del mensaje (sin depender solo del color). Definirlo en el design system antes del checkout.
+Color de error: resuelto con el token `error` (Noir `#e5867d`, Platinum `#a8332b`), ya aplicado en `Input` (DESIGN.md → Regla del error). Falta copiarlo al artifact del design system.
+
+Las decisiones que salieron están en la sección 3.H (34 a 43).
+
+**Lecciones:**
+- En Windows, `npm install <paquete>` reescribe el lockfile y borra las dependencias opcionales `@emnapi/*` que necesita el `npm ci` de Linux. Para cambiar dependencias: editar `package.json` y el lockfile a mano y validarlo con npm en Linux (`docker run node:24 npm install --package-lock-only`). Mirar siempre `git diff --stat package-lock.json`.
+- Antes de tipar una respuesta externa, mirar una real: `get_order_summary` devuelve `shipping_cost: null` (no `0`), y un id que no es UUID hace que Postgres responda 400.
+- Los tipos generados por `supabase gen types` declaran los argumentos de texto de las RPC como `string`, no `null`: se manda `""` y la función lo convierte con `nullif(trim(...))`.
+- zod 4 no corre un `superRefine` del objeto si un campo ya falló. Si importa mostrar todos los errores juntos, escribir el test de ese comportamiento.
+- "Sin scroll horizontal" no garantiza que todo se vea: el nav del header desbordaba sin agrandar la página. Hay que medir el elemento.
+- Playwright: `getByLabel` busca texto parcial (usar `{ exact: true }`) y Next agrega su propio `role="alert"` (el anunciador de rutas): filtrar por texto.
+- Una hipótesis de bug se confirma antes de arreglarla: la build de producción (`next build`) descartó que `crypto.randomUUID()` en el estado inicial del checkout rompiera el prerender.
 
 ### Fase 4 — Encargos
 
@@ -473,7 +504,7 @@ create_perfume_request (Turnstile + hash de IP). Seguí DESIGN.md.
 Construí /admin/login y /admin/pedidos con tema Platinum según DESIGN.md:
 lista (pendientes primero, alerta de más de 48 h), detalle, cambio de estado
 (solo transiciones válidas) y costo de envío. requireAdmin() en cada acción,
-sesión del usuario (nunca service_role), revalidateTag('catalog') al cancelar.
+sesión del usuario (nunca service_role), updateTag('catalog') al cancelar.
 Test E2E: /admin sin sesión redirige y un no-admin no ve pedidos.
 ```
 
@@ -503,12 +534,12 @@ Fase 1 base + DS ─► Fase 2 tienda (taste-skill) ─► Fase 3 checkout (TDD)
 | Capa | Herramienta | Qué cubre |
 |---|---|---|
 | Base de datos | `schema.test.cjs` (PGlite) | Todas las reglas de la sección 7, el flujo de `create_order` y los tres caminos de Storage (decisión 22) |
-| Lógica pura | Vitest | Ya existen: tokens vs `falber-tokens.json`, contrato de `Button`/`Input`/`Select`, `required()` de env, reglas del catálogo (filtros, precio "desde", agotados, destacados), mapeo de filas, URL de fotos y `formatARS`. Por venir: `whatsapp.ts` (mensaje y URL), `phone.ts` (formatos reales + inválidos), `cart.ts` (agregar, quitar, cantidad máx.), `order-errors.ts` (cada código + desconocido), schema zod del checkout |
-| Flujos | Playwright | Ya existen: smoke de la home (tema Noir, `es-AR`, sin desborde en mobile) y catálogo (home → destacado → detalle, filtros por URL, búsqueda sin tildes, estado vacío, agotado, inexistente/inactivo). Por venir: compra completa (carrito → pedido → link de WhatsApp correcto); `/admin` sin sesión → login; no-admin no ve pedidos |
+| Lógica y componentes | Vitest | Fase 1 y 2: tokens vs `falber-tokens.json`, contrato de `Button`/`Input`/`Select`, `required()` de env, reglas del catálogo, mapeo de filas, URL de fotos y `formatARS`. Fase 3: `phone.ts` (formatos reales e inválidos), `cart.ts` y el store de `localStorage` (límites, datos rotos, otra pestaña, sin `localStorage`), `resolveCart`, `order-errors.ts` (un mensaje por cada código de la migración), schema del checkout, Turnstile y hash de IP (`fetch` inyectado), la Server Action (RPC, `headers` y `next/cache` mockeados), `whatsapp.ts`, `get_order_summary` (parser y consulta) y los componentes `AddToCart`, `CartView`, `CartLink`, `CheckoutForm` y `OrderDetails` |
+| Flujos | Playwright | Smoke (tema Noir, `es-AR`, sin desborde, el header entra en pantalla), catálogo (home → destacado → detalle, filtros por URL, búsqueda sin tildes, estado vacío, agotado, inexistente/inactivo) y compra (`e2e/checkout.spec.ts`: producto → carrito → checkout → pedido con el mensaje exacto de `wa.me`, doble click = una sola Server Action, envío sin dirección rechazado por el servidor, variante inexistente frena la compra). Por venir: `/admin` sin sesión → login; no-admin no ve pedidos |
 
 Las tres capas corren en el CI en cada PR (decisión 24): `npm run test:db`, `npm test` y `npm run test:e2e`.
 
-Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", carrito con un producto que ya no existe o está inactivo, sin stock al confirmar, efectivo + envío.
+Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", carrito con un producto que ya no existe o está inactivo, sin stock al confirmar, efectivo + envío. Los cuatro están cubiertos desde la Fase 3: doble click (E2E + idempotencia en el esquema), producto inexistente (E2E + `CartView`), sin stock (esquema + Server Action + `CheckoutForm` marca el producto) y efectivo + envío (schema del checkout, la UI lo deshabilita y la base lo rechaza).
 
 ---
 
@@ -532,7 +563,9 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 - [ ] Migraciones probadas una vez contra `supabase start`.
 - [ ] La `service_role key` no aparece en el cliente ni con `NEXT_PUBLIC_`.
 - [ ] Cada acción del admin empieza con `requireAdmin()`.
-- [ ] Turnstile activo en checkout y encargos, con claves reales (no las de prueba de `.env.example`).
+- [ ] Turnstile activo en checkout y encargos, con claves reales (no las de prueba de `.env.example`), widget en modo invisible.
+- [ ] Variables de Netlify cargadas (lista en `.env.example`), entre ellas `NEXT_PUBLIC_WHATSAPP_NUMBER` (5492355481449) e `IP_HASH_SECRET` (generado, 32 caracteres o más). Sin la del WhatsApp, `/pedido/[id]` falla al cargar.
+- [ ] En Netlify llega `x-nf-client-connection-ip` (un pedido de prueba deja una fila en `rate_limit_events` con una clave distinta de la de `"unknown"`).
 - [ ] Supabase → Authentication → Sign In / Providers: registro público desactivado (solo existe el admin).
 - [ ] Pedido de prueba completo en el celular: WhatsApp abre con el mensaje correcto.
 - [ ] Doble click en "Realizar compra" crea un solo pedido.
@@ -575,10 +608,15 @@ npm run test:db
 | `create_order` | Sin stock al confirmar | Sí (esquema) | `INSUFFICIENT_STOCK` | Mensaje claro |
 | Checkout | Doble click / reintento de red | Sí (esquema) + E2E | `request_id` | Mismo pedido |
 | Checkout | Ataque con números inventados | Sí (esquema) | Turnstile + límite IP | `RATE_LIMITED` |
-| Catálogo | Stock viejo en caché | E2E (fase 3) | `revalidateTag` | — |
+| Catálogo | Stock viejo en caché | Sí (Server Action: llama a `updateTag('catalog')`) | `updateTag` (decisión 34) | — |
+| Checkout | Cloudflare caído o lento | Sí (Vitest) | Falla cerrado, timeout de 5 s | "No pudimos verificar tu navegador…" |
+| Checkout | Turnstile sin token todavía (los primeros segundos) | Sí (E2E espera el token) | El servidor rechaza y el widget se resetea | Mismo mensaje; reintentar funciona |
+| Carrito | `localStorage` roto, editado o bloqueado | Sí (Vitest) | `parseCart` descarta lo inválido; respaldo en memoria | Carrito vacío o sin la línea rota |
+| Carrito | Precio inyectado en `localStorage` | Sí (Vitest) | El carrito no guarda precios; los pone el catálogo y `create_order` | — |
 | Admin | Acción sin sesión | E2E (fase 5) | `requireAdmin()` + RLS | Redirige a login |
 | Supabase Free | Pausa tras 7 días sin uso | Manual | Keepalive diario | **Silencioso sin el keepalive** |
 | `/pedido/[id]` | ID adivinado | Sí (esquema) | UUID + resumen sin datos sensibles | — |
+| `/pedido/[id]` | ID que no es UUID (ej. `FAL-0002`) | Sí (Vitest) | Se valida antes de consultar | "No encontramos esta página" |
 
 ## Parallelization
 

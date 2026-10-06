@@ -32,14 +32,15 @@ export function Input({ label, hint, error, id, className, ...props }: InputProp
         className={cn(
           "rounded-none border bg-surface px-3 py-3 text-body text-text",
           "placeholder:text-text-muted",
-          "transition-colors duration-150 focus:border-accent",
+          "transition-colors duration-150",
           "disabled:cursor-not-allowed disabled:opacity-50",
-          error ? "border-accent-strong" : "border-border-strong",
+          // Con error, el borde sigue en error aun con foco: el anillo de foco ya indica dónde estás.
+          error ? "border-error" : "border-border-strong focus:border-accent",
         )}
         {...props}
       />
       {message && (
-        <p id={messageId} className={cn("text-body-sm", error ? "text-text" : "text-text-muted")}>
+        <p id={messageId} className={cn("text-body-sm", error ? "text-error" : "text-text-muted")}>
           {message}
         </p>
       )}

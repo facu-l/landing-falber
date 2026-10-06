@@ -26,6 +26,20 @@ describe("Input", () => {
     expect(screen.queryByText("Con código de área")).toBeNull();
   });
 
+  it("con error usa el token error en el borde y el mensaje (incluso con foco)", () => {
+    render(<Input label="WhatsApp" error="Número inválido" />);
+    const input = screen.getByLabelText("WhatsApp");
+    expect(input.className).toContain("border-error");
+    expect(input.className).not.toContain("focus:border-accent");
+    expect(screen.getByText("Número inválido").className).toContain("text-error");
+  });
+
+  it("sin error no usa el token error", () => {
+    render(<Input label="WhatsApp" hint="Con código de área" />);
+    expect(screen.getByLabelText("WhatsApp").className).not.toContain("border-error");
+    expect(screen.getByText("Con código de área").className).not.toContain("text-error");
+  });
+
   it('un error vacío ("") no esconde el hint ni marca el campo inválido', () => {
     render(<Input label="WhatsApp" hint="Con código de área" error="" />);
     expect(screen.getByText("Con código de área")).toBeTruthy();

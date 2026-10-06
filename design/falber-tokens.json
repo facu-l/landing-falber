@@ -123,6 +123,14 @@
           "light": "#202226"
         },
         "usage": "Hover and active state of accent; the brightest platinum sheen in Noir."
+      },
+      {
+        "name": "error",
+        "value": {
+          "dark": "#e5867d",
+          "light": "#a8332b"
+        },
+        "usage": "Error message text and invalid-field border. Desaturated, never decorative. ≥5:1 on surface, surface-raised and surface-overlay in both themes. Always paired with explicit text and aria-invalid: color reinforces, it never informs alone."
       }
     ]
   },

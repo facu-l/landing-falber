@@ -319,6 +319,31 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await expectError(db, 'admin NO puede editar stock directo', `${asAdmin} update product_variants set stock = 999 where id='${V1}'`, 'permission denied');
   await expectError(db, 'admin NO puede editar el subtotal de un pedido', `${asAdmin} update orders set subtotal = 1 where id='${envio.order_id}'`, 'permission denied');
   await expectError(db, 'admin NO puede borrar pedidos', `${asAdmin} delete from orders where id='${envio.order_id}'`, 'permission denied');
+
+  // Costo de envío: solo en pedidos con envío y mientras no salieron ni se cerraron.
+  await expectError(db, 'costo de envío en un retiro → SHIPPING_COST_PICKUP',
+    `${asAdmin} update orders set shipping_cost = 1000 where id='${transfer.order_id}'`, 'SHIPPING_COST_PICKUP');
+  const shipped = (await one(db, orderCall({ wa: '+5492215550007', delivery: 'delivery', address: 'Calle 8 456', city: 'La Plata', items: `[${item(V1, 1)}]` }))).r;
+  await db.exec(`${asAdmin} update orders set shipping_cost = 2000 where id='${shipped.order_id}'`);
+  for (const s of ['confirmed', 'paid', 'preparing', 'shipped']) {
+    await db.exec(`update orders set status='${s}' where id='${shipped.order_id}'`);
+  }
+  await reset(db);
+  await expectError(db, 'costo de envío de un pedido enviado → SHIPPING_COST_LOCKED',
+    `${asAdmin} update orders set shipping_cost = 2500 where id='${shipped.order_id}'`, 'SHIPPING_COST_LOCKED', 'shipped');
+  await expectError(db, 'costo de envío de un pedido cancelado → SHIPPING_COST_LOCKED',
+    `${asAdmin} update orders set status='cancelled' where id='${envio.order_id}'; update orders set shipping_cost = 0 where id='${envio.order_id}'`,
+    'SHIPPING_COST_LOCKED', 'cancelled');
+  await db.exec(`${asAdmin} update orders set shipping_cost = 2000 where id='${shipped.order_id}'`);
+  ok('re-guardar el mismo costo en un pedido enviado no es un cambio');
+  await db.exec(`${asAdmin} update orders set status='completed', shipping_cost = 2000 where id='${shipped.order_id}'`);
+  ok('cambiar el estado de un pedido con costo de envío no choca con la regla');
+  await reset(db);
+  const byAdmin = (await one(db, orderCall({ wa: '+5492215550008', items: `[${item(V1, 1)}]` }))).r;
+  await db.exec(`${asAdmin} update orders set status='cancelled' where id='${byAdmin.order_id}'`);
+  eq('auditoría: la devolución de una cancelación del admin queda firmada por el admin',
+    (await one(db, `select created_by from stock_movements where reference_id='${byAdmin.order_id}' and movement_type='order_cancelled'`)).created_by, ADMIN);
+  await reset(db);
   eq('el pedido histórico conserva el precio viejo (snapshot)',
     (await one(db, `select unit_price from order_items where order_id='${r1.order_id}' and variant_id='${V1}'`)).unit_price, 8000);
 

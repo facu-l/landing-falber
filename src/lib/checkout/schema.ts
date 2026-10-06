@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MAX_LINES, MAX_QUANTITY } from "@/lib/cart/cart";
-import { normalizeArgentineWhatsApp } from "@/lib/phone";
+import { fullNameField, optionalText as text, whatsappField } from "@/lib/forms/fields";
 
 /*
  * Validación del checkout. Corre en la Server Action (la frontera de confianza):
@@ -10,13 +10,6 @@ import { normalizeArgentineWhatsApp } from "@/lib/phone";
  * la base las vuelve a validar. Los largos de dirección, ciudad, código postal y
  * referencia existen solo acá: la base no los limita.
  */
-
-const text = (max: number, tooLong: string) =>
-  z
-    .string()
-    .trim()
-    .max(max, tooLong)
-    .transform((value) => value || null);
 
 const item = z.object({
   variantId: z.uuid(),
@@ -46,22 +39,8 @@ const items = z
 const checkoutSchema = z
   .object({
     requestId: z.uuid({ error: "Hubo un problema con tu pedido. Recargá la página y probá de nuevo." }),
-    fullName: z
-      .string()
-      .trim()
-      .min(2, "Escribí tu nombre y apellido.")
-      .max(80, "El nombre puede tener hasta 80 caracteres."),
-    whatsapp: z.string().transform((value, ctx) => {
-      const normalized = normalizeArgentineWhatsApp(value);
-      if (!normalized) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Revisá el número: con código de área, sin 0 ni 15 (ej. 221 555 1234).",
-        });
-        return z.NEVER;
-      }
-      return normalized;
-    }),
+    fullName: fullNameField,
+    whatsapp: whatsappField,
     email: z
       .string()
       .trim()

@@ -33,7 +33,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
   const router = useRouter();
 
   const [requestId] = useState(() => crypto.randomUUID());
-  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const [serverErrors, setServerErrors] = useState(0);
   const [delivery, setDelivery] = useState<DeliveryMethod>("pickup");
   const [payment, setPayment] = useState<PaymentMethod>("transfer");
 
@@ -44,7 +44,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
       router.replace(`/pedido/${next.orderId}`);
     } else if (next.status === "error") {
       // El token ya se usó (o era inválido): Turnstile tiene que dar uno nuevo.
-      setTurnstileResetKey((key) => key + 1);
+      setServerErrors((key) => key + 1);
     }
     return next;
   }, INITIAL_CHECKOUT_STATE);
@@ -117,11 +117,12 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
         <FormSection title="Entrega">
           {/*
             key: después de la acción React resetea el <form> y cada radio vuelve a su
-            defaultChecked, que React marca solo al montarlo. Sin remontar el grupo con
-            lo que se mandó, el DOM volvería a "Retiro" aunque el estado diga "Envío".
+            defaultChecked, que React marca solo al montarlo. key = cantidad de errores:
+            cada respuesta remonta el grupo con la elección actual (aunque haya cambiado
+            mientras se enviaba); sin eso el DOM volvería a "Retiro" con el estado en "Envío".
           */}
           <RadioGroup
-            key={values.deliveryMethod ?? "initial"}
+            key={serverErrors}
             legend="Cómo querés recibir tu pedido"
             error={errors.deliveryMethod}
           >
@@ -184,7 +185,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
         </FormSection>
 
         <FormSection title="Pago">
-          <RadioGroup key={values.paymentMethod ?? "initial"} legend="Cómo vas a pagar" error={errors.paymentMethod}>
+          <RadioGroup key={serverErrors} legend="Cómo vas a pagar" error={errors.paymentMethod}>
             <RadioOption
               name="paymentMethod"
               value="transfer"
@@ -223,7 +224,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
               {state.message}
             </p>
           )}
-          <TurnstileField resetKey={turnstileResetKey} />
+          <TurnstileField resetKey={serverErrors} />
           <Button type="submit" disabled={pending} className="w-full md:w-auto">
             {pending ? "Enviando pedido" : "Realizar compra"}
           </Button>

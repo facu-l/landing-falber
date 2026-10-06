@@ -230,6 +230,26 @@ describe("PerfumeRequestForm al enviar", () => {
     expect(mocks.turnstileResets).toBe(1);
   });
 
+  it("si cambia la presentación mientras se envía, después del error el select y la etiqueta siguen la elección actual", async () => {
+    let resolve!: (state: RequestState) => void;
+    mocks.createPerfumeRequest.mockReturnValueOnce(new Promise<RequestState>((r) => (resolve = r)));
+    render(<PerfumeRequestForm prefill={sauvage} />);
+    fillCustomer();
+    submit();
+    await screen.findByRole("button", { name: "Enviando encargo" });
+    fireEvent.change(screen.getByLabelText("Presentación"), { target: { value: SAUVAGE_100 } });
+    await act(async () =>
+      resolve({ status: "error", message: "Demasiados intentos.", values: { variantId: SAUVAGE_10 } }),
+    );
+
+    expect((screen.getByLabelText("Presentación") as HTMLSelectElement).value).toBe(SAUVAGE_100);
+    mocks.createPerfumeRequest.mockResolvedValue({ status: "success", perfumeName: "Sauvage EDT" });
+    submit();
+    await waitFor(() => expect(mocks.createPerfumeRequest).toHaveBeenCalledTimes(2));
+    expect(sentForm().get("variantId")).toBe(SAUVAGE_100);
+    expect(sentForm().get("presentation")).toBe("Frasco 100 ml");
+  });
+
   it("con un error en la presentación lo marca en el select y conserva la elegida", async () => {
     mocks.createPerfumeRequest.mockResolvedValue({
       status: "error",

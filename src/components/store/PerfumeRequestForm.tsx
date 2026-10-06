@@ -30,7 +30,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
   // layout effect de abajo correría (y resetearía) en cada render.
   const firstVariantId = variants[0]?.id ?? "";
   const [variantId, setVariantId] = useState(firstVariantId);
-  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const [serverErrors, setServerErrors] = useState(0);
   const resetWhenHidden = useRef(false);
 
   const [state, formAction, pending] = useActionState(
@@ -38,7 +38,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
       if (input === RESET) return INITIAL_REQUEST_STATE;
       const next = await createPerfumeRequest(prev, input);
       // El token ya se usó (o era inválido): Turnstile tiene que dar uno nuevo.
-      if (next.status === "error") setTurnstileResetKey((key) => key + 1);
+      if (next.status === "error") setServerErrors((key) => key + 1);
       if (next.status === "success") resetWhenHidden.current = true;
       return next;
     },
@@ -89,15 +89,15 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
           <>
             {/*
               Después de la acción React resetea el <form>, y un <select> vuelve a la opción
-              con defaultSelected. React marca defaultSelected solo al montar el select
-              (a un <input> sí le actualiza el defaultValue), así que sin remontarlo volvería
-              a la primera opción. El key lo remonta con lo que se mandó.
+              con defaultSelected. React la marca solo al montar el select (a un <input> sí
+              le actualiza el defaultValue). key = cantidad de errores: cada respuesta lo
+              remonta con la elección actual, aunque haya cambiado mientras se enviaba.
             */}
             <Select
-              key={values.variantId ?? "initial"}
+              key={serverErrors}
               label="Presentación"
               name="variantId"
-              defaultValue={values.variantId || selected.id}
+              defaultValue={selected.id}
               onChange={(event) => setVariantId(event.target.value)}
               error={errors.variantId}
             >
@@ -167,7 +167,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
             {state.message}
           </p>
         )}
-        <TurnstileField resetKey={turnstileResetKey} />
+        <TurnstileField resetKey={serverErrors} />
         <Button type="submit" disabled={pending} className="w-full md:w-auto">
           {pending ? "Enviando encargo" : "Enviar encargo"}
         </Button>

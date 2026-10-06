@@ -32,6 +32,7 @@ Stack: Next.js (App Router) + TypeScript + Tailwind v4 + Supabase. Hosting: Netl
 - Storage local no funciona con el CLI actual (ver `TODOS.md` → "Storage local"). Las fotos de prueba están en `public/product-images/` (`NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL=/product-images`).
 - Catálogo: `getCatalog()` en `src/lib/catalog/queries.ts` (una consulta, tag `'catalog'`). Las reglas puras están en `src/lib/catalog/catalog.ts`.
 - Compra: carrito en `src/lib/cart/` (reglas puras + store de `localStorage`), checkout en `src/lib/checkout/schema.ts` y la Server Action `src/app/(store)/checkout/actions.ts`, pedido en `src/lib/orders/`. Los E2E de compra escriben en la base: si se agota el stock del seed, `npm run db:reset`.
+- Encargos: reglas en `src/lib/requests/` (schema, errores, precarga desde `?producto=<slug>`) y la Server Action `src/app/(store)/encargos/actions.ts`. Lo compartido con el checkout vive en `src/lib/forms/`, `src/lib/db-errors.ts`, `src/lib/security/verify-request.ts` y `TurnstileField`: reusarlo en cualquier formulario público nuevo.
 - Dependencias: en Windows, `npm install` borra `@emnapi/*` del lockfile. Editar `package.json` y el lockfile a mano y validar con `docker run node:24 npm install --package-lock-only` (documento maestro → Fase 3, lecciones).
 - Reiniciá el dev server si creás una carpeta nueva en `src/app` (en Windows Tailwind no detecta sus clases) o después de cambiar de rama (puede quedar con un `next.config.ts` viejo, ej. "enable the feature flag `cacheComponents`").
 

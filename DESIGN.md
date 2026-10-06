@@ -23,7 +23,7 @@ son la copia que usa el código. Si el design system cambia en el artifact, se r
 
 | Zona | Tema | Cómo |
 |---|---|---|
-| Tienda pública (`/`, `/catalogo`, `/producto`, `/carrito`, `/checkout`, `/pedido`) | Noir | `<html data-theme="dark">` en el layout público |
+| Tienda pública (`/`, `/catalogo`, `/producto`, `/carrito`, `/checkout`, `/pedido`, `/encargos`) | Noir | `<html data-theme="dark">` en el layout público |
 | Panel `/admin` | Platinum | `data-theme="light"` en el layout de admin |
 
 ## Color (tokens semánticos)
@@ -98,7 +98,8 @@ Se **reimplementan en `src/components/ui/`** con los tokens. El bundle del artif
 | Componente | Comportamiento |
 |---|---|
 | `Button` | Acción principal: label en MAYÚSCULAS con tracking amplio, caja de esquinas rectas. Variantes: primario (fondo `accent`, texto `on-accent`) y secundario (borde `border-strong`) |
-| `Input` | Label en MAYÚSCULAS arriba, campo, hint opcional abajo. Borde `border-strong`, foco visible. Con error: borde y mensaje en `error` (también con foco) |
+| `Input` | Label en MAYÚSCULAS arriba, campo, hint opcional abajo. Borde `border-strong`, foco visible. Con error: borde y mensaje en `error` (también con foco). Solo lectura (un dato precargado): fondo `surface-raised`, borde `border` y texto `text-secondary`, para que no parezca un campo para escribir |
+| `Select` | Mismo contrato que `Input` (label arriba, error abajo con `aria-invalid`). `<select>` nativo |
 | `Card` | Panel en `surface-raised` con borde fino `border` y esquinas rectas |
 
 ## Logos

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_LINES, MAX_QUANTITY } from "@/lib/cart/cart";
-import { normalizeArgentineWhatsApp } from "@/lib/phone";
+import { fullNameField, optionalText as text, whatsappField } from "@/lib/forms/fields";
+import { LIMITS } from "@/lib/forms/limits";
 
 /*
  * Validación del checkout. Corre en la Server Action (la frontera de confianza):
@@ -10,13 +11,6 @@ import { normalizeArgentineWhatsApp } from "@/lib/phone";
  * la base las vuelve a validar. Los largos de dirección, ciudad, código postal y
  * referencia existen solo acá: la base no los limita.
  */
-
-const text = (max: number, tooLong: string) =>
-  z
-    .string()
-    .trim()
-    .max(max, tooLong)
-    .transform((value) => value || null);
 
 const item = z.object({
   variantId: z.uuid(),
@@ -46,22 +40,8 @@ const items = z
 const checkoutSchema = z
   .object({
     requestId: z.uuid({ error: "Hubo un problema con tu pedido. Recargá la página y probá de nuevo." }),
-    fullName: z
-      .string()
-      .trim()
-      .min(2, "Escribí tu nombre y apellido.")
-      .max(80, "El nombre puede tener hasta 80 caracteres."),
-    whatsapp: z.string().transform((value, ctx) => {
-      const normalized = normalizeArgentineWhatsApp(value);
-      if (!normalized) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Revisá el número: con código de área, sin 0 ni 15 (ej. 221 555 1234).",
-        });
-        return z.NEVER;
-      }
-      return normalized;
-    }),
+    fullName: fullNameField,
+    whatsapp: whatsappField,
     email: z
       .string()
       .trim()
@@ -69,11 +49,11 @@ const checkoutSchema = z
       .transform((value) => value || null),
     deliveryMethod: z.enum(["pickup", "delivery"], { error: "Elegí cómo querés recibir tu pedido." }),
     paymentMethod: z.enum(["transfer", "cash"], { error: "Elegí cómo vas a pagar." }),
-    address: text(120, "La dirección puede tener hasta 120 caracteres."),
-    city: text(60, "La ciudad puede tener hasta 60 caracteres."),
-    postalCode: text(10, "El código postal puede tener hasta 10 caracteres."),
-    reference: text(120, "La referencia puede tener hasta 120 caracteres."),
-    note: text(100, "La aclaración puede tener hasta 100 caracteres."),
+    address: text(LIMITS.address, `La dirección puede tener hasta ${LIMITS.address} caracteres.`),
+    city: text(LIMITS.city, `La ciudad puede tener hasta ${LIMITS.city} caracteres.`),
+    postalCode: text(LIMITS.postalCode, `El código postal puede tener hasta ${LIMITS.postalCode} caracteres.`),
+    reference: text(LIMITS.reference, `La referencia puede tener hasta ${LIMITS.reference} caracteres.`),
+    note: text(LIMITS.note, `La aclaración puede tener hasta ${LIMITS.note} caracteres.`),
     items,
   })
   // Con retiro, la dirección no se guarda aunque haya quedado escrita en el formulario.

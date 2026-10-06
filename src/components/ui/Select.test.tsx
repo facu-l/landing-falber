@@ -14,4 +14,29 @@ describe("Select", () => {
     expect(select.name).toBe("genero");
     expect(select.value).toBe("unisex");
   });
+
+  it("sin error no marca el campo como inválido", () => {
+    render(
+      <Select label="Presentación">
+        <option value="a">A</option>
+      </Select>,
+    );
+    const select = screen.getByLabelText("Presentación");
+    expect(select.getAttribute("aria-invalid")).toBeNull();
+    expect(select.getAttribute("aria-describedby")).toBeNull();
+  });
+
+  it("con error lo muestra, marca el campo y conecta el mensaje (igual que Input)", () => {
+    render(
+      <Select label="Presentación" error="Elegí una de las presentaciones.">
+        <option value="a">A</option>
+      </Select>,
+    );
+    const select = screen.getByLabelText("Presentación");
+    expect(select.getAttribute("aria-invalid")).toBe("true");
+    const message = document.getElementById(select.getAttribute("aria-describedby")!);
+    expect(message?.textContent).toBe("Elegí una de las presentaciones.");
+    expect(message?.className).toContain("text-error");
+    expect(select.className).toContain("border-error");
+  });
 });

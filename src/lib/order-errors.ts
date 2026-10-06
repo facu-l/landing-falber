@@ -1,3 +1,5 @@
+import { type DbError, mapDbError } from "./db-errors";
+
 /*
  * Errores de create_order → mensajes para el cliente (decisión 4).
  * La base levanta `message` = código estable y, en los errores de stock,
@@ -55,22 +57,8 @@ export type OrderError = {
   known: boolean;
 };
 
-/** Forma mínima de un error de supabase-js (PostgrestError). */
-type DbError = { message?: string; details?: string | null; code?: string };
-
 export function orderError(error: DbError): OrderError {
-  const code = error.message;
-  if (!code || !isOrderErrorCode(code)) {
-    return { code: "UNKNOWN", message: GENERIC_ORDER_ERROR, variantId: null, known: false };
-  }
-  return {
-    code,
-    message: ORDER_ERRORS[code],
-    variantId: VARIANT_DETAIL_CODES.has(code) ? (error.details ?? null) : null,
-    known: true,
-  };
-}
-
-function isOrderErrorCode(value: string): value is OrderErrorCode {
-  return Object.hasOwn(ORDER_ERRORS, value);
+  const { code, message, detail, known } = mapDbError(error, ORDER_ERRORS, GENERIC_ORDER_ERROR);
+  const variantId = code !== "UNKNOWN" && VARIANT_DETAIL_CODES.has(code) ? detail : null;
+  return { code, message, variantId, known };
 }

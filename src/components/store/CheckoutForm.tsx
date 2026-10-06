@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useActionState, useCallback, useState } from "react";
+import { type ReactNode, useActionState, useState } from "react";
 import { createOrder } from "@/app/(store)/checkout/actions";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -11,10 +11,12 @@ import { clearCart, useCart } from "@/lib/cart/cart-store";
 import { type ResolvedCart, resolveCart, type VariantIndex } from "@/lib/cart/resolve";
 import { type CheckoutState, INITIAL_CHECKOUT_STATE } from "@/lib/checkout/state";
 import { cn } from "@/lib/cn";
+import { LIMITS } from "@/lib/forms/limits";
 import { formatARS } from "@/lib/format";
 import { useIsClient } from "@/lib/use-is-client";
 import { CartSkeleton, EmptyCart } from "./CartView";
-import { Turnstile } from "./Turnstile";
+import { FormSection } from "./FormSection";
+import { TurnstileField } from "./TurnstileField";
 
 type DeliveryMethod = "pickup" | "delivery";
 type PaymentMethod = "transfer" | "cash";
@@ -32,8 +34,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
   const router = useRouter();
 
   const [requestId] = useState(() => crypto.randomUUID());
-  const [token, setToken] = useState<string | null>(null);
-  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const [serverErrors, setServerErrors] = useState(0);
   const [delivery, setDelivery] = useState<DeliveryMethod>("pickup");
   const [payment, setPayment] = useState<PaymentMethod>("transfer");
 
@@ -44,12 +45,10 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
       router.replace(`/pedido/${next.orderId}`);
     } else if (next.status === "error") {
       // El token ya se usó (o era inválido): Turnstile tiene que dar uno nuevo.
-      setTurnstileResetKey((key) => key + 1);
+      setServerErrors((key) => key + 1);
     }
     return next;
   }, INITIAL_CHECKOUT_STATE);
-
-  const handleToken = useCallback((value: string | null) => setToken(value), []);
 
   if (state.status === "success") {
     return <p className="text-body text-text-secondary">Pedido registrado. Abriendo el detalle de tu compra.</p>;
@@ -85,14 +84,13 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
       <form action={formAction} noValidate className="flex flex-col gap-10">
         <input type="hidden" name="requestId" value={requestId} />
         <input type="hidden" name="items" value={serializeCart(cart)} />
-        <input type="hidden" name="cf-turnstile-response" value={token ?? ""} />
 
-        <Section title="Tus datos">
+        <FormSection title="Tus datos">
           <Input
             label="Nombre y apellido"
             name="fullName"
             autoComplete="name"
-            maxLength={80}
+            maxLength={LIMITS.fullName}
             defaultValue={values.fullName}
             error={errors.fullName}
           />
@@ -115,10 +113,20 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
             defaultValue={values.email}
             error={errors.email}
           />
-        </Section>
+        </FormSection>
 
-        <Section title="Entrega">
-          <RadioGroup legend="Cómo querés recibir tu pedido" error={errors.deliveryMethod}>
+        <FormSection title="Entrega">
+          {/*
+            key: después de la acción React resetea el <form> y cada radio vuelve a su
+            defaultChecked, que React marca solo al montarlo. key = cantidad de errores:
+            cada respuesta remonta el grupo con la elección actual (aunque haya cambiado
+            mientras se enviaba); sin eso el DOM volvería a "Retiro" con el estado en "Envío".
+          */}
+          <RadioGroup
+            key={serverErrors}
+            legend="Cómo querés recibir tu pedido"
+            error={errors.deliveryMethod}
+          >
             <RadioOption
               name="deliveryMethod"
               value="pickup"
@@ -142,7 +150,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
                 label="Dirección"
                 name="address"
                 autoComplete="street-address"
-                maxLength={120}
+                maxLength={LIMITS.address}
                 defaultValue={values.address}
                 error={errors.address}
                 className="md:col-span-2"
@@ -151,7 +159,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
                 label="Ciudad"
                 name="city"
                 autoComplete="address-level2"
-                maxLength={60}
+                maxLength={LIMITS.city}
                 defaultValue={values.city}
                 error={errors.city}
               />
@@ -159,7 +167,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
                 label="Código postal"
                 name="postalCode"
                 autoComplete="postal-code"
-                maxLength={10}
+                maxLength={LIMITS.postalCode}
                 hint="Opcional."
                 defaultValue={values.postalCode}
                 error={errors.postalCode}
@@ -167,7 +175,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
               <Input
                 label="Referencia"
                 name="reference"
-                maxLength={120}
+                maxLength={LIMITS.reference}
                 hint="Opcional. Ej.: timbre, entre calles."
                 defaultValue={values.reference}
                 error={errors.reference}
@@ -175,10 +183,10 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
               />
             </div>
           )}
-        </Section>
+        </FormSection>
 
-        <Section title="Pago">
-          <RadioGroup legend="Cómo vas a pagar" error={errors.paymentMethod}>
+        <FormSection title="Pago">
+          <RadioGroup key={serverErrors} legend="Cómo vas a pagar" error={errors.paymentMethod}>
             <RadioOption
               name="paymentMethod"
               value="transfer"
@@ -197,13 +205,13 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
               detail="Solo con retiro en La Plata."
             />
           </RadioGroup>
-        </Section>
+        </FormSection>
 
         <Input
           label="Aclaración"
           name="note"
-          maxLength={100}
-          hint="Opcional. Hasta 100 caracteres."
+          maxLength={LIMITS.note}
+          hint={`Opcional. Hasta ${LIMITS.note} caracteres.`}
           defaultValue={values.note}
           error={errors.note}
         />
@@ -217,7 +225,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
               {state.message}
             </p>
           )}
-          <Turnstile onToken={handleToken} resetKey={turnstileResetKey} />
+          <TurnstileField resetKey={serverErrors} />
           <Button type="submit" disabled={pending} className="w-full md:w-auto">
             {pending ? "Enviando pedido" : "Realizar compra"}
           </Button>
@@ -226,15 +234,6 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
 
       <OrderSummary resolved={resolved} problemVariantId={problemVariantId} />
     </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-6">
-      <h2 className="text-label text-text-secondary uppercase">{title}</h2>
-      {children}
-    </section>
   );
 }
 

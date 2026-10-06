@@ -1,16 +1,7 @@
 // @vitest-environment node
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { codesRaisedBy } from "@/test/migration";
 import { GENERIC_ORDER_ERROR, ORDER_ERRORS, orderError } from "./order-errors";
-
-// Códigos que levanta una función de la migración: `raise exception using message = 'CODIGO'`.
-function codesRaisedBy(functionName: string): string[] {
-  const sql = readFileSync(join(process.cwd(), "supabase/migrations/0001_initial_schema.sql"), "utf8");
-  const start = sql.indexOf(`create or replace function public.${functionName}(`);
-  const body = sql.slice(start, sql.indexOf("$$;", start));
-  return [...body.matchAll(/message = '([A-Z_]+)'/g)].map((m) => m[1]);
-}
 
 describe("ORDER_ERRORS", () => {
   // create_order llama a enforce_rate_limit: sus errores también llegan al checkout.

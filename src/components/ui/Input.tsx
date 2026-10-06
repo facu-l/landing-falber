@@ -34,8 +34,11 @@ export function Input({ label, hint, error, id, className, ...props }: InputProp
           "placeholder:text-text-muted",
           "transition-colors duration-150",
           "disabled:cursor-not-allowed disabled:opacity-50",
+          // Solo lectura (ej. un perfume precargado): se lee como dato, no como campo para escribir.
+          // Por la prop y no con read-only: porque :read-only también matchea un input deshabilitado.
+          props.readOnly && "cursor-default bg-surface-raised text-text-secondary",
           // Con error, el borde sigue en error aun con foco: el anillo de foco ya indica dónde estás.
-          error ? "border-error" : "border-border-strong focus:border-accent",
+          error ? "border-error" : props.readOnly ? "border-border" : "border-border-strong focus:border-accent",
         )}
         {...props}
       />

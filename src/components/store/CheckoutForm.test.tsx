@@ -161,6 +161,52 @@ describe("CheckoutForm", () => {
     expect(localStorage.getItem(CART_STORAGE_KEY)).not.toBeNull();
   });
 
+  it("después de un error conserva la entrega y el pago elegidos (el reset del form no los desmarca)", async () => {
+    mocks.createOrder.mockResolvedValue({
+      status: "error",
+      message: "Demasiados intentos. Probá de nuevo en un rato.",
+      values: { deliveryMethod: "delivery", paymentMethod: "transfer" },
+    });
+    render(<CheckoutForm index={index} />);
+    fireEvent.click(screen.getByRole("radio", { name: /Envío a domicilio/ }));
+    fillValidForm();
+    submit();
+    await screen.findByRole("alert");
+
+    expect(screen.getByRole("radio", { name: /Envío a domicilio/ })).toHaveProperty("checked", true);
+    expect(screen.getByRole("radio", { name: /Retiro en La Plata/ })).toHaveProperty("checked", false);
+    expect(screen.getByRole("radio", { name: /Transferencia/ })).toHaveProperty("checked", true);
+
+    // El reintento sale con envío, no con retiro.
+    submit();
+    await waitFor(() => expect(mocks.createOrder).toHaveBeenCalledTimes(2));
+    expect(sentForm().get("deliveryMethod")).toBe("delivery");
+  });
+
+  it("si cambia la entrega mientras se envía y vuelve el mismo error, el radio sigue la elección actual", async () => {
+    const error = (deliveryMethod: string): CheckoutState => ({
+      status: "error",
+      message: "Demasiados intentos. Probá de nuevo en un rato.",
+      values: { deliveryMethod, paymentMethod: "transfer" },
+    });
+    mocks.createOrder.mockResolvedValueOnce(error("pickup"));
+    render(<CheckoutForm index={index} />);
+    fillValidForm();
+    submit();
+    await screen.findByRole("alert");
+
+    // Segundo intento con retiro; mientras está pendiente, el cliente elige envío.
+    let resolve!: (state: CheckoutState) => void;
+    mocks.createOrder.mockReturnValueOnce(new Promise<CheckoutState>((r) => (resolve = r)));
+    submit();
+    await screen.findByRole("button", { name: "Enviando pedido" });
+    fireEvent.click(screen.getByRole("radio", { name: /Envío a domicilio/ }));
+    await act(async () => resolve(error("pickup")));
+
+    expect(screen.getByLabelText("Dirección")).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /Envío a domicilio/ })).toHaveProperty("checked", true);
+  });
+
   it("reintenta con el mismo request_id (si el primer intento llegó a crear el pedido, no se duplica)", async () => {
     mocks.createOrder.mockResolvedValue({ status: "error", message: "Error", values: {} });
     render(<CheckoutForm index={index} />);

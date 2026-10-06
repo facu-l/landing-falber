@@ -106,8 +106,9 @@ $$;
 
 create table public.products (
   id          uuid primary key default gen_random_uuid(),
-  name        text not null check (length(trim(name)) > 0),
-  brand       text not null check (length(trim(brand)) > 0),
+  -- Mismos límites que un encargo: /encargos?producto=<slug> precarga nombre y marca.
+  name        text not null check (length(trim(name)) between 2 and 120),
+  brand       text not null check (length(trim(brand)) between 1 and 60),
   slug        text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
   description text,
   image_path  text,  -- ruta dentro del bucket product-images, no la URL completa
@@ -369,8 +370,8 @@ create table public.perfume_requests (
   customer_name text not null, -- snapshot, igual que en orders
   variant_id    uuid references public.product_variants (id), -- caso A: existe pero está agotado
   perfume_name  text not null check (length(trim(perfume_name)) between 2 and 120),
-  brand         text,
-  presentation  text,
+  brand         text check (length(brand) <= 60),
+  presentation  text check (length(presentation) <= 60),
   note          varchar(100),
   status        public.request_status not null default 'pending',
   created_at    timestamptz not null default now(),
@@ -431,6 +432,10 @@ begin
   if p_client_key is null or length(p_client_key) < 16 then
     raise exception using message = 'INVALID_CLIENT_KEY';
   end if;
+
+  -- Sin lock, N requests simultáneas de la misma IP leen count < max y pasan todas.
+  -- El lock serializa solo las de la misma acción y clave, hasta el fin de la transacción.
+  perform pg_advisory_xact_lock(hashtext(p_action || ':' || p_client_key));
 
   select count(*) into v_count
   from rate_limit_events
@@ -722,6 +727,8 @@ as $$
 declare
   v_name        text := trim(coalesce(p_full_name, ''));
   v_perfume     text := trim(coalesce(p_perfume_name, ''));
+  v_brand        text := nullif(trim(coalesce(p_brand, '')), '');
+  v_presentation text := nullif(trim(coalesce(p_presentation, '')), '');
   v_note        text := nullif(trim(coalesce(p_note, '')), '');
   v_customer_id uuid;
   v_request_id  uuid;
@@ -732,14 +739,32 @@ begin
   if p_whatsapp is null or p_whatsapp !~ '^\+[1-9][0-9]{7,14}$' then
     raise exception using message = 'INVALID_WHATSAPP';
   end if;
+  -- Con variante, perfume, marca y presentación salen del catálogo, no del cliente:
+  -- el formulario los muestra de solo lectura, pero un POST armado a mano podría
+  -- mandar otros y dejar el encargo contradiciendo a su variante.
+  if p_variant_id is not null then
+    -- trim: el check de products mide recortado, así que se copia recortado.
+    select trim(p.name), trim(p.brand), v.label
+      into v_perfume, v_brand, v_presentation
+    from product_variants v
+    join products p on p.id = v.product_id
+    where v.id = p_variant_id;
+
+    if not found then
+      raise exception using message = 'VARIANT_NOT_FOUND', detail = p_variant_id::text;
+    end if;
+  end if;
   if length(v_perfume) not between 2 and 120 then
     raise exception using message = 'INVALID_PERFUME_NAME';
   end if;
+  if length(v_brand) > 60 then
+    raise exception using message = 'INVALID_BRAND';
+  end if;
+  if length(v_presentation) > 60 then
+    raise exception using message = 'INVALID_PRESENTATION';
+  end if;
   if v_note is not null and length(v_note) > 100 then
     raise exception using message = 'NOTE_TOO_LONG';
-  end if;
-  if p_variant_id is not null and not exists (select 1 from product_variants where id = p_variant_id) then
-    raise exception using message = 'VARIANT_NOT_FOUND', detail = p_variant_id::text;
   end if;
 
   perform public.enforce_rate_limit('perfume_request', p_client_key, 5, interval '1 hour');
@@ -755,8 +780,7 @@ begin
 
   insert into perfume_requests (customer_id, customer_name, variant_id, perfume_name, brand, presentation, note)
   values (
-    v_customer_id, v_name, p_variant_id, v_perfume,
-    nullif(trim(coalesce(p_brand, '')), ''), nullif(trim(coalesce(p_presentation, '')), ''), v_note
+    v_customer_id, v_name, p_variant_id, v_perfume, v_brand, v_presentation, v_note
   )
   returning id into v_request_id;
 

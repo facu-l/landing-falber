@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { randomWhatsApp, useRandomIp, waitForTurnstile } from "./helpers";
 
 /*
  * Compra completa contra la app real: Supabase local (seed), Turnstile con las claves
@@ -15,13 +16,8 @@ import { expect, type Page, test } from "@playwright/test";
 const PRODUCT_PATH = "/producto/dior-sauvage-edt";
 const FALBER_WHATSAPP = "5492355481449";
 
-const randomDigits = (length: number) =>
-  Array.from({ length }, () => Math.floor(Math.random() * 10)).join("");
-
 test.beforeEach(async ({ page }) => {
-  await page.setExtraHTTPHeaders({
-    "x-forwarded-for": `10.${randomDigits(2)}.${randomDigits(2)}.${randomDigits(2)}`,
-  });
+  await useRandomIp(page);
 });
 
 async function addSauvageToCart(page: Page) {
@@ -34,13 +30,7 @@ async function addSauvageToCart(page: Page) {
 
 async function fillCustomer(page: Page) {
   await page.getByLabel("Nombre y apellido", { exact: true }).fill("Prueba E2E");
-  // Formato real de La Plata con 0 y 15: la normalización la hace el servidor.
-  await page.getByLabel("WhatsApp", { exact: true }).fill(`0221 15 5${randomDigits(2)}-${randomDigits(4)}`);
-}
-
-// Turnstile (invisible, clave de prueba) tarda unos segundos en entregar el token.
-async function waitForTurnstile(page: Page) {
-  await expect(page.locator('input[name="cf-turnstile-response"]')).not.toHaveValue("", { timeout: 15_000 });
+  await page.getByLabel("WhatsApp", { exact: true }).fill(randomWhatsApp());
 }
 
 test("compra completa: producto → carrito → checkout → pedido con el link de WhatsApp", async ({ page }) => {
@@ -81,6 +71,32 @@ test("compra completa: producto → carrito → checkout → pedido con el link 
 
   // El carrito quedó vacío.
   await expect(page.getByRole("link", { name: "Carrito", exact: true })).toBeVisible();
+});
+
+test("una segunda compra en la misma pestaña crea otro pedido", async ({ page }) => {
+  await addSauvageToCart(page);
+  await page.goto("/checkout");
+  await fillCustomer(page);
+  await waitForTurnstile(page);
+  await page.getByRole("button", { name: "Realizar compra" }).click();
+  await page.waitForURL(/\/pedido\/[0-9a-f-]{36}$/);
+  const firstOrder = page.url();
+
+  // Solo links: con Cache Components, Next esconde /checkout en vez de desmontarlo
+  // (Activity). Un page.goto recargaría todo y escondería el problema.
+  await page.getByRole("banner").getByRole("link", { name: "Catálogo", exact: true }).click();
+  await page.getByRole("link", { name: /Sauvage EDT/ }).first().click();
+  const product = page.getByRole("article");
+  await product.getByRole("button", { name: "Agregar al carrito" }).click();
+  await product.getByRole("link", { name: "Ver carrito" }).click();
+  await page.getByRole("link", { name: "Finalizar compra" }).click();
+
+  await expect(page).toHaveURL("/checkout");
+  await fillCustomer(page);
+  await waitForTurnstile(page);
+  await page.getByRole("button", { name: "Realizar compra" }).click();
+  await page.waitForURL(/\/pedido\/[0-9a-f-]{36}$/);
+  expect(page.url()).not.toBe(firstOrder);
 });
 
 test("doble click en Realizar compra manda un solo pedido", async ({ page }) => {

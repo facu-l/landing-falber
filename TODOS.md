@@ -68,6 +68,68 @@
 **Priority:** P2
 **Depends on:** —
 
+### Llevar el foco al primer campo con error
+
+**What:** Cuando la Server Action devuelve errores por campo, mover el foco (y el scroll) al primer campo inválido del checkout y de `/encargos`.
+
+**Why:** En el celular el botón queda abajo y los errores de los primeros campos (ej. "Perfume") quedan fuera de la pantalla: el cliente ve que no pasó nada. Visto en la revisión visual de la Fase 4 (375 px).
+
+**Context:** Los dos formularios usan `useActionState` y ya marcan `aria-invalid`. Un efecto que, con `state.status === "error"` y `fieldErrors`, haga `form.querySelector('[aria-invalid="true"]')?.focus()` resuelve los dos; se puede compartir junto con `TurnstileField`. Test de componente: después de un error, `document.activeElement` es el primer campo inválido. Señal: antes del lanzamiento.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
+## Anti-abuso
+
+### Límite de encargos por número de WhatsApp
+
+**What:** Un tope de encargos por `whatsapp` (ej. 3 por día) además del de 5 por hora por IP, dentro de `create_perfume_request` (otra llamada a `enforce_rate_limit` con la acción `perfume_request_whatsapp` y una clave derivada del número).
+
+**Why:** El encargo se asocia al cliente que ya existe con ese número. Alguien que rote IPs y resuelva Turnstile puede hacer que FALBER le escriba una y otra vez a una persona que no pidió nada, con la marca como intermediaria. `/encargos` es más barato de abusar que el checkout: no reserva stock ni necesita carrito. Visto en el `/review` de la Fase 4.
+
+**Context:** `rate_limit_events.action` tiene un `check (action in ('order', 'perfume_request'))`: hay que agregar la acción nueva. La clave no puede ser el número en crudo (es dato personal): HMAC con el mismo `IP_HASH_SECRET` desde el servidor, o `md5` en la base si alcanza. Test en `schema.test.cjs` y un mensaje en `REQUEST_ERRORS` si el código es nuevo. Señal: el primer encargo que el cliente diga no haber pedido.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
+### Atar el token de Turnstile a la acción y al dominio
+
+**What:** Pasar `action` al widget (`checkout` / `encargo`) y, en `verifyTurnstile`, exigir `result.action` igual al esperado y `result.hostname` dentro de una lista (env `SITE_HOSTNAMES`).
+
+**Why:** Hoy solo se mira `success`: un token resuelto en `/checkout` sirve en `/encargos`, y uno de un deploy de preview sirve en producción. Es defensa en profundidad (los tokens son de un solo uso y hay límite por IP).
+
+**Context:** `src/lib/security/turnstile.ts` y `verify-request.ts` (decisión 46). Test con `fetch` inyectado: `success: true` con otra `action` → rechazado. Señal: antes del lanzamiento, junto con la configuración de dominios en Cloudflare.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** El dominio de producción definido.
+
+### No loguear el error completo de la base
+
+**What:** En las Server Actions de checkout y encargos, loguear solo `code` y `message` del `PostgrestError` desconocido, no el objeto entero.
+
+**Why:** Si salta un `check` de una tabla, Postgres pone en `details` la fila que falló ("Failing row contains (...)"), con nombre, WhatsApp o aclaración del cliente. Eso terminaría en los logs de Netlify (Ley 25.326).
+
+**Context:** `console.error("[encargos] ...", error)` y su par en `checkout/actions.ts`. Los tests que hoy esperan que se loguee siguen valiendo; agregar uno que verifique que `details` no aparece en el log. Señal: antes del lanzamiento.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
+### Medir los largos igual que Postgres
+
+**What:** Que zod cuente caracteres como `length()` de Postgres (puntos de código, `[...value].length`) en vez de unidades UTF-16.
+
+**Why:** Un nombre de un solo emoji pasa `min(2)` en zod y la base lo rechaza con `INVALID_NAME`: el cliente ve el mensaje general en vez del error en el campo. No corrompe datos.
+
+**Context:** `src/lib/forms/fields.ts` (`fullNameField`, `optionalText`) y el `perfumeName` de `requests/schema.ts`. Un helper de largo compartido y tests con emojis. Señal: si aparece en los logs un `INVALID_NAME` que zod dejó pasar.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** —
+
 ## Catálogo
 
 ### Reemplazar las fotos placeholder por fotos reales
@@ -86,13 +148,15 @@
 
 ### Sincronizar el artifact con los cambios hechos en el código
 
-**What:** Copiar al design system "FALBER" en Claude Artifacts (https://claude.ai/artifact/8MRV6N7UQkE1uDYGWUBB9j) dos cambios que hoy solo existen en el repo:
+**What:** Copiar al design system "FALBER" en Claude Artifacts (https://claude.ai/artifact/8MRV6N7UQkE1uDYGWUBB9j) cuatro cambios que hoy solo existen en el repo:
 1. El token `error`: Noir `#e5867d`, Platinum `#a8332b`, con su regla de uso (`design/falber-tokens.json` → `color.tokens`).
 2. El estilo `wordmark` con `clamp()`: 28 px en mobile y 40 px en desktop, tracking 0.4em (`src/app/globals.css`).
+3. `Input` de solo lectura: fondo `surface-raised`, borde `border`, texto `text-secondary` (Fase 4).
+4. `Select` con mensaje de error, igual que `Input` (Fase 4).
 
-**Why:** El artifact es la fuente de verdad y la sincronización es manual, en un solo sentido (artifact → repo, DESIGN.md). Si se re-sincroniza sin estos cambios, el token `error` desaparece del JSON y `tokens.test.ts` falla; el `clamp()` del wordmark se perdería en silencio.
+**Why:** El artifact es la fuente de verdad y la sincronización es manual, en un solo sentido (artifact → repo, DESIGN.md). Si se re-sincroniza sin estos cambios, el token `error` desaparece del JSON y `tokens.test.ts` falla; el `clamp()` del wordmark y los estados de los controles se perderían en silencio.
 
-**Context:** Los dos cambios están documentados en DESIGN.md (tabla de color, "Regla del error" y la nota de mobile en Tipografía). Al terminar, verificar con `npm test` que `tokens.test.ts` siga en verde.
+**Context:** Los cambios están documentados en DESIGN.md (tabla de color, "Regla del error", la nota de mobile en Tipografía y la tabla de Componentes base). Al terminar, verificar con `npm test` que `tokens.test.ts` siga en verde.
 
 **Effort:** S
 **Priority:** P2 (antes de la próxima sincronización del design system)
@@ -113,3 +177,13 @@
 **Depends on:** None
 
 ## Completed
+
+### Reintento de un pedido justo en el límite por IP
+
+**What:** En `create_order`, volver a buscar el `request_id` después de tomar el lock de `enforce_rate_limit`, antes de contar.
+
+**Why:** Con el advisory lock (decisión 52), dos envíos simultáneos con el mismo `request_id` se serializan: si el primero era el 5º de la hora, el segundo recibe `RATE_LIMITED` en vez del pedido existente. Caso límite (el botón ya se deshabilita al enviar). Visto en el re-chequeo del `/review` de la Fase 4.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** —

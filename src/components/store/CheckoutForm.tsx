@@ -15,7 +15,7 @@ import { LIMITS } from "@/lib/forms/limits";
 import { formatARS } from "@/lib/format";
 import { useIsClient } from "@/lib/use-is-client";
 import { CartSkeleton, EmptyCart } from "./CartView";
-import { FormSection } from "./FormSection";
+import { FormSection } from "@/components/ui/FormSection";
 import { TurnstileField } from "./TurnstileField";
 
 type DeliveryMethod = "pickup" | "delivery";

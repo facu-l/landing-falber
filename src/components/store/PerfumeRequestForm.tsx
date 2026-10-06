@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { LIMITS } from "@/lib/forms/limits";
 import type { RequestPrefill } from "@/lib/requests/prefill";
 import { INITIAL_REQUEST_STATE, type RequestState } from "@/lib/requests/state";
-import { FormSection } from "./FormSection";
+import { FormSection } from "@/components/ui/FormSection";
 import { TurnstileField } from "./TurnstileField";
 
 /**

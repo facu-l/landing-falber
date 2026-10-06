@@ -10,7 +10,8 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: async () => mocks.headers }));
 vi.mock("./turnstile", () => ({ verifyTurnstile: mocks.verifyTurnstile }));
 
-const { TURNSTILE_FIELD, verifyHumanRequest } = await import("./verify-request");
+const { TURNSTILE_FIELD } = await import("@/lib/forms/form-data");
+const { verifyHumanRequest } = await import("./verify-request");
 const { hashClientKey } = await import("./client-key");
 
 const SECRET = "s".repeat(64);

@@ -5,9 +5,9 @@ import { z } from "zod";
 import { CATALOG_TAG } from "@/lib/catalog/queries";
 import { type CheckoutData, parseCheckout } from "@/lib/checkout/schema";
 import type { CheckoutState } from "@/lib/checkout/state";
-import { formValues } from "@/lib/forms/form-data";
+import { formValues, TURNSTILE_FIELD } from "@/lib/forms/form-data";
 import { GENERIC_ORDER_ERROR, orderError } from "@/lib/order-errors";
-import { TURNSTILE_FIELD, verifyHumanRequest } from "@/lib/security/verify-request";
+import { verifyHumanRequest } from "@/lib/security/verify-request";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const TURNSTILE_FAILED =

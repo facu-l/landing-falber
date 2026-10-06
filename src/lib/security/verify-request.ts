@@ -1,6 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { stringField } from "@/lib/forms/form-data";
+import { stringField, TURNSTILE_FIELD } from "@/lib/forms/form-data";
 import { required } from "@/lib/supabase/env";
 import { clientIp, hashClientKey } from "./client-key";
 import { verifyTurnstile } from "./turnstile";
@@ -12,9 +12,6 @@ import { verifyTurnstile } from "./turnstile";
  *
  * Va DESPUÉS de zod (decisión 35): el token sirve una sola vez.
  */
-
-/** Input oculto propio del formulario ("response-field": false en el widget, decisión 38). */
-export const TURNSTILE_FIELD = "cf-turnstile-response";
 
 export type HumanCheck = { ok: true; clientKey: string } | { ok: false };
 

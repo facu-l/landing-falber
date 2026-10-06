@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useActionState, useCallback, useState } from "react";
+import { type ReactNode, useActionState, useState } from "react";
 import { createOrder } from "@/app/(store)/checkout/actions";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -14,7 +14,7 @@ import { cn } from "@/lib/cn";
 import { formatARS } from "@/lib/format";
 import { useIsClient } from "@/lib/use-is-client";
 import { CartSkeleton, EmptyCart } from "./CartView";
-import { Turnstile } from "./Turnstile";
+import { TurnstileField } from "./TurnstileField";
 
 type DeliveryMethod = "pickup" | "delivery";
 type PaymentMethod = "transfer" | "cash";
@@ -32,7 +32,6 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
   const router = useRouter();
 
   const [requestId] = useState(() => crypto.randomUUID());
-  const [token, setToken] = useState<string | null>(null);
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [delivery, setDelivery] = useState<DeliveryMethod>("pickup");
   const [payment, setPayment] = useState<PaymentMethod>("transfer");
@@ -48,8 +47,6 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
     }
     return next;
   }, INITIAL_CHECKOUT_STATE);
-
-  const handleToken = useCallback((value: string | null) => setToken(value), []);
 
   if (state.status === "success") {
     return <p className="text-body text-text-secondary">Pedido registrado. Abriendo el detalle de tu compra.</p>;
@@ -85,7 +82,6 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
       <form action={formAction} noValidate className="flex flex-col gap-10">
         <input type="hidden" name="requestId" value={requestId} />
         <input type="hidden" name="items" value={serializeCart(cart)} />
-        <input type="hidden" name="cf-turnstile-response" value={token ?? ""} />
 
         <Section title="Tus datos">
           <Input
@@ -217,7 +213,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
               {state.message}
             </p>
           )}
-          <Turnstile onToken={handleToken} resetKey={turnstileResetKey} />
+          <TurnstileField resetKey={turnstileResetKey} />
           <Button type="submit" disabled={pending} className="w-full md:w-auto">
             {pending ? "Enviando pedido" : "Realizar compra"}
           </Button>

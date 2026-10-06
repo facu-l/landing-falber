@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { TURNSTILE_FIELD } from "../src/lib/forms/form-data";
 
 /*
  * Helpers de los E2E que escriben en la base (pedidos y encargos, decisión 43).
@@ -21,5 +22,5 @@ export const randomWhatsApp = () => `0221 15 5${randomDigits(2)}-${randomDigits(
 
 // Turnstile (invisible, clave de prueba) tarda unos segundos en entregar el token.
 export async function waitForTurnstile(page: Page) {
-  await expect(page.locator('input[name="cf-turnstile-response"]')).not.toHaveValue("", { timeout: 15_000 });
+  await expect(page.locator(`input[name="${TURNSTILE_FIELD}"]`)).not.toHaveValue("", { timeout: 15_000 });
 }

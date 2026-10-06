@@ -34,6 +34,8 @@ export function Input({ label, hint, error, id, className, ...props }: InputProp
           "placeholder:text-text-muted",
           "transition-colors duration-150",
           "disabled:cursor-not-allowed disabled:opacity-50",
+          // Solo lectura (ej. un perfume precargado): se lee como dato, no como campo para escribir.
+          "read-only:cursor-default read-only:border-border read-only:bg-surface-raised read-only:text-text-secondary",
           // Con error, el borde sigue en error aun con foco: el anillo de foco ya indica dónde estás.
           error ? "border-error" : "border-border-strong focus:border-accent",
         )}

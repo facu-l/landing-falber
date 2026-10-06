@@ -6,7 +6,7 @@ Tienda online de decants y perfumes · Next.js + Supabase · v4.0 · 2026-10-06
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
 **v2.2:** Fase 2 implementada en `feat/catalog`. Decisiones 26 a 33 (sección 3.G) y lecciones nuevas.
 **v3.0:** Fase 3 implementada en `feat/checkout` (PR #5): carrito, checkout, pedidos y WhatsApp. Decisiones 34 a 43 (sección 3.H), diagrama de la Server Action actualizado, lecciones, plan de tests y checklist de publicación.
-**v4.0:** Fase 4 implementada en `feat/requests`: `/encargos` con precarga desde un producto agotado. Decisiones 44 a 49 (sección 3.I), entre ellas el fix del checkout que perdía "Envío a domicilio" tras un error del servidor; lecciones y plan de tests.
+**v4.0:** Fase 4 implementada en `feat/requests`: `/encargos` con precarga desde un producto agotado. Decisiones 44 a 53 (sección 3.I), entre ellas el fix del checkout que perdía "Envío a domicilio" tras un error del servidor y las que salieron del `/review`; lecciones y plan de tests.
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -222,8 +222,12 @@ Navegador ──► Server Action (src/app/(store)/checkout/actions.ts)
 | 45 | **`/encargos?producto=<slug>`:** perfume y marca precargados **de solo lectura**, y la presentación se elige entre las variantes **sin stock** de ese producto (su id va como `p_variant_id`, su etiqueta como `presentation`). Sin variantes agotadas, la presentación se escribe a mano. Un slug inexistente o inactivo es un encargo libre. "Encargar otro perfume" vuelve a `/encargos` | Si perfume y marca se pudieran editar, el encargo podría decir otro perfume y apuntar a la variante del primero. El ranking del admin necesita saber qué presentación reponer |
 | 46 | **Piezas compartidas entre checkout y encargos:** `mapDbError` (`src/lib/db-errors.ts`), `verifyHumanRequest` (Turnstile + HMAC de la IP, `src/lib/security/verify-request.ts`), `TurnstileField` (token + input oculto), `src/lib/forms/` (`formValues`, `TURNSTILE_FIELD`, campos de zod de nombre, WhatsApp y texto opcional), `FormSection` y `e2e/helpers.ts` | Cada una se extrajo en un commit de refactor con los tests de la Fase 3 como red, antes de usarla en encargos |
 | 47 | **Sin `updateTag` en encargos.** La acción devuelve `{ perfumeName }` y la confirmación ("Encargo recibido… te escribimos por WhatsApp") reemplaza al formulario en la misma página, sin ruta propia | Un encargo no cambia stock ni productos. El cliente no necesita volver a ver el encargo: el próximo paso es el WhatsApp de FALBER |
-| 48 | **`key` = valor enviado en `<select>` y grupos de radios de los formularios con Server Action.** Arregla un bug del checkout de la Fase 3: tras un error del servidor, "Envío a domicilio" volvía a "Retiro" en el DOM (con la dirección visible) y el reintento salía como retiro | Después de la acción React 19 resetea el `<form>`, y cada select/radio vuelve a `defaultSelected`/`defaultChecked`, que React marca **solo al montar** (a un `<input>` de texto sí le actualiza el `defaultValue`). Remontar con el valor enviado los deja donde estaban |
-| 49 | **`Input` de solo lectura con estilo propio** (`surface-raised`, `border`, `text-secondary`) y **`Select` con `error`** como `Input` | Un dato precargado se veía igual que un campo vacío y no respondía al tocarlo. Pendiente copiarlos al artifact (TODOS.md → Design system) |
+| 48 | **`key` = cantidad de errores del servidor en `<select>` y grupos de radios de los formularios con Server Action**, y su valor por defecto es la elección actual (estado). Arregla un bug del checkout de la Fase 3: tras un error del servidor, "Envío a domicilio" volvía a "Retiro" en el DOM (con la dirección visible) y el reintento salía como retiro | Después de la acción React 19 resetea el `<form>`, y cada select/radio vuelve a `defaultSelected`/`defaultChecked`, que React marca **solo al montar** (a un `<input>` de texto sí le actualiza el `defaultValue`). La primera versión usaba el valor enviado como `key`; el `/review` mostró que si el cliente cambia la opción mientras se envía y vuelve el mismo valor, no se remonta. El contador cambia en cada respuesta |
+| 49 | **`Input` de solo lectura con estilo propio** (`surface-raised`, `border`, `text-secondary`), aplicado desde la prop `readOnly` y no con la variante `read-only:`, y **`Select` con `error`** como `Input` | Un dato precargado se veía igual que un campo vacío y no respondía al tocarlo. `:read-only` también matchea un input deshabilitado. Pendiente copiarlos al artifact (TODOS.md → Design system) |
+| 50 | **Con `variant_id`, `create_perfume_request` toma perfume, marca y presentación del catálogo** (join con `products`/`product_variants`) e ignora los del cliente. `products` tiene los mismos topes que un encargo (nombre 2 a 120, marca hasta 60) | Los campos de solo lectura se pueden cambiar con un POST armado a mano: el encargo podía contradecir a su variante. Con los mismos topes, un producto precargado siempre pasa la validación del encargo |
+| 51 | **`/encargos` se resetea cuando Next esconde la página** (`<Activity>` de Cache Components): la limpieza de un `useLayoutEffect` despacha un `RESET` al `useActionState`, solo después de un encargo enviado (un borrador se conserva). Patrón de `node_modules/next/dist/docs/01-app/02-guides/preserving-ui-state.md` | Next 16 no desmonta la ruta al salir: volver por un link mostraba la confirmación vieja y no dejaba hacer otro encargo. El checkout no lo necesita: navega con `router.replace` y un E2E de dos compras seguidas lo cubre |
+| 52 | **`enforce_rate_limit` toma `pg_advisory_xact_lock(hashtext(acción:clave))`** antes de contar | Contar y después insertar sin lock deja pasar N requests simultáneas de la misma IP. El lock serializa solo las de la misma acción y clave |
+| 53 | **`LIMITS` (`src/lib/forms/limits.ts`): un solo lugar para los largos** que usan los schemas (`.max`) y los inputs (`maxLength`), sin zod | Cada límite estaba escrito dos veces y podía desfasarse en silencio. Sin zod para no cargar los schemas en el bundle del navegador |
 
 ---
 
@@ -516,13 +520,17 @@ que conserva lo escrito, cada uno con su IP y su WhatsApp.
 
 **Antes de empezar:** el botón "Solicitar disponibilidad" ya enlaza a `/encargos?producto=<slug>` (decisión 33). El form tiene que leer ese parámetro y precargar el perfume.
 
-Las decisiones que salieron están en la sección 3.I (44 a 49).
+Las decisiones que salieron están en la sección 3.I (44 a 53; de la 50 a la 53 salieron del `/review` de la fase).
 
 **Lecciones:**
 - El reset del `<form>` de React 19 después de una Server Action devuelve selects y radios a lo que tenían **al montarse**. Un formulario que "conserva lo escrito" hay que probarlo también con selects y radios, no solo con inputs de texto (así apareció el bug del checkout, decisión 48).
 - Ante un test que falla sin causa obvia, primero medir: un test temporal que registra el valor enviado, el valor después de la respuesta y `defaultSelected` descartó la primera hipótesis (select controlado) y mostró la causa real.
 - `tsc --noEmit` solo no conoce una ruta nueva (`PageProps<"/encargos">`): los tipos de rutas los genera `next typegen`. Usar `npm run typecheck`.
 - Después de editar `0001`, `npm run db:reset` antes de los E2E: la base local no toma el cambio sola.
+- Con Cache Components, **una página que se deja no se desmonta** (Next la esconde con `<Activity>`): el estado de los formularios sobrevive. Probar los flujos "hacerlo dos veces en la misma pestaña" navegando **solo con links**: un `page.goto` recarga todo y esconde el problema. En Vitest, `<Activity mode="hidden">` de React 19.2 lo reproduce sin navegador.
+- Un `useEffect`/`useLayoutEffect` con un array creado en cada render (`prefill?.variants ?? []`) en sus dependencias se re-ejecuta en cada render, y su limpieza también. Depender de un valor primitivo derivado (el id).
+- Un test de contrato que pasa de entrada (ej. el límite por IP) se valida con una mutación: sacar la línea que protege y ver que falla.
+- Una hipótesis de un revisor se prueba antes de arreglar: el red team marcó el checkout como afectado por `<Activity>` y el E2E mostró que no (navega con `replace`).
 
 ### Fase 5 — Admin de pedidos
 

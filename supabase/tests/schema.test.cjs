@@ -341,6 +341,25 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   eq('con variante, la presentación es la etiqueta de la variante', pedido.presentation, 'Decant 10 ml');
   await db.exec(`select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', '', '', '', null, '${V2}')`);
   ok('con variante, el perfume vacío del cliente no importa (se usa el del catálogo)');
+  const recortado = (await one(db,
+    `select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', 'Trim', '   ', '  Decant 10 ml  ', null) id`)).id;
+  const filaRecortada = await one(db, `select brand, presentation from perfume_requests where id='${recortado}'`);
+  eq('encargo: marca solo con espacios se guarda como null', filaRecortada.brand, null);
+  eq('encargo: la presentación se guarda recortada', filaRecortada.presentation, 'Decant 10 ml');
+
+  // El límite por IP es la única defensa anti-spam de la base para /encargos (página pública).
+  const ipEncargos = key();
+  for (let i = 0; i < 5; i++) {
+    await db.exec(`select public.create_perfume_request('${ipEncargos}', 'Ana López', '+549221555710${i}', 'Perfume ${i}', null, null, null)`);
+  }
+  ok('5 encargos en una hora desde la misma IP pasan');
+  await expectError(db, '6º encargo en una hora desde la misma IP → RATE_LIMITED',
+    `select public.create_perfume_request('${ipEncargos}', 'Ana López', '+5492215557199', 'Otro', null, null, null)`, 'RATE_LIMITED');
+  await db.exec(orderCall({ client: ipEncargos, wa: '+5492215557198', items: `[${item(V1, 1)}]` }));
+  ok('el límite de encargos no gasta el de pedidos (contadores separados)');
+  await expectError(db, 'encargo sin hash de IP → INVALID_CLIENT_KEY',
+    `select public.create_perfume_request('corto', 'Ana López', '+5492215557777', 'Algo', null, null, null)`, 'INVALID_CLIENT_KEY');
+
   await db.exec(`select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', 'Largo', repeat('m', 60), repeat('p', 60), null)`);
   ok('encargo con marca y presentación de 60 caracteres (el máximo)');
   await expectError(db, 'encargo con marca de 61 caracteres → INVALID_BRAND',

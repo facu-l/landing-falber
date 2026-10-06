@@ -80,6 +80,56 @@
 **Priority:** P2
 **Depends on:** —
 
+## Anti-abuso
+
+### Límite de encargos por número de WhatsApp
+
+**What:** Un tope de encargos por `whatsapp` (ej. 3 por día) además del de 5 por hora por IP, dentro de `create_perfume_request` (otra llamada a `enforce_rate_limit` con la acción `perfume_request_whatsapp` y una clave derivada del número).
+
+**Why:** El encargo se asocia al cliente que ya existe con ese número. Alguien que rote IPs y resuelva Turnstile puede hacer que FALBER le escriba una y otra vez a una persona que no pidió nada, con la marca como intermediaria. `/encargos` es más barato de abusar que el checkout: no reserva stock ni necesita carrito. Visto en el `/review` de la Fase 4.
+
+**Context:** `rate_limit_events.action` tiene un `check (action in ('order', 'perfume_request'))`: hay que agregar la acción nueva. La clave no puede ser el número en crudo (es dato personal): HMAC con el mismo `IP_HASH_SECRET` desde el servidor, o `md5` en la base si alcanza. Test en `schema.test.cjs` y un mensaje en `REQUEST_ERRORS` si el código es nuevo. Señal: el primer encargo que el cliente diga no haber pedido.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
+### Atar el token de Turnstile a la acción y al dominio
+
+**What:** Pasar `action` al widget (`checkout` / `encargo`) y, en `verifyTurnstile`, exigir `result.action` igual al esperado y `result.hostname` dentro de una lista (env `SITE_HOSTNAMES`).
+
+**Why:** Hoy solo se mira `success`: un token resuelto en `/checkout` sirve en `/encargos`, y uno de un deploy de preview sirve en producción. Es defensa en profundidad (los tokens son de un solo uso y hay límite por IP).
+
+**Context:** `src/lib/security/turnstile.ts` y `verify-request.ts` (decisión 46). Test con `fetch` inyectado: `success: true` con otra `action` → rechazado. Señal: antes del lanzamiento, junto con la configuración de dominios en Cloudflare.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** El dominio de producción definido.
+
+### No loguear el error completo de la base
+
+**What:** En las Server Actions de checkout y encargos, loguear solo `code` y `message` del `PostgrestError` desconocido, no el objeto entero.
+
+**Why:** Si salta un `check` de una tabla, Postgres pone en `details` la fila que falló ("Failing row contains (...)"), con nombre, WhatsApp o aclaración del cliente. Eso terminaría en los logs de Netlify (Ley 25.326).
+
+**Context:** `console.error("[encargos] ...", error)` y su par en `checkout/actions.ts`. Los tests que hoy esperan que se loguee siguen valiendo; agregar uno que verifique que `details` no aparece en el log. Señal: antes del lanzamiento.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
+### Medir los largos igual que Postgres
+
+**What:** Que zod cuente caracteres como `length()` de Postgres (puntos de código, `[...value].length`) en vez de unidades UTF-16.
+
+**Why:** Un nombre de un solo emoji pasa `min(2)` en zod y la base lo rechaza con `INVALID_NAME`: el cliente ve el mensaje general en vez del error en el campo. No corrompe datos.
+
+**Context:** `src/lib/forms/fields.ts` (`fullNameField`, `optionalText`) y el `perfumeName` de `requests/schema.ts`. Un helper de largo compartido y tests con emojis. Señal: si aparece en los logs un `INVALID_NAME` que zod dejó pasar.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** —
+
 ## Catálogo
 
 ### Reemplazar las fotos placeholder por fotos reales

@@ -142,6 +142,13 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   console.log('\n[2] Tipos, etiqueta y ledger de stock');
   await expectError(db, 'enum: un género inválido se rechaza',
     `insert into products (name, brand, slug, gender) values ('A', 'B', 'a-b', 'otro')`, 'invalid input value for enum');
+  // Mismos límites que un encargo: un producto precargado en /encargos siempre se puede enviar.
+  await expectError(db, 'products: nombre de 1 carácter se rechaza',
+    `insert into products (name, brand, slug, gender) values ('Z', 'Dior', 'z-uno', 'male')`, 'check constraint');
+  await expectError(db, 'products: nombre de 121 caracteres se rechaza',
+    `insert into products (name, brand, slug, gender) values (repeat('n', 121), 'Dior', 'z-largo', 'male')`, 'check constraint');
+  await expectError(db, 'products: marca de 61 caracteres se rechaza',
+    `insert into products (name, brand, slug, gender) values ('Nombre', repeat('m', 61), 'z-marca', 'male')`, 'check constraint');
   eq('is_featured: un producto nuevo no es destacado',
     (await one(db, `select is_featured from products where id='${P1}'`)).is_featured, false);
   eq('label generado para decant', (await one(db, `select label from product_variants where id='${V1}'`)).label, 'Decant 5 ml');
@@ -326,6 +333,14 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   eq('el ranking agrupa "Oud Wood" y " oud wood "', (await one(db, `select total_requests from perfume_requests_ranking where perfume_key='oud wood'`)).total_requests, 2);
   await expectError(db, 'encargo de una variante inexistente → VARIANT_NOT_FOUND',
     `select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', 'Algo', null, null, null, 'bbbbbbbb-0000-0000-0000-00000000dead')`, 'VARIANT_NOT_FOUND');
+  const conVariante = (await one(db,
+    `select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', 'Aventus', 'Creed', 'Frasco 50 ml', null, '${V2}') id`)).id;
+  const pedido = await one(db, `select perfume_name, brand, presentation from perfume_requests where id='${conVariante}'`);
+  eq('con variante, el perfume sale del catálogo y no del cliente', pedido.perfume_name, 'The Most Wanted');
+  eq('con variante, la marca sale del catálogo', pedido.brand, 'Azzaro');
+  eq('con variante, la presentación es la etiqueta de la variante', pedido.presentation, 'Decant 10 ml');
+  await db.exec(`select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', '', '', '', null, '${V2}')`);
+  ok('con variante, el perfume vacío del cliente no importa (se usa el del catálogo)');
   await db.exec(`select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', 'Largo', repeat('m', 60), repeat('p', 60), null)`);
   ok('encargo con marca y presentación de 60 caracteres (el máximo)');
   await expectError(db, 'encargo con marca de 61 caracteres → INVALID_BRAND',

@@ -106,8 +106,9 @@ $$;
 
 create table public.products (
   id          uuid primary key default gen_random_uuid(),
-  name        text not null check (length(trim(name)) > 0),
-  brand       text not null check (length(trim(brand)) > 0),
+  -- Mismos límites que un encargo: /encargos?producto=<slug> precarga nombre y marca.
+  name        text not null check (length(trim(name)) between 2 and 120),
+  brand       text not null check (length(trim(brand)) between 1 and 60),
   slug        text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
   description text,
   image_path  text,  -- ruta dentro del bucket product-images, no la URL completa
@@ -734,6 +735,20 @@ begin
   if p_whatsapp is null or p_whatsapp !~ '^\+[1-9][0-9]{7,14}$' then
     raise exception using message = 'INVALID_WHATSAPP';
   end if;
+  -- Con variante, perfume, marca y presentación salen del catálogo, no del cliente:
+  -- el formulario los muestra de solo lectura, pero un POST armado a mano podría
+  -- mandar otros y dejar el encargo contradiciendo a su variante.
+  if p_variant_id is not null then
+    select p.name, p.brand, v.label
+      into v_perfume, v_brand, v_presentation
+    from product_variants v
+    join products p on p.id = v.product_id
+    where v.id = p_variant_id;
+
+    if not found then
+      raise exception using message = 'VARIANT_NOT_FOUND', detail = p_variant_id::text;
+    end if;
+  end if;
   if length(v_perfume) not between 2 and 120 then
     raise exception using message = 'INVALID_PERFUME_NAME';
   end if;
@@ -745,9 +760,6 @@ begin
   end if;
   if v_note is not null and length(v_note) > 100 then
     raise exception using message = 'NOTE_TOO_LONG';
-  end if;
-  if p_variant_id is not null and not exists (select 1 from product_variants where id = p_variant_id) then
-    raise exception using message = 'VARIANT_NOT_FOUND', detail = p_variant_id::text;
   end if;
 
   perform public.enforce_rate_limit('perfume_request', p_client_key, 5, interval '1 hour');

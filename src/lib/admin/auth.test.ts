@@ -7,7 +7,8 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: auth.getUser }, rpc: auth.rpc }),
 }));
 
-const { requireAdmin, ADMIN_LOGIN_PATH, FORBIDDEN_LOGIN_PATH } = await import("./auth");
+const { requireAdmin } = await import("./auth");
+const { ADMIN_LOGIN_PATH, FORBIDDEN_LOGIN_PATH } = await import("./paths");
 
 const USER = { id: "11111111-1111-1111-1111-111111111111", email: "admin@falber.test" };
 

@@ -1,10 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-
-export const ADMIN_LOGIN_PATH = "/admin/login";
-/** Logueado pero sin perfil de admin: el login lo explica y ofrece salir (no reintenta). */
-export const FORBIDDEN_LOGIN_PATH = `${ADMIN_LOGIN_PATH}?motivo=sin-acceso`;
+import { ADMIN_LOGIN_PATH, FORBIDDEN_LOGIN_PATH } from "./paths";
 
 /**
  * Primera línea de cada Server Action y página del admin.

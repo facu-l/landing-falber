@@ -37,6 +37,9 @@ type TurnstileProps = {
 export function Turnstile({ onToken, resetKey }: TurnstileProps) {
   const container = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
+  // Último resetKey aplicado. Un widget recién montado (o vuelto a mostrar por Activity)
+  // ya trae un token nuevo: solo hay que resetear cuando el resetKey cambia.
+  const appliedResetKey = useRef(resetKey);
   const [scriptReady, setScriptReady] = useState(() => typeof window !== "undefined" && !!window.turnstile);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -59,7 +62,8 @@ export function Turnstile({ onToken, resetKey }: TurnstileProps) {
   }, [scriptReady, siteKey, onToken]);
 
   useEffect(() => {
-    if (resetKey === 0 || !widgetId.current) return;
+    if (resetKey === appliedResetKey.current || !widgetId.current) return;
+    appliedResetKey.current = resetKey;
     onToken(null);
     window.turnstile?.reset(widgetId.current);
   }, [resetKey, onToken]);

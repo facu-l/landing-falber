@@ -743,7 +743,8 @@ begin
   -- el formulario los muestra de solo lectura, pero un POST armado a mano podría
   -- mandar otros y dejar el encargo contradiciendo a su variante.
   if p_variant_id is not null then
-    select p.name, p.brand, v.label
+    -- trim: el check de products mide recortado, así que se copia recortado.
+    select trim(p.name), trim(p.brand), v.label
       into v_perfume, v_brand, v_presentation
     from product_variants v
     join products p on p.id = v.product_id

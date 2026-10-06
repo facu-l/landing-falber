@@ -339,6 +339,17 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   eq('con variante, el perfume sale del catálogo y no del cliente', pedido.perfume_name, 'The Most Wanted');
   eq('con variante, la marca sale del catálogo', pedido.brand, 'Azzaro');
   eq('con variante, la presentación es la etiqueta de la variante', pedido.presentation, 'Decant 10 ml');
+  // Un producto cargado con espacios alrededor pasa el check (que mide con trim):
+  // el encargo tiene que copiarlo recortado, no fallar por largo.
+  await db.exec(`
+    insert into products (id, name, brand, slug, gender) values ('aaaaaaaa-0000-0000-0000-0000000000e5', '  Espaciado  ', ' ${'m'.repeat(60)} ', 'espaciado', 'unisex');
+    insert into product_variants (id, product_id, variant_type, size_ml, price) values ('bbbbbbbb-0000-0000-0000-0000000000e5', 'aaaaaaaa-0000-0000-0000-0000000000e5', 'decant', 5, 1000);
+  `);
+  const espaciado = (await one(db,
+    `select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', '', '', '', null, 'bbbbbbbb-0000-0000-0000-0000000000e5') id`)).id;
+  const filaEspaciada = await one(db, `select perfume_name, brand from perfume_requests where id='${espaciado}'`);
+  eq('con variante, el nombre del catálogo se copia recortado', filaEspaciada.perfume_name, 'Espaciado');
+  eq('con variante, una marca de 60 + espacios se copia recortada', filaEspaciada.brand, 'm'.repeat(60));
   await db.exec(`select public.create_perfume_request('${key()}', 'Ana López', '+5492215557777', '', '', '', null, '${V2}')`);
   ok('con variante, el perfume vacío del cliente no importa (se usa el del catálogo)');
   const recortado = (await one(db,

@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { formatARS } from "@/lib/format";
 import { useIsClient } from "@/lib/use-is-client";
 import { CartSkeleton, EmptyCart } from "./CartView";
+import { FormSection } from "./FormSection";
 import { TurnstileField } from "./TurnstileField";
 
 type DeliveryMethod = "pickup" | "delivery";
@@ -83,7 +84,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
         <input type="hidden" name="requestId" value={requestId} />
         <input type="hidden" name="items" value={serializeCart(cart)} />
 
-        <Section title="Tus datos">
+        <FormSection title="Tus datos">
           <Input
             label="Nombre y apellido"
             name="fullName"
@@ -111,9 +112,9 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
             defaultValue={values.email}
             error={errors.email}
           />
-        </Section>
+        </FormSection>
 
-        <Section title="Entrega">
+        <FormSection title="Entrega">
           <RadioGroup legend="Cómo querés recibir tu pedido" error={errors.deliveryMethod}>
             <RadioOption
               name="deliveryMethod"
@@ -171,9 +172,9 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
               />
             </div>
           )}
-        </Section>
+        </FormSection>
 
-        <Section title="Pago">
+        <FormSection title="Pago">
           <RadioGroup legend="Cómo vas a pagar" error={errors.paymentMethod}>
             <RadioOption
               name="paymentMethod"
@@ -193,7 +194,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
               detail="Solo con retiro en La Plata."
             />
           </RadioGroup>
-        </Section>
+        </FormSection>
 
         <Input
           label="Aclaración"
@@ -222,15 +223,6 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
 
       <OrderSummary resolved={resolved} problemVariantId={problemVariantId} />
     </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-6">
-      <h2 className="text-label text-text-secondary uppercase">{title}</h2>
-      {children}
-    </section>
   );
 }
 

@@ -94,6 +94,18 @@
 
 ## Anti-abuso
 
+### CAPTCHA en el login del admin
+
+**What:** Activar el CAPTCHA nativo de Supabase Auth con Turnstile en `/admin/login` (`[auth.captcha]` en `supabase/config.toml` y en el dashboard; el token va en `signInWithPassword({ options: { captchaToken } })`), reusando `TurnstileField`.
+
+**Why:** Hoy el login solo tiene los límites de Supabase Auth (`over_request_rate_limit`, con su mensaje en `LOGIN_ERRORS`). Es la única puerta al panel y la cuenta del admin es una sola: un ataque de contraseñas desde muchas IPs no choca con un límite por IP. Decisión 60.
+
+**Context:** Con el CAPTCHA activo en Auth, **todo** login necesita token, también el de los E2E y el de `npm run db:admin` (que no hace login: no lo afecta). En CI y local, las claves de prueba de Cloudflare (siempre pasan). Agregar un test de la acción que mande el token. Señal: intentos fallidos repetidos en los logs de Auth, o antes del lanzamiento si sobra tiempo en la Fase 6.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
 ### Límite de encargos por número de WhatsApp
 
 **What:** Un tope de encargos por `whatsapp` (ej. 3 por día) además del de 5 por hora por IP, dentro de `create_perfume_request` (otra llamada a `enforce_rate_limit` con la acción `perfume_request_whatsapp` y una clave derivada del número).
@@ -160,11 +172,12 @@
 
 ### Sincronizar el artifact con los cambios hechos en el código
 
-**What:** Copiar al design system "FALBER" en Claude Artifacts (https://claude.ai/artifact/8MRV6N7UQkE1uDYGWUBB9j) cuatro cambios que hoy solo existen en el repo:
+**What:** Copiar al design system "FALBER" en Claude Artifacts (https://claude.ai/artifact/8MRV6N7UQkE1uDYGWUBB9j) cinco cambios que hoy solo existen en el repo:
 1. El token `error`: Noir `#e5867d`, Platinum `#a8332b`, con su regla de uso (`design/falber-tokens.json` → `color.tokens`).
 2. El estilo `wordmark` con `clamp()`: 28 px en mobile y 40 px en desktop, tracking 0.4em (`src/app/globals.css`).
 3. `Input` de solo lectura: fondo `surface-raised`, borde `border`, texto `text-secondary` (Fase 4).
 4. `Select` con mensaje de error, igual que `Input` (Fase 4).
+5. El estado del pedido del admin en tres luminosidades (`OrderStatusBadge`: relleno `accent` = pendiente, borde `border-strong` = en curso, borde `border` y texto `text-muted` = cerrado), en Platinum (Fase 5, decisión 66).
 
 **Why:** El artifact es la fuente de verdad y la sincronización es manual, en un solo sentido (artifact → repo, DESIGN.md). Si se re-sincroniza sin estos cambios, el token `error` desaparece del JSON y `tokens.test.ts` falla; el `clamp()` del wordmark y los estados de los controles se perderían en silencio.
 

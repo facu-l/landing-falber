@@ -120,4 +120,4 @@ Se **reimplementan en `src/components/ui/`** con los tokens. El bundle del artif
 
 - Texto ≥ 4.5:1 en ambos temas (los tokens ya cumplen sobre `surface` y `surface-raised`).
 - Foco visible en todo control (anillo en `accent`).
-- Los colores que deben distinguirse varían en luminosidad, no solo en tono (estados de pedido en el admin).
+- Los colores que deben distinguirse varían en luminosidad, no solo en tono. Estados de pedido en el admin (`OrderStatusBadge`): pendiente = relleno `accent` con texto `on-accent` (pide acción), en curso = borde `border-strong`, cerrado (entregado o cancelado) = borde `border` y texto `text-muted`.

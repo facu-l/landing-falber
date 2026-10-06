@@ -25,8 +25,8 @@ export async function createClient() {
           }
         } catch {
           // Llamado desde un Server Component, donde las cookies son de solo lectura.
-          // No pasa nada: la sesión se refresca en una Server Action. El refresco en cada
-          // navegación lo hará src/proxy.ts (el middleware de Next 16), que llega en la Fase 5.
+          // No pasa nada: src/proxy.ts refresca la sesión en cada navegación de /admin,
+          // y una Server Action sí puede escribirlas.
         }
       },
     },

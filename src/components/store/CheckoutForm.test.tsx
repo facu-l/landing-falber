@@ -161,6 +161,20 @@ describe("CheckoutForm", () => {
     expect(localStorage.getItem(CART_STORAGE_KEY)).not.toBeNull();
   });
 
+  // En el celular el botón queda abajo: sin esto, los errores de arriba quedan fuera de la pantalla.
+  it("con errores por campo lleva el foco al primero de la página", async () => {
+    mocks.createOrder.mockResolvedValue({
+      status: "error",
+      fieldErrors: { whatsapp: "Revisá el número.", fullName: "Escribí tu nombre y apellido." },
+      values: { fullName: "A", whatsapp: "555" },
+    });
+    render(<CheckoutForm index={index} />);
+    fillValidForm();
+    submit();
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Nombre y apellido")));
+  });
+
   it("después de un error conserva la entrega y el pago elegidos (el reset del form no los desmarca)", async () => {
     mocks.createOrder.mockResolvedValue({
       status: "error",

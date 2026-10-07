@@ -6,6 +6,7 @@ import { createPerfumeRequest } from "@/app/(store)/encargos/actions";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { useFocusFirstInvalid } from "@/lib/forms/focus-first-invalid";
 import { LIMITS } from "@/lib/forms/limits";
 import type { RequestPrefill } from "@/lib/requests/prefill";
 import { INITIAL_REQUEST_STATE, type RequestState } from "@/lib/requests/state";
@@ -33,6 +34,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
   const [variantId, setVariantId] = useState(firstVariantId);
   const [serverErrors, setServerErrors] = useState(0);
   const resetWhenHidden = useRef(false);
+  const form = useRef<HTMLFormElement>(null);
 
   const [state, formAction, pending] = useActionState(
     async (prev: RequestState, input: FormData | typeof RESET) => {
@@ -60,6 +62,8 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
     };
   }, [formAction, firstVariantId]);
 
+  useFocusFirstInvalid(form, state.status === "error" ? state.fieldErrors : undefined);
+
   if (state.status === "success") return <Confirmation perfumeName={state.perfumeName} />;
 
   const errors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
@@ -67,7 +71,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
   const selected = variants.find((v) => v.id === variantId) ?? variants[0];
 
   return (
-    <form action={formAction} noValidate className="flex max-w-2xl flex-col gap-10">
+    <form ref={form} action={formAction} noValidate className="flex max-w-2xl flex-col gap-10">
       <FormSection title="El perfume">
         <Input
           label="Perfume"

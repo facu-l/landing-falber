@@ -106,6 +106,23 @@
 **Priority:** P2
 **Depends on:** —
 
+### Endurecer la sesión del admin
+
+**What:** Lo que el `/review` de la Fase 5 encontró y quedó fuera del PR:
+1. Cookies de sesión `httpOnly` y `secure` (`cookieOptions` en `src/lib/supabase/server.ts` y `src/proxy.ts`). El cliente de navegador (`src/lib/supabase/client.ts`) no se usa: borrarlo o anotar que necesitaría cookies legibles.
+2. `getAdminStatus()` ignora el error de `getUser()`: un fallo de red de Auth se trata como "sin sesión" y el admin ve el login en vez de `error.tsx`. Lanzar si el error no es `AuthSessionMissingError`.
+3. En las acciones del detalle, un fallo de `is_admin` dentro de `requireAdmin()` reemplaza la página por `error.tsx` y se pierde lo escrito: devolver un error al formulario (y relanzar los `redirect`).
+4. Policies RLS con `(select public.is_admin())` en vez de `public.is_admin()` (guía de performance de Supabase: una llamada por consulta, no por fila).
+5. Tests propuestos: un no-admin no puede hacer UPDATE de pedidos (`schema.test.cjs` [10]), costo de envío y despacho en el mismo update, `SHIPPING_COST_LOCKED` en `completed`, ramas negativas de `setShippingCost`, una cancelación rechazada no llama a `updateTag`, un admin logueado que abre `/admin/login` va a los pedidos.
+
+**Why:** Ninguno rompe hoy con un solo admin y sin XSS conocido, pero (1) es la diferencia entre un XSS en la tienda y el control del panel, y (2)/(3) confunden al admin justo cuando Supabase falla.
+
+**Context:** Hallazgos del red team, el revisor adversarial y los especialistas de testing y performance (Fase 5). La auditoría del costo de envío cambiado después de pagado quedó descartada por ahora (el `total` se recalcula y `updated_at` marca el cambio). Señal: antes del lanzamiento (Fase 6), junto con el CAPTCHA del login.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
 ### Límite de encargos por número de WhatsApp
 
 **What:** Un tope de encargos por `whatsapp` (ej. 3 por día) además del de 5 por hora por IP, dentro de `create_perfume_request` (otra llamada a `enforce_rate_limit` con la acción `perfume_request_whatsapp` y una clave derivada del número).

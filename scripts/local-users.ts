@@ -58,9 +58,7 @@ export async function ensureLocalUser({ email, password, admin }: LocalUser): Pr
 
   if (created.error) {
     if (created.error.code !== "email_exists") throw created.error;
-    const { data, error } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-    if (error) throw error;
-    userId = data.users.find((u) => u.email === email)?.id;
+    userId = await findUserId(supabase, email);
     if (!userId) throw new Error(`El email ${email} existe pero no aparece en la lista de usuarios.`);
     const updated = await supabase.auth.admin.updateUserById(userId, { password });
     if (updated.error) throw updated.error;
@@ -72,6 +70,17 @@ export async function ensureLocalUser({ email, password, admin }: LocalUser): Pr
   }
 
   return userId!;
+}
+
+/** Busca por email página por página: los E2E crean usuarios en cada corrida y no los borran. */
+async function findUserId(supabase: ReturnType<typeof localAdminClient>, email: string) {
+  for (let page = 1; ; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    const found = data.users.find((u) => u.email === email);
+    if (found) return found.id;
+    if (data.users.length < 1000) return undefined;
+  }
 }
 
 // npm run db:admin [email]. Sin import.meta: Playwright compila este archivo a CommonJS.

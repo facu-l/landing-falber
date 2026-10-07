@@ -321,8 +321,12 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await db.exec(asUser);
   eq('usuario común NO ve pedidos', (await one(db, 'select count(*) c from orders')).c, 0);
   eq('usuario común: el UPDATE de precio afecta 0 filas (RLS)', (await db.query(`update product_variants set price = 1 where id='${V1}' returning id`)).rows.length, 0);
+  // Tiene el permiso de columna (update status, shipping_cost) como el admin: lo frena RLS, no el grant.
+  eq('usuario común: el UPDATE del estado de un pedido afecta 0 filas (RLS)',
+    (await db.query(`update orders set status = 'confirmed' where id='${fresh.order_id}' returning id`)).rows.length, 0);
   await reset(db);
   eq('...y el precio sigue intacto', (await one(db, `select price from product_variants where id='${V1}'`)).price, 8000);
+  eq('...y el pedido sigue pendiente', (await one(db, `select status from orders where id='${fresh.order_id}'`)).status, 'pending');
 
   console.log('\n[11] Seguridad: admin');
   await db.exec(asAdmin);
@@ -363,6 +367,18 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await db.exec(`${asAdmin} update orders set status='completed', shipping_cost = 2000 where id='${shipped.order_id}'`);
   ok('cambiar el estado de un pedido con costo de envío no choca con la regla');
   await reset(db);
+  await expectError(db, 'costo de envío de un pedido completado → SHIPPING_COST_LOCKED',
+    `${asAdmin} update orders set shipping_cost = 2500 where id='${shipped.order_id}'`, 'SHIPPING_COST_LOCKED', 'completed');
+  // La regla mira el estado viejo (decisión 56): cargar el costo al despachar vale.
+  const dispatch = (await one(db, orderCall({ wa: '+5492215550009', delivery: 'delivery', address: 'Calle 9 789', city: 'La Plata', items: `[${item(V1, 1)}]` }))).r;
+  for (const s of ['confirmed', 'paid', 'preparing']) {
+    await db.exec(`update orders set status='${s}' where id='${dispatch.order_id}'`);
+  }
+  await db.exec(`${asAdmin} update orders set status='shipped', shipping_cost = 1500 where id='${dispatch.order_id}'`);
+  await reset(db);
+  const dispatched = await one(db, `select status, total from orders where id='${dispatch.order_id}'`);
+  eq('costo de envío y despacho en el mismo update: queda enviado', dispatched.status, 'shipped');
+  eq('...con el costo sumado al total', dispatched.total, 9000 + 1500);
   const byAdmin = (await one(db, orderCall({ wa: '+5492215550008', items: `[${item(V1, 1)}]` }))).r;
   await db.exec(`${asAdmin} update orders set status='cancelled' where id='${byAdmin.order_id}'`);
   eq('auditoría: la devolución de una cancelación del admin queda firmada por el admin',

@@ -19,6 +19,7 @@ export const ORDER_ERRORS = {
   CASH_REQUIRES_PICKUP: "El pago en efectivo es solo para retiro en La Plata.",
   ADDRESS_REQUIRED: "Para envío a domicilio necesitamos dirección y ciudad.",
   NOTE_TOO_LONG: "La aclaración puede tener hasta 100 caracteres.",
+  DELIVERY_DATA_TOO_LONG: "Revisá los datos de envío: alguno es demasiado largo.",
 
   // Carrito
   EMPTY_CART: "Tu carrito está vacío.",

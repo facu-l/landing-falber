@@ -237,6 +237,13 @@ create table public.orders (
   ),
   constraint cash_only_for_pickup check (
     payment_method <> 'cash' or delivery_method = 'pickup'
+  ),
+  -- Mismos topes que el checkout (src/lib/forms/limits.ts). length() de null es null: pasa.
+  constraint delivery_lengths check (
+    length(delivery_address) <= 120
+    and length(delivery_city) <= 60
+    and length(delivery_postal_code) <= 10
+    and length(delivery_reference) <= 120
   )
 );
 
@@ -577,6 +584,8 @@ declare
   v_email          text := nullif(trim(coalesce(p_email, '')), '');
   v_address        text := nullif(trim(coalesce(p_delivery_address, '')), '');
   v_city           text := nullif(trim(coalesce(p_delivery_city, '')), '');
+  v_postal_code    text := nullif(trim(coalesce(p_delivery_postal_code, '')), '');
+  v_reference      text := nullif(trim(coalesce(p_delivery_reference, '')), '');
   v_note           text := nullif(trim(coalesce(p_order_note, '')), '');
   v_payment        public.payment_method;
   v_delivery       public.delivery_method;
@@ -629,6 +638,19 @@ begin
   if v_note is not null and length(v_note) > 100 then
     raise exception using message = 'NOTE_TOO_LONG';
   end if;
+  -- Mismos topes que el checkout; detail = el campo (el formulario ya marca cuál).
+  if length(v_address) > 120 then
+    raise exception using message = 'DELIVERY_DATA_TOO_LONG', detail = 'address';
+  end if;
+  if length(v_city) > 60 then
+    raise exception using message = 'DELIVERY_DATA_TOO_LONG', detail = 'city';
+  end if;
+  if length(v_postal_code) > 10 then
+    raise exception using message = 'DELIVERY_DATA_TOO_LONG', detail = 'postal_code';
+  end if;
+  if length(v_reference) > 120 then
+    raise exception using message = 'DELIVERY_DATA_TOO_LONG', detail = 'reference';
+  end if;
 
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
     raise exception using message = 'EMPTY_CART';
@@ -679,9 +701,7 @@ begin
   values (
     p_request_id, v_customer_id, v_name, v_email,
     v_payment, v_delivery,
-    v_address, v_city,
-    nullif(trim(coalesce(p_delivery_postal_code, '')), ''),
-    nullif(trim(coalesce(p_delivery_reference, '')), ''),
+    v_address, v_city, v_postal_code, v_reference,
     v_note, 0
   )
   on conflict (request_id) do nothing

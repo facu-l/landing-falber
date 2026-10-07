@@ -67,11 +67,11 @@ const q = (v) => (v === null ? 'null' : `'${v}'`);
 function orderCall(opts = {}) {
   const o = {
     req: randomUUID(), client: key(), name: 'Juan Pérez', wa: '+5492215551234', email: null,
-    pay: 'transfer', delivery: 'pickup', address: null, city: null, note: 'sin aclaración', items: '[]',
+    pay: 'transfer', delivery: 'pickup', address: null, city: null, postal: null, ref: null, note: 'sin aclaración', items: '[]',
     ...opts,
   };
   return `select public.create_order(${q(o.req)}, ${q(o.client)}, ${q(o.name)}, ${q(o.wa)}, ${q(o.email)},
-    ${q(o.pay)}, ${q(o.delivery)}, ${q(o.address)}, ${q(o.city)}, null, null, ${q(o.note)}, '${o.items}'::jsonb) as r`;
+    ${q(o.pay)}, ${q(o.delivery)}, ${q(o.address)}, ${q(o.city)}, ${q(o.postal)}, ${q(o.ref)}, ${q(o.note)}, '${o.items}'::jsonb) as r`;
 }
 const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${quantity}}`;
 
@@ -218,6 +218,22 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await expectError(db, 'email inválido → INVALID_EMAIL', orderCall({ email: 'no-es-email', items: `[${item(V1, 1)}]` }), 'INVALID_EMAIL');
   await expectError(db, 'aclaración de 101 caracteres → NOTE_TOO_LONG', orderCall({ note: 'x'.repeat(101), items: `[${item(V1, 1)}]` }), 'NOTE_TOO_LONG');
   await expectError(db, 'método de pago inexistente → INVALID_PAYMENT_METHOD', orderCall({ pay: 'crypto', items: `[${item(V1, 1)}]` }), 'INVALID_PAYMENT_METHOD');
+  // Largos de los datos de envío: los mismos topes que el checkout (src/lib/forms/limits.ts).
+  const shipTo = (fields) => orderCall({ delivery: 'delivery', address: 'Calle 7 123', city: 'La Plata', items: `[${item(V1, 1)}]`, ...fields });
+  for (const [i, [field, fields, max]] of [
+    ['address', (v) => ({ address: v }), 120],
+    ['city', (v) => ({ city: v }), 60],
+    ['postal_code', (v) => ({ postal: v }), 10],
+    ['reference', (v) => ({ ref: v }), 120],
+  ].entries()) {
+    await expectError(db, `envío: ${field} de ${max + 1} caracteres → DELIVERY_DATA_TOO_LONG`,
+      shipTo({ wa: `+54922155501${i}0`, ...fields('x'.repeat(max + 1)) }), 'DELIVERY_DATA_TOO_LONG', field);
+  }
+  const atMax = (await one(db, shipTo({ wa: '+5492215550010', address: 'a'.repeat(120), city: 'c'.repeat(60), postal: 'p'.repeat(10), ref: 'r'.repeat(120) }))).r;
+  eq('envío: los cuatro datos en su largo máximo se aceptan',
+    (await one(db, `select length(delivery_reference) n from orders where id='${atMax.order_id}'`)).n, 120);
+  await expectError(db, 'Studio tampoco guarda una dirección de 121 caracteres (check de la tabla)',
+    `update orders set delivery_address = repeat('a', 121) where id='${atMax.order_id}'`, 'delivery_lengths');
   const envio = (await one(db, orderCall({ wa: '+5492215550002', delivery: 'delivery', address: 'Calle 7 123', city: 'La Plata', items: `[${item(V1, 1)}]` }))).r;
   ok('transferencia + envío con dirección se acepta (' + envio.order_number + ')');
 

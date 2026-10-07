@@ -54,6 +54,18 @@
 **Priority:** P2
 **Depends on:** —
 
+### Puerto ocupado en el runner de CI
+
+**What:** Si el CI vuelve a fallar con `address already in use` en el puerto 54322, subir el rango de puertos efímeros del runner en `.github/workflows/ci.yml`, antes de `supabase start` (en los dos jobs): `sudo sysctl -w net.ipv4.ip_local_port_range="60000 65000"`.
+
+**Why:** El CI de `main` después del merge de la Fase 4 falló una vez en E2E porque `supabase start` no pudo tomar el 54322: el kernel del runner ya lo había dado como puerto efímero a otra conexión. El reintento pasó con el mismo árbol (comparado con `git rev-parse <commit>^{tree}`), así que no fue el código. Con el rango efímero arriba de 60000, los puertos de Supabase (54321-54327) quedan afuera.
+
+**Context:** No se cambió el CI por una sola falla (un cambio en el workflow sin un rojo reproducible no se puede verificar). Señal: una segunda falla con el mismo error.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** —
+
 ## Checkout
 
 ### Largos máximos de los datos de envío en la base
@@ -81,6 +93,35 @@
 **Depends on:** —
 
 ## Anti-abuso
+
+### CAPTCHA en el login del admin
+
+**What:** Activar el CAPTCHA nativo de Supabase Auth con Turnstile en `/admin/login` (`[auth.captcha]` en `supabase/config.toml` y en el dashboard; el token va en `signInWithPassword({ options: { captchaToken } })`), reusando `TurnstileField`.
+
+**Why:** Hoy el login solo tiene los límites de Supabase Auth (`over_request_rate_limit`, con su mensaje en `LOGIN_ERRORS`). Es la única puerta al panel y la cuenta del admin es una sola: un ataque de contraseñas desde muchas IPs no choca con un límite por IP. Decisión 60.
+
+**Context:** Con el CAPTCHA activo en Auth, **todo** login necesita token, también el de los E2E y el de `npm run db:admin` (que no hace login: no lo afecta). En CI y local, las claves de prueba de Cloudflare (siempre pasan). Agregar un test de la acción que mande el token. Señal: intentos fallidos repetidos en los logs de Auth, o antes del lanzamiento si sobra tiempo en la Fase 6.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
+### Endurecer la sesión del admin
+
+**What:** Lo que el `/review` de la Fase 5 encontró y quedó fuera del PR:
+1. Cookies de sesión `httpOnly` y `secure` (`cookieOptions` en `src/lib/supabase/server.ts` y `src/proxy.ts`). El cliente de navegador (`src/lib/supabase/client.ts`) no se usa: borrarlo o anotar que necesitaría cookies legibles.
+2. `getAdminStatus()` ignora el error de `getUser()`: un fallo de red de Auth se trata como "sin sesión" y el admin ve el login en vez de `error.tsx`. Lanzar si el error no es `AuthSessionMissingError`.
+3. En las acciones del detalle, un fallo de `is_admin` dentro de `requireAdmin()` reemplaza la página por `error.tsx` y se pierde lo escrito: devolver un error al formulario (y relanzar los `redirect`).
+4. Policies RLS con `(select public.is_admin())` en vez de `public.is_admin()` (guía de performance de Supabase: una llamada por consulta, no por fila).
+5. Tests propuestos: un no-admin no puede hacer UPDATE de pedidos (`schema.test.cjs` [10]), costo de envío y despacho en el mismo update, `SHIPPING_COST_LOCKED` en `completed`, ramas negativas de `setShippingCost`, una cancelación rechazada no llama a `updateTag`, un admin logueado que abre `/admin/login` va a los pedidos.
+
+**Why:** Ninguno rompe hoy con un solo admin y sin XSS conocido, pero (1) es la diferencia entre un XSS en la tienda y el control del panel, y (2)/(3) confunden al admin justo cuando Supabase falla.
+
+**Context:** Hallazgos del red team, el revisor adversarial y los especialistas de testing y performance (Fase 5). La auditoría del costo de envío cambiado después de pagado quedó descartada por ahora (el `total` se recalcula y `updated_at` marca el cambio). Señal: antes del lanzamiento (Fase 6), junto con el CAPTCHA del login.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
 
 ### Límite de encargos por número de WhatsApp
 
@@ -148,11 +189,12 @@
 
 ### Sincronizar el artifact con los cambios hechos en el código
 
-**What:** Copiar al design system "FALBER" en Claude Artifacts (https://claude.ai/artifact/8MRV6N7UQkE1uDYGWUBB9j) cuatro cambios que hoy solo existen en el repo:
+**What:** Copiar al design system "FALBER" en Claude Artifacts (https://claude.ai/artifact/8MRV6N7UQkE1uDYGWUBB9j) cinco cambios que hoy solo existen en el repo:
 1. El token `error`: Noir `#e5867d`, Platinum `#a8332b`, con su regla de uso (`design/falber-tokens.json` → `color.tokens`).
 2. El estilo `wordmark` con `clamp()`: 28 px en mobile y 40 px en desktop, tracking 0.4em (`src/app/globals.css`).
 3. `Input` de solo lectura: fondo `surface-raised`, borde `border`, texto `text-secondary` (Fase 4).
 4. `Select` con mensaje de error, igual que `Input` (Fase 4).
+5. El estado del pedido del admin en tres luminosidades (`OrderStatusBadge`: relleno `accent` = pendiente, borde `border-strong` = en curso, borde `border` y texto `text-muted` = cerrado), en Platinum (Fase 5, decisión 66).
 
 **Why:** El artifact es la fuente de verdad y la sincronización es manual, en un solo sentido (artifact → repo, DESIGN.md). Si se re-sincroniza sin estos cambios, el token `error` desaparece del JSON y `tokens.test.ts` falla; el `clamp()` del wordmark y los estados de los controles se perderían en silencio.
 

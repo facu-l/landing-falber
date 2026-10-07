@@ -45,7 +45,7 @@ Usar SIEMPRE el token semántico, nunca el hex directo.
 | `accent-strong` | #e6e8ea | #202226 | Hover/active de `accent` |
 | `error` | #e5867d | #a8332b | Texto de error y borde del campo inválido (≥5:1 en las tres superficies) |
 
-**Regla del error:** rojo desaturado, nunca decorativo. Siempre va con texto explícito (qué pasó y cómo arreglarlo) y `aria-invalid`: el color refuerza, no informa solo. En Noir tiene casi la misma luminosidad que `text-muted`, así que sin el texto un error y un hint se confundirían.
+**Regla del error:** rojo desaturado, nunca decorativo. Siempre va con texto explícito (qué pasó y cómo arreglarlo) y `aria-invalid`: el color refuerza, no informa solo. Única extensión: en el admin, el aviso de una pérdida inminente ("Se cancela sola en X h", un pedido que pg_cron va a cancelar) también usa `error`, porque es una venta por perderse y el texto dice qué va a pasar. En Noir tiene casi la misma luminosidad que `text-muted`, así que sin el texto un error y un hint se confundirían.
 
 **Regla del platino:** `platinum` es solo para marcas, filetes y énfasis **sobre fondos oscuros**. Sobre fondo claro tiene poco contraste: ahí se usa `accent`.
 
@@ -120,4 +120,4 @@ Se **reimplementan en `src/components/ui/`** con los tokens. El bundle del artif
 
 - Texto ≥ 4.5:1 en ambos temas (los tokens ya cumplen sobre `surface` y `surface-raised`).
 - Foco visible en todo control (anillo en `accent`).
-- Los colores que deben distinguirse varían en luminosidad, no solo en tono (estados de pedido en el admin).
+- Los colores que deben distinguirse varían en luminosidad, no solo en tono. Estados de pedido en el admin (`OrderStatusBadge`): pendiente = relleno `accent` con texto `on-accent` (pide acción), en curso = borde `border-strong`, cerrado (entregado o cancelado) = borde `border` y texto `text-muted`.

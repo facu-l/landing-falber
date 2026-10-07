@@ -1,0 +1,43 @@
+{
+  "_comment": "Siguientes estados válidos de un pedido (sin contar quedarse igual), por pago/entrega. Lo verifican test:db contra is_valid_order_transition y Vitest contra src/lib/admin/order-transitions.ts.",
+  "transfer/pickup": {
+    "pending": ["confirmed", "cancelled"],
+    "confirmed": ["paid", "cancelled"],
+    "paid": ["preparing", "cancelled"],
+    "preparing": ["ready_for_pickup", "cancelled"],
+    "ready_for_pickup": ["completed", "cancelled"],
+    "shipped": ["completed"],
+    "completed": [],
+    "cancelled": []
+  },
+  "transfer/delivery": {
+    "pending": ["confirmed", "cancelled"],
+    "confirmed": ["paid", "cancelled"],
+    "paid": ["preparing", "cancelled"],
+    "preparing": ["shipped", "cancelled"],
+    "ready_for_pickup": ["completed", "cancelled"],
+    "shipped": ["completed"],
+    "completed": [],
+    "cancelled": []
+  },
+  "cash/pickup": {
+    "pending": ["confirmed", "cancelled"],
+    "confirmed": ["paid", "preparing", "cancelled"],
+    "paid": ["preparing", "cancelled"],
+    "preparing": ["ready_for_pickup", "cancelled"],
+    "ready_for_pickup": ["completed", "cancelled"],
+    "shipped": ["completed"],
+    "completed": [],
+    "cancelled": []
+  },
+  "cash/delivery": {
+    "pending": ["confirmed", "cancelled"],
+    "confirmed": ["paid", "preparing", "cancelled"],
+    "paid": ["preparing", "cancelled"],
+    "preparing": ["shipped", "cancelled"],
+    "ready_for_pickup": ["completed", "cancelled"],
+    "shipped": ["completed"],
+    "completed": [],
+    "cancelled": []
+  }
+}

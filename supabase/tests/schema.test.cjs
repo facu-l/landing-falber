@@ -266,6 +266,30 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await expectError(db, 'Studio (postgres): editar un ítem se rechaza',
     `update order_items set quantity = 99 where order_id='${envio.order_id}'`, 'ORDER_ITEMS_ARE_IMMUTABLE');
 
+  // El admin muestra solo los estados válidos con una copia en TS (src/lib/admin/order-transitions.ts).
+  // Las dos copias se prueban contra el mismo fixture: si cambia la regla, fallan las dos.
+  {
+    const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'order-transitions.json'), 'utf8'));
+    delete fixture._comment;
+    const { rows } = await db.query(`
+      select p.pay || '/' || d.del as combo, f.s::text as from_status,
+             coalesce(array_agg(t.s::text order by t.s) filter (where t.s <> f.s
+               and public.is_valid_order_transition(f.s, t.s, p.pay::payment_method, d.del::delivery_method)), '{}') as next
+      from unnest(enum_range(null::order_status)) f(s)
+      cross join unnest(enum_range(null::order_status)) t(s)
+      cross join (values ('transfer'), ('cash')) p(pay)
+      cross join (values ('pickup'), ('delivery')) d(del)
+      group by p.pay, d.del, f.s`);
+    const fromDb = {};
+    for (const r of rows) (fromDb[r.combo] ??= {})[r.from_status] = r.next;
+    const sorted = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, Object.keys(o[k]).sort().map((s) => [s, o[k][s]])]));
+    eq('transiciones: el fixture de order-transitions.json coincide con is_valid_order_transition', sorted(fromDb), sorted(fixture));
+  }
+
+  // La lista del admin filtra por estado (activos / cerrados) y ordena por fecha: (status, created_at).
+  eq('índice: la lista del admin tiene su índice (status, created_at)',
+    (await one(db, `select count(*) n from pg_indexes where schemaname = 'public' and indexname = 'orders_status_created_at_idx'`)).n, 1);
+
   console.log('\n[8] Cancelación automática de pedidos abandonados');
   const stale = (await one(db, orderCall({ wa: '+5492215550005', items: `[${item(V2, 1)}]` }))).r;
   const fresh = (await one(db, orderCall({ wa: '+5492215550006', items: `[${item(V2, 1)}]` }))).r;
@@ -319,6 +343,31 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await expectError(db, 'admin NO puede editar stock directo', `${asAdmin} update product_variants set stock = 999 where id='${V1}'`, 'permission denied');
   await expectError(db, 'admin NO puede editar el subtotal de un pedido', `${asAdmin} update orders set subtotal = 1 where id='${envio.order_id}'`, 'permission denied');
   await expectError(db, 'admin NO puede borrar pedidos', `${asAdmin} delete from orders where id='${envio.order_id}'`, 'permission denied');
+
+  // Costo de envío: solo en pedidos con envío y mientras no salieron ni se cerraron.
+  await expectError(db, 'costo de envío en un retiro → SHIPPING_COST_PICKUP',
+    `${asAdmin} update orders set shipping_cost = 1000 where id='${transfer.order_id}'`, 'SHIPPING_COST_PICKUP');
+  const shipped = (await one(db, orderCall({ wa: '+5492215550007', delivery: 'delivery', address: 'Calle 8 456', city: 'La Plata', items: `[${item(V1, 1)}]` }))).r;
+  await db.exec(`${asAdmin} update orders set shipping_cost = 2000 where id='${shipped.order_id}'`);
+  for (const s of ['confirmed', 'paid', 'preparing', 'shipped']) {
+    await db.exec(`update orders set status='${s}' where id='${shipped.order_id}'`);
+  }
+  await reset(db);
+  await expectError(db, 'costo de envío de un pedido enviado → SHIPPING_COST_LOCKED',
+    `${asAdmin} update orders set shipping_cost = 2500 where id='${shipped.order_id}'`, 'SHIPPING_COST_LOCKED', 'shipped');
+  await expectError(db, 'costo de envío de un pedido cancelado → SHIPPING_COST_LOCKED',
+    `${asAdmin} update orders set status='cancelled' where id='${envio.order_id}'; update orders set shipping_cost = 0 where id='${envio.order_id}'`,
+    'SHIPPING_COST_LOCKED', 'cancelled');
+  await db.exec(`${asAdmin} update orders set shipping_cost = 2000 where id='${shipped.order_id}'`);
+  ok('re-guardar el mismo costo en un pedido enviado no es un cambio');
+  await db.exec(`${asAdmin} update orders set status='completed', shipping_cost = 2000 where id='${shipped.order_id}'`);
+  ok('cambiar el estado de un pedido con costo de envío no choca con la regla');
+  await reset(db);
+  const byAdmin = (await one(db, orderCall({ wa: '+5492215550008', items: `[${item(V1, 1)}]` }))).r;
+  await db.exec(`${asAdmin} update orders set status='cancelled' where id='${byAdmin.order_id}'`);
+  eq('auditoría: la devolución de una cancelación del admin queda firmada por el admin',
+    (await one(db, `select created_by from stock_movements where reference_id='${byAdmin.order_id}' and movement_type='order_cancelled'`)).created_by, ADMIN);
+  await reset(db);
   eq('el pedido histórico conserva el precio viejo (snapshot)',
     (await one(db, `select unit_price from order_items where order_id='${r1.order_id}' and variant_id='${V1}'`)).unit_price, 8000);
 

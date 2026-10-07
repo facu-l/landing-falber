@@ -309,7 +309,9 @@ create table public.stock_movements (
   quantity      integer not null check (quantity <> 0), -- con signo: +entra / -sale
   reference_id  uuid references public.orders (id),     -- pedido, cuando aplica
   note          text,
-  -- Auditoría: quién lo cargó. null = el sistema (create_order, cancelación).
+  -- Auditoría: quién lo cargó. null = el sistema (create_order con service_role,
+  -- cancelación automática de pg_cron). Una cancelación desde el admin queda
+  -- firmada por el admin: el trigger hereda su auth.uid().
   created_by    uuid references auth.users (id) default auth.uid(),
   created_at    timestamptz not null default now(),
 
@@ -512,6 +514,38 @@ $$;
 create trigger orders_status_change
   before update of status on public.orders
   for each row execute function public.handle_order_status_change();
+
+-- Costo de envío: solo en pedidos con envío y antes de que salgan o se cierren.
+-- Se mira el estado VIEJO: cargar el costo y pasar a 'shipped' en el mismo update vale.
+create or replace function public.guard_shipping_cost()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.shipping_cost is not distinct from old.shipping_cost then
+    return new;
+  end if;
+
+  if old.delivery_method = 'pickup' then
+    raise exception using
+      message = 'SHIPPING_COST_PICKUP',
+      hint    = 'Un pedido con retiro no tiene costo de envío.';
+  end if;
+
+  if old.status in ('shipped', 'completed', 'cancelled') then
+    raise exception using
+      message = 'SHIPPING_COST_LOCKED',
+      detail  = old.status::text,
+      hint    = 'El costo de envío se carga antes de despachar el pedido.';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger orders_shipping_cost_guard
+  before update of shipping_cost on public.orders
+  for each row execute function public.guard_shipping_cost();
 
 -- -----------------------------------------------------------------------------
 -- RPC: create_order — ÚNICA forma de crear un pedido

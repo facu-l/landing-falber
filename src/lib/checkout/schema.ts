@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { firstFieldErrors } from "@/lib/forms/field-errors";
 import { MAX_LINES, MAX_QUANTITY } from "@/lib/cart/cart";
 import { fullNameField, optionalText as text, whatsappField } from "@/lib/forms/fields";
 import { LIMITS } from "@/lib/forms/limits";
@@ -81,12 +82,7 @@ export function parseCheckout(rawInput: Record<string, unknown>): CheckoutParseR
 
   if (result.success && Object.keys(fieldErrors).length === 0) return { success: true, data: result.data };
 
-  // Un mensaje por campo (el primero): el formulario muestra uno debajo de cada input.
-  for (const issue of result.error?.issues ?? []) {
-    const field = issue.path[0] as CheckoutField | undefined;
-    if (field && !fieldErrors[field]) fieldErrors[field] = issue.message;
-  }
-  return { success: false, fieldErrors };
+  return { success: false, fieldErrors: firstFieldErrors<CheckoutField>(result.error?.issues ?? [], fieldErrors) };
 }
 
 /*

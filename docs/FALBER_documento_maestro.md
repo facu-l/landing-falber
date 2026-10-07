@@ -1,12 +1,13 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v4.0 · 2026-10-06
+Tienda online de decants y perfumes · Next.js + Supabase · v5.0 · 2026-10-06
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
 **v2.2:** Fase 2 implementada en `feat/catalog`. Decisiones 26 a 33 (sección 3.G) y lecciones nuevas.
 **v3.0:** Fase 3 implementada en `feat/checkout` (PR #5): carrito, checkout, pedidos y WhatsApp. Decisiones 34 a 43 (sección 3.H), diagrama de la Server Action actualizado, lecciones, plan de tests y checklist de publicación.
 **v4.0:** Fase 4 implementada en `feat/requests`: `/encargos` con precarga desde un producto agotado. Decisiones 44 a 54 (sección 3.I), entre ellas el fix del checkout que perdía "Envío a domicilio" tras un error del servidor y las que salieron del `/review`; lecciones y plan de tests.
+**v5.0:** Fase 5 implementada en `feat/admin-orders`: login del admin, lista y detalle de pedidos, cambio de estado y costo de envío, tema Platinum y `src/proxy.ts`. Decisiones 55 a 70 (sección 3.J), entre ellas la regla del costo de envío en la base, el fix de `config.toml` que apagaba el login con email y, del `/review`, el compare-and-set del estado y la lista con todos los activos; lecciones, plan de tests y checklist.
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -230,6 +231,27 @@ Navegador ──► Server Action (src/app/(store)/checkout/actions.ts)
 | 53 | **`LIMITS` (`src/lib/forms/limits.ts`): un solo lugar para los largos** que usan los schemas (`.max`) y los inputs (`maxLength`), sin zod | Cada límite estaba escrito dos veces y podía desfasarse en silencio. Sin zod para no cargar los schemas en el bundle del navegador |
 | 54 | **`Turnstile` resetea el widget solo cuando cambia `resetKey`** (guarda el último aplicado en un ref) | Un widget recién montado, o vuelto a mostrar por `<Activity>`, ya trae un token nuevo: resetearlo al montar pedía un challenge de más |
 
+### J. Decisiones de la Fase 5 (admin de pedidos, 2026-10-06)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 55 | **La "alerta de más de 48 h" avisa antes de la cancelación automática:** un pendiente de 24 h o más muestra "Se cancela sola en X h" (horas enteras, redondeando para abajo; 0 = "menos de 1 h"). Umbrales en `src/lib/admin/order-list.ts` | pg_cron cancela los pendientes de más de 48 h cada hora: una alerta a las 48 h se vería como mucho una hora. Avisar antes le da tiempo al admin de confirmar la venta. Mostrar menos tiempo del real empuja a actuar |
+| 56 | **`guard_shipping_cost` en la base:** el costo de envío se rechaza en retiros (`SHIPPING_COST_PICKUP`) y en pedidos `shipped`, `completed` o `cancelled` (`SHIPPING_COST_LOCKED`). Mira el estado **viejo**: cargar el costo y despachar en el mismo update vale | Las reglas viven en la base. El permiso de columna (`update (status, shipping_cost)`) dejaba cargar costo en cualquier pedido |
+| 57 | **Las copias en TS de reglas de la base son solo para la UI** (`nextOrderStatuses`, `canSetShippingCost`). `nextOrderStatuses` e `is_valid_order_transition` se prueban contra el mismo fixture, `supabase/tests/order-transitions.json`: `test:db` verifica la base y Vitest la copia | Una regla duplicada sin un test compartido se desfasa en silencio. Si la base cambia, fallan los dos tests; si la copia se desfasa igual, la base rechaza y el admin ve el mensaje |
+| 58 | **`src/proxy.ts` corre solo en `/admin/:path*`:** `getClaims()` refresca la sesión y sin sesión redirige al login. El login nunca redirige desde el proxy | La tienda no tiene sesión: correrlo ahí es una llamada a Auth por visita sin proteger nada. Es un chequeo optimista: la seguridad sigue en `requireAdmin()` + RLS |
+| 59 | **`getAdminStatus()` lee de la sesión si es `anonymous`, `forbidden` o `admin`.** `requireAdmin()` manda los dos casos no-admin al login, y el login muestra el formulario, "sin acceso" con "Salir", o va al panel. Sin parámetros en la URL | Si el proxy mandara a los logueados al panel y `requireAdmin` a los no-admin al login, quedarían rebotando. La sesión es la única fuente de verdad |
+| 60 | **`signIn` y `signOut` son las únicas acciones del admin sin `requireAdmin()`** (crean y cierran la sesión). Credenciales incorrectas dan un solo mensaje que no dice qué campo falló. Sin Turnstile en el login por ahora (TODOS.md → Anti-abuso) | No se puede pedir sesión de admin para iniciarla. Un mensaje por campo deja averiguar qué emails existen. Supabase Auth ya limita los intentos (`over_request_rate_limit` tiene su mensaje) |
+| 61 | **`[auth.email] enable_signup = true` en `supabase/config.toml`.** El registro público se cierra con `[auth] enable_signup = false` (decisión 21) | En el CLI, `[auth.email] enable_signup = false` apaga el proveedor de email entero, también el login (`email_provider_disabled`). Verificado: con el fix, un signup público sigue dando `signup_disabled` |
+| 62 | **Platinum con un contenedor `data-theme="light"`** en `src/app/admin/layout.tsx` (no layouts raíz separados), `robots: noindex`, y un route group `(panel)` con la navegación y "Salir" para todo menos el login | Los tokens son variables CSS: valen en cualquier elemento. Dos layouts raíz recargan la página al cruzar entre tienda y admin y duplican las fuentes |
+| 63 | **Usuarios de prueba con la Auth Admin API** (`scripts/local-users.ts`, solo contra `127.0.0.1`/`localhost`): los E2E crean un usuario con contraseña al azar por test; `npm run db:admin` crea o actualiza un admin local y muestra la contraseña en la terminal. No van en `seed.sql` | Insertar en `auth.users` depende de columnas internas de GoTrue (tokens en `null` rompen el login) que cambian con el CLI. Sin contraseñas guardadas en el repo |
+| 64 | **Después de cada cambio del admin, `refresh()`; `updateTag('catalog')` solo al cancelar.** Los updates llevan `.select('id')` para detectar 0 filas | El panel no se cachea: `refresh()` trae el pedido con su estado nuevo y las opciones que siguen. Sin `select`, un pedido que RLS no deja ver "se actualiza" sin error |
+| 65 | **Costo de envío en pesos enteros como se escriben** (`4500`, `4.500`, `$ 4.500`), vacío = a coordinar, tope de $ 1.000.000. El tope vive en `src/lib/admin/shipping.ts`, no en `LIMITS` | Frena un cero de más (la base solo pide `>= 0`). `LIMITS` son largos de texto: mezclar montos le cambiaría el significado |
+| 66 | **Estados del pedido en tres luminosidades** (`OrderStatusBadge`: relleno = pendiente, borde = en curso, apagado = cerrado) y **fechas con zona fija** `America/Argentina/Buenos_Aires` (`formatDateTime`) | DESIGN.md pide que los estados se distingan sin depender del color. El servidor (Netlify) corre en UTC: sin zona fija, un pedido de las 21 h aparece al día siguiente |
+| 67 | **Compare-and-set al cambiar el estado:** el formulario manda el estado que el admin estaba viendo (`fromStatus`) y el update filtra por él (`.eq('status', fromStatus)`). Con 0 filas, "el pedido cambió, recargá". Re-guardar el mismo estado no llega a la base | Cancelar es válido desde casi cualquier estado: una pestaña vieja que mostraba "pendiente" podía cancelar un pedido ya pagado, devolver el stock y no se podía deshacer. La base no lo frenaba porque la transición era válida. Salió del `/review` (revisor adversarial) |
+| 68 | **La lista trae todos los pedidos activos sin tope y los últimos 100 cerrados** (dos consultas sobre `orders_status_created_at_idx`), y avisa cuando corta el historial | Con "los últimos 100 pedidos", uno viejo todavía en preparación o enviado desaparecía del panel y nadie lo despachaba. Los activos son pocos; el historial es lo que crece |
+| 69 | **"Salir" cierra solo la sesión actual** (`signOut({ scope: 'local' })`) | Sin scope, supabase-js usa `global` y revoca las sesiones del admin en todos sus dispositivos |
+| 70 | **`firstFieldErrors` (`src/lib/forms/field-errors.ts`): un solo lugar para "el primer error de zod por campo"** en checkout, encargos y login. Los errores que ya estaban (reglas entre campos del checkout) tienen prioridad | Era la tercera copia del mismo loop. No usa `z.flattenError` para conservar la prioridad del checkout sin cambiar su comportamiento |
+
 ---
 
 ## 4. Arquitectura
@@ -258,8 +280,9 @@ Navegador ──► Server Action (src/app/(store)/checkout/actions.ts)
 | `/checkout` | Datos, entrega, pago, aclaración, Turnstile |
 | `/pedido/[id]` | "Detalle de tu compra" + "Completar pedido en WhatsApp" (`id` = UUID) |
 | `/encargos` | "¿No encontrás tu perfume?" |
-| `/admin/login` | Login (Supabase Auth) |
-| `/admin/pedidos` | Lista (pendientes primero, alerta de más de 48 h), detalle, cambio de estado, costo de envío |
+| `/admin/login` | Login (Supabase Auth, email y contraseña). Una cuenta sin perfil de admin ve "sin acceso" |
+| `/admin/pedidos` | Lista: todos los activos (pendientes primero, el más viejo arriba) y los últimos 100 cerrados; aviso de cancelación automática desde las 24 h, envíos sin costo |
+| `/admin/pedidos/[id]` | Detalle, cambio de estado (solo transiciones válidas) y costo de envío |
 
 Productos, stock y encargos: **Supabase Studio** en el MVP (las protecciones de la DB valen también ahí). Su interfaz propia está en `TODOS.md`.
 
@@ -302,7 +325,8 @@ pending ─► confirmed ─► paid ──────► preparing ─┬─�
                │                        ▲       └─► shipped ─────────► completed   (envío)
                └──── (efectivo) ────────┘
 cancelled: desde cualquier estado salvo shipped / completed. Devuelve el stock. No se reabre.
-pending de más de 48 h: se cancela solo (pg_cron, cada hora).
+pending de más de 48 h: se cancela solo (pg_cron, cada hora). El admin ve el aviso desde las 24 h.
+costo de envío: solo con envío y antes de shipped / completed / cancelled (guard_shipping_cost).
 ```
 
 ### Historial del stock
@@ -420,7 +444,7 @@ Implementado en `src/lib/whatsapp.ts`. Dos diferencias con el bloque de arriba: 
 Al implementar:
 
 1. `SUPABASE_SERVICE_ROLE_KEY` solo en el servidor, **nunca** con `NEXT_PUBLIC_`.
-2. **`requireAdmin()` en la primera línea de cada Server Action del admin.** El middleware (en Next 16, `proxy.ts`) solo redirige; no es una frontera de seguridad (antecedente: CVE-2025-29927).
+2. **`requireAdmin()` en la primera línea de cada Server Action del admin** (`src/lib/admin/auth.ts`; las únicas excepciones son `signIn` y `signOut`, decisión 60). El proxy (`src/proxy.ts`, solo en `/admin`) refresca la sesión y redirige; no es una frontera de seguridad (antecedente: CVE-2025-29927).
 3. Las acciones del admin usan el cliente con la **sesión del usuario**, nunca `service_role`: así RLS sigue protegiendo.
 4. Turnstile verificado en el servidor antes de llamar a la RPC (después de zod, decisión 35). Falla cerrado.
 5. HMAC-SHA256 de la IP con `IP_HASH_SECRET` (32 caracteres o más) como `p_client_key`: nunca se guarda la IP en crudo. La IP sale de `x-nf-client-connection-ip`, no de `x-forwarded-for` (decisión 37).
@@ -533,19 +557,38 @@ Las decisiones que salieron están en la sección 3.I (44 a 54; de la 50 a la 54
 - Un test de contrato que pasa de entrada (ej. el límite por IP) se valida con una mutación: sacar la línea que protege y ver que falla.
 - Una hipótesis de un revisor se prueba antes de arreglar: el red team marcó el checkout como afectado por `<Activity>` y el E2E mostró que no (navega con `replace`).
 
-### Fase 5 — Admin de pedidos
+### Fase 5 — Admin de pedidos (implementada en `feat/admin-orders`, 2026-10-06)
 
 ```text
-Construí /admin/login y /admin/pedidos con tema Platinum según DESIGN.md:
-lista (pendientes primero, alerta de más de 48 h), detalle, cambio de estado
-(solo transiciones válidas) y costo de envío. requireAdmin() en cada acción,
-sesión del usuario (nunca service_role), updateTag('catalog') al cancelar.
-Test E2E: /admin sin sesión redirige y un no-admin no ve pedidos.
+Usá superpowers:test-driven-development. Antes de codear, leé en 0001 is_admin(),
+profiles, las policies de orders y stock_movements, is_valid_order_transition y el
+trigger de cancelación. Implementá con tema Platinum: /admin/login (Supabase Auth,
+email y contraseña; registro público desactivado), /admin/pedidos (pendientes
+primero, alerta de más de 48 h, detalle, cambio de estado solo a transiciones
+válidas, costo de envío). requireAdmin() en la primera línea de cada Server
+Action, con la sesión del usuario (nunca service_role); updateTag('catalog') al
+cancelar; errores con mapDbError y los desconocidos logueados. Pendientes de la
+Fase 1: data-theme="light" en /admin y src/proxy.ts (leer antes la guía de
+node_modules/next/dist/docs/). Admin de prueba desde un script, nunca credenciales
+reales. E2E: /admin sin sesión redirige, un no-admin no ve pedidos, un admin
+confirma un pedido y le carga el costo de envío. Plan de commits antes de codear.
 ```
 
-**Antes de empezar (pendientes de la Fase 1):**
-- Hoy el layout raíz fija `<html data-theme="dark">`. Para Platinum en `/admin`, el layout de admin pone `data-theme="light"` en un contenedor con `bg-surface` (los tokens funcionan en cualquier elemento) o se usan route groups con layouts raíz separados.
-- Falta `src/proxy.ts` (el middleware de Next 16) para refrescar la sesión en cada navegación. Solo redirige: la seguridad sigue en `requireAdmin()` + RLS.
+**Pendientes de la Fase 1, resueltos:** Platinum con un contenedor `data-theme="light"` (decisión 62) y `src/proxy.ts` solo en `/admin` (decisión 58).
+
+Las decisiones que salieron están en la sección 3.J (55 a 70; de la 67 a la 70 salieron del `/review` de la fase).
+
+**Lecciones:**
+- Loguear los errores desconocidos paga: el primer login falló con el mensaje genérico, y el log mostró `email_provider_disabled`, un error de configuración de la Fase 1 (decisión 61) que nadie había visto porque hasta acá nadie iniciaba sesión.
+- Un `select` de supabase-js armado concatenando strings pierde los tipos: TypeScript lo ve como `string`, y la fila pasa a ser un tipo de error sin que `tsc` se queje. Va como un solo literal. Se detectó con un archivo temporal que asigna valores imposibles a los campos.
+- Playwright compila los `.ts` a CommonJS: un módulo compartido entre un script de Node y los E2E no puede usar `import.meta`.
+- `getByText` de Playwright busca por subcadena y sin distinguir mayúsculas: "A coordinar" encontraba el hint del campo ("Vacío: a coordinar."). Usar `{ exact: true }`.
+- En `es-AR`, ICU ignora `day: "2-digit"` ("6/10"): el formato rellena a mano.
+- La copia en TS de una regla de la base se prueba contra el mismo fixture que la base. Y el test del fixture se valida rompiéndolo a propósito (una mutación).
+- Una prueba de UX en el navegador encontró lo que los tests no buscaban: al cancelar, el formulario pasaba a "Este pedido está cerrado." y se perdía la confirmación. Primero el test que lo reproduce, después el fix.
+- Una regla de la base que acepta la transición no protege contra datos viejos en la pantalla: "cancelar" es válido desde casi todo, así que una pestaña vieja podía cancelar un pedido pagado. Un update que depende de lo que el usuario vio filtra también por eso (compare-and-set, decisión 67). Lo encontró el revisor adversarial, no los tests.
+- Leer los defaults de las librerías que tocan la sesión: `signOut()` de supabase-js es `global` por defecto (decisión 69).
+- El proyecto no usa Prettier: correr `npx prettier --write` reformatea con su ancho por defecto y deja el archivo distinto al resto. Verificar la config antes de usar un formateador.
 
 ### Fase 6 — Operación y lanzamiento
 
@@ -569,8 +612,8 @@ Fase 1 base + DS ─► Fase 2 tienda (taste-skill) ─► Fase 3 checkout (TDD)
 | Capa | Herramienta | Qué cubre |
 |---|---|---|
 | Base de datos | `schema.test.cjs` (PGlite) | Todas las reglas de la sección 7, el flujo de `create_order` y los tres caminos de Storage (decisión 22) |
-| Lógica y componentes | Vitest | Fase 1 y 2: tokens vs `falber-tokens.json`, contrato de `Button`/`Input`/`Select`, `required()` de env, reglas del catálogo, mapeo de filas, URL de fotos y `formatARS`. Fase 3: `phone.ts` (formatos reales e inválidos), `cart.ts` y el store de `localStorage` (límites, datos rotos, otra pestaña, sin `localStorage`), `resolveCart`, `order-errors.ts` (un mensaje por cada código de la migración), schema del checkout, Turnstile y hash de IP (`fetch` inyectado), la Server Action (RPC, `headers` y `next/cache` mockeados), `whatsapp.ts`, `get_order_summary` (parser y consulta) y los componentes `AddToCart`, `CartView`, `CartLink`, `CheckoutForm` y `OrderDetails`. Fase 4: `db-errors.ts`, `requests/errors.ts` (un mensaje por cada código de `create_perfume_request`), schema y precarga de encargos (slug activo, inexistente, inactivo, repetido), `verifyHumanRequest`, `form-data.ts`, la acción `createPerfumeRequest` y los componentes `TurnstileField`, `PerfumeRequestForm` y `Select` con error |
-| Flujos | Playwright | Smoke (tema Noir, `es-AR`, sin desborde, el header entra en pantalla), catálogo (home → destacado → detalle, filtros por URL, búsqueda sin tildes, estado vacío, agotado, inexistente/inactivo) y compra (`e2e/checkout.spec.ts`: producto → carrito → checkout → pedido con el mensaje exacto de `wa.me`, doble click = una sola Server Action, envío sin dirección rechazado por el servidor, variante inexistente frena la compra) y encargos (`e2e/requests.spec.ts`: desde un producto agotado con el perfume precargado, encargo libre, error del servidor que conserva lo escrito, slug inexistente o inactivo). Por venir: `/admin` sin sesión → login; no-admin no ve pedidos |
+| Lógica y componentes | Vitest | Fase 1 y 2: tokens vs `falber-tokens.json`, contrato de `Button`/`Input`/`Select`, `required()` de env, reglas del catálogo, mapeo de filas, URL de fotos y `formatARS`. Fase 3: `phone.ts` (formatos reales e inválidos), `cart.ts` y el store de `localStorage` (límites, datos rotos, otra pestaña, sin `localStorage`), `resolveCart`, `order-errors.ts` (un mensaje por cada código de la migración), schema del checkout, Turnstile y hash de IP (`fetch` inyectado), la Server Action (RPC, `headers` y `next/cache` mockeados), `whatsapp.ts`, `get_order_summary` (parser y consulta) y los componentes `AddToCart`, `CartView`, `CartLink`, `CheckoutForm` y `OrderDetails`. Fase 4: `db-errors.ts`, `requests/errors.ts` (un mensaje por cada código de `create_perfume_request`), schema y precarga de encargos (slug activo, inexistente, inactivo, repetido), `verifyHumanRequest`, `form-data.ts`, la acción `createPerfumeRequest` y los componentes `TurnstileField`, `PerfumeRequestForm` y `Select` con error. Fase 5: `nextOrderStatuses` (contra el fixture de `test:db`), orden y aviso de la lista, `canSetShippingCost` y `parseShippingCost`, `requireAdmin`/`getAdminStatus`, la regla del proxy, el login (schema y acciones `signIn`/`signOut`), las acciones `updateOrderStatus` y `setShippingCost` (`requireAdmin` primero, `refresh`, `updateTag` solo al cancelar), `formatDateTime`, el guard de `scripts/local-users.ts` y los componentes `LoginForm`, `AdminOrderList`, `AdminOrderDetail`, `OrderStatusForm` (decisión 48) y `ShippingCostForm`. Del `/review`: compare-and-set del estado (`fromStatus`, 0 filas = cambió), lista con todos los activos y el aviso del corte, `signOut` local y `firstFieldErrors` |
+| Flujos | Playwright | Smoke (tema Noir, `es-AR`, sin desborde, el header entra en pantalla), catálogo (home → destacado → detalle, filtros por URL, búsqueda sin tildes, estado vacío, agotado, inexistente/inactivo) y compra (`e2e/checkout.spec.ts`: producto → carrito → checkout → pedido con el mensaje exacto de `wa.me`, doble click = una sola Server Action, envío sin dirección rechazado por el servidor, variante inexistente frena la compra) y encargos (`e2e/requests.spec.ts`: desde un producto agotado con el perfume precargado, encargo libre, error del servidor que conserva lo escrito, slug inexistente o inactivo) y admin (`e2e/admin.spec.ts`: `/admin` sin sesión va al login, una cuenta no admin ve "sin acceso" y no ve pedidos, un admin confirma un pedido de envío y le carga el costo; usuarios y pedidos nuevos por test con `e2e/admin-helpers.ts`) |
 
 Las tres capas corren en el CI en cada PR (decisión 24): `npm run test:db`, `npm test` y `npm run test:e2e`.
 
@@ -601,7 +644,8 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 - [ ] Turnstile activo en checkout y encargos, con claves reales (no las de prueba de `.env.example`), widget en modo invisible.
 - [ ] Variables de Netlify cargadas (lista en `.env.example`), entre ellas `NEXT_PUBLIC_WHATSAPP_NUMBER` (5492355481449) e `IP_HASH_SECRET` (generado, 32 caracteres o más). Sin la del WhatsApp, `/pedido/[id]` falla al cargar.
 - [ ] En Netlify llega `x-nf-client-connection-ip` (un pedido de prueba deja una fila en `rate_limit_events` con una clave distinta de la de `"unknown"`).
-- [ ] Supabase → Authentication → Sign In / Providers: registro público desactivado (solo existe el admin).
+- [ ] Supabase → Authentication → Sign In / Providers: "Allow new users to sign up" **apagado** y el proveedor **Email habilitado** (si se apaga Email, el admin no puede entrar; decisión 61). Admin creado a mano: Authentication → Add user + su fila en `profiles` (nota al final de `0001`).
+- [ ] Login del admin en producción: entra a `/admin/pedidos`; otra cuenta sin perfil ve "sin acceso".
 - [ ] Pedido de prueba completo en el celular: WhatsApp abre con el mensaje correcto.
 - [ ] Doble click en "Realizar compra" crea un solo pedido.
 - [ ] Cancelar un pedido devuelve el stock y la tienda lo muestra.
@@ -648,7 +692,10 @@ npm run test:db
 | Checkout | Turnstile sin token todavía (los primeros segundos) | Sí (E2E espera el token) | El servidor rechaza y el widget se resetea | Mismo mensaje; reintentar funciona |
 | Carrito | `localStorage` roto, editado o bloqueado | Sí (Vitest) | `parseCart` descarta lo inválido; respaldo en memoria | Carrito vacío o sin la línea rota |
 | Carrito | Precio inyectado en `localStorage` | Sí (Vitest) | El carrito no guarda precios; los pone el catálogo y `create_order` | — |
-| Admin | Acción sin sesión | E2E (fase 5) | `requireAdmin()` + RLS | Redirige a login |
+| Admin | Acción sin sesión | Sí (Vitest: la acción no escribe; E2E: `/admin` → login) | `requireAdmin()` + RLS | Redirige a login |
+| Admin | Cuenta logueada sin perfil de admin | Sí (E2E + esquema) | `getAdminStatus()` + RLS | "Sin acceso" con "Salir" |
+| Admin | El pedido cambió mientras se miraba (otra pestaña, pg_cron) | Sí (Vitest) | Compare-and-set del estado (decisión 67); la base rechaza (`INVALID_STATUS_TRANSITION`, `SHIPPING_COST_LOCKED`) | "Recargá la página…" |
+| Admin | Proveedor de email apagado en Auth | Sí (E2E: el login del admin) | Decisión 61 | Mensaje genérico + log `email_provider_disabled` |
 | Supabase Free | Pausa tras 7 días sin uso | Manual | Keepalive diario | **Silencioso sin el keepalive** |
 | `/pedido/[id]` | ID adivinado | Sí (esquema) | UUID + resumen sin datos sensibles | — |
 | `/pedido/[id]` | ID que no es UUID (ej. `FAL-0002`) | Sí (Vitest) | Se valida antes de consultar | "No encontramos esta página" |

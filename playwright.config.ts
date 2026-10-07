@@ -1,4 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync } from "node:fs";
+
+// Los helpers del admin (e2e/admin-helpers.ts) crean usuarios y pedidos con la clave
+// secreta del Supabase local. En local sale de .env.local; en CI ya está en el entorno
+// (loadEnvFile no pisa variables que existen).
+if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
 // Mismo puerto que `npm run dev`: Next 16 no permite dos `next dev` del mismo
 // proyecto a la vez, así que en local se reutiliza el dev server que ya corre.

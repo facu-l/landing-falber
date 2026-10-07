@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** Bloque de un formulario de la tienda: título en label (MAYÚSCULAS) y los campos debajo. */
+/** Bloque de un formulario (tienda y admin): título en label (MAYÚSCULAS) y los campos debajo. */
 export function FormSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-6">

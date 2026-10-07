@@ -214,10 +214,15 @@ token_verifications = 30
 web3 = 30
 
 # Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
-# [auth.captcha]
-# enabled = true
-# provider = "hcaptcha"
-# secret = ""
+# CAPTCHA del login del admin (TODOS.md → "CAPTCHA en el login del admin"): Auth exige el
+# token de Turnstile en cada signInWithPassword. La Admin API (service_role) no lo pide.
+# El secreto es la clave de PRUEBA pública de Cloudflare (siempre pasa, la misma de
+# .env.example): este archivo solo configura el Supabase local y el del CI. En la nube,
+# Authentication → Attack Protection → CAPTCHA, con el secreto real.
+[auth.captcha]
+enabled = true
+provider = "turnstile"
+secret = "1x0000000000000000000000000000000AA"
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.

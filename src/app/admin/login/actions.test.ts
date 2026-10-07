@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GENERIC_LOGIN_ERROR, LOGIN_ERRORS } from "@/lib/admin/login";
 import { ADMIN_LOGIN_PATH, ADMIN_ORDERS_PATH } from "@/lib/admin/paths";
+import { TURNSTILE_FIELD } from "@/lib/forms/form-data";
 
 const auth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.fn() }));
 vi.mock("server-only", () => ({}));
@@ -10,6 +11,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth }) }
 const { signIn, signOut } = await import("./actions");
 
 const PASSWORD = "clave-de-prueba";
+const TOKEN = "token-de-turnstile";
 
 function form(fields: Record<string, string>) {
   const data = new FormData();
@@ -30,9 +32,22 @@ describe("signIn", () => {
     auth.signInWithPassword.mockResolvedValue({ data: {}, error: null });
 
     await expect(
-      signIn({ status: "idle" }, form({ email: " Admin@Falber.test", password: PASSWORD })),
+      signIn({ status: "idle" }, form({ email: " Admin@Falber.test", password: PASSWORD, [TURNSTILE_FIELD]: TOKEN })),
     ).rejects.toEqual(redirectTo(ADMIN_ORDERS_PATH));
-    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: "admin@falber.test", password: PASSWORD });
+    // El token de Turnstile lo verifica Supabase Auth (CAPTCHA nativo): así también queda
+    // protegido el endpoint de Auth, que no pasa por esta acción.
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({
+      email: "admin@falber.test",
+      password: PASSWORD,
+      options: { captchaToken: TOKEN },
+    });
+  });
+
+  it("si Auth rechaza el CAPTCHA, pide esperar y volver a intentar", async () => {
+    auth.signInWithPassword.mockResolvedValue({ data: {}, error: { code: "captcha_failed", message: "x" } });
+
+    const state = await signIn({ status: "idle" }, form({ email: "admin@falber.test", password: PASSWORD }));
+    expect(state).toMatchObject({ status: "error", message: LOGIN_ERRORS.captcha_failed });
   });
 
   it("un formulario incompleto no llama a Supabase y devuelve los errores por campo", async () => {

@@ -1,9 +1,18 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TURNSTILE_FIELD } from "@/lib/forms/form-data";
 import type { LoginState } from "@/lib/admin/login-state";
 
 const mocks = vi.hoisted(() => ({ signIn: vi.fn() }));
 vi.mock("@/app/admin/login/actions", () => ({ signIn: mocks.signIn }));
+// Sin el script de Cloudflare: entrega un token distinto por cada resetKey.
+vi.mock("@/components/store/Turnstile", () => ({
+  Turnstile: ({ onToken, resetKey }: { onToken: (t: string | null) => void; resetKey: number }) => {
+    useEffect(() => onToken(`token-${resetKey}`), [onToken, resetKey]);
+    return null;
+  },
+}));
 
 const { LoginForm } = await import("./LoginForm");
 
@@ -26,6 +35,27 @@ describe("LoginForm", () => {
     const sent: FormData = mocks.signIn.mock.calls[0][1];
     expect(sent.get("email")).toBe("admin@falber.test");
     expect(sent.get("password")).toBe("clave");
+    // El token va a Supabase Auth (CAPTCHA nativo), que es quien lo verifica.
+    expect(sent.get(TURNSTILE_FIELD)).toBe("token-0");
+  });
+
+  it("después de un error del servidor pide un token nuevo: cada uno sirve una sola vez", async () => {
+    mocks.signIn.mockResolvedValue({
+      status: "error",
+      message: "El email o la contraseña no coinciden.",
+      values: { email: "admin@falber.test" },
+    } satisfies LoginState);
+    render(<LoginForm />);
+
+    type("Email", "admin@falber.test");
+    type("Contraseña", "mal");
+    submit();
+    await screen.findByRole("alert");
+    type("Contraseña", "clave");
+    submit();
+
+    await waitFor(() => expect(mocks.signIn).toHaveBeenCalledTimes(2));
+    expect((mocks.signIn.mock.calls[1][1] as FormData).get(TURNSTILE_FIELD)).toBe("token-1");
   });
 
   it("la contraseña es un campo de contraseña con el autocompletado correcto", () => {

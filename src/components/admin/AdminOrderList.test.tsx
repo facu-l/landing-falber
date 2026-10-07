@@ -15,6 +15,7 @@ function order(overrides: Partial<AdminOrderListItem>): AdminOrderListItem {
     payment_method: "transfer",
     delivery_method: "pickup",
     shipping_cost: null,
+    subtotal: 14500,
     total: 14500,
     created_at: hoursAgo(1),
     ...overrides,

@@ -45,7 +45,7 @@ export function AdminOrderList({ orders, now }: { orders: AdminOrderListItem[]; 
               )}
               {missingShipping && <span className="text-body-sm text-text-secondary">Falta el costo de envío</span>}
             </div>
-            <span className="text-body text-text md:text-right">{formatARS(order.total ?? 0)}</span>
+            <span className="text-body text-text md:text-right">{formatARS(order.total ?? order.subtotal)}</span>
           </li>
         );
       })}

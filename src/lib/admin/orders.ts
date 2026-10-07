@@ -16,12 +16,12 @@ type SessionClient = Awaited<ReturnType<typeof createClient>>;
 export const ORDER_LIST_LIMIT = 100;
 
 const LIST_SELECT =
-  "id, order_number, customer_name, status, payment_method, delivery_method, shipping_cost, total, created_at";
+  "id, order_number, customer_name, status, payment_method, delivery_method, subtotal, shipping_cost, total, created_at";
 
 // Un solo literal (sin concatenar): supabase-js infiere el tipo de la fila desde el texto del select.
 const DETAIL_SELECT = `id, order_number, customer_name, customer_email, status, payment_method, delivery_method,
   shipping_cost, delivery_address, delivery_city, delivery_postal_code, delivery_reference, order_note, subtotal,
-  total, created_at, customers ( whatsapp ), order_items ( id, product_name, variant_label, unit_price, quantity, line_total )`;
+  total, created_at, customers ( whatsapp ), order_items ( id, product_name, variant_label, unit_price, quantity )`;
 
 export async function listAdminOrders(supabase: SessionClient) {
   const { data, error } = await supabase

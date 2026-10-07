@@ -14,8 +14,6 @@ export const ADMIN_ORDER_ERRORS = {
   SHIPPING_COST_LOCKED: `El pedido ya salió o está cerrado: el costo de envío no se puede cambiar. ${RELOAD}`,
 } as const;
 
-export type AdminOrderErrorCode = keyof typeof ADMIN_ORDER_ERRORS;
-
 export const GENERIC_ADMIN_ORDER_ERROR = "No pudimos guardar el cambio. Probá de nuevo en unos segundos.";
 
 export function adminOrderError(error: DbError) {

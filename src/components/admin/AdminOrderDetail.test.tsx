@@ -23,8 +23,8 @@ function order(overrides: Partial<AdminOrder> = {}): AdminOrder {
     created_at: "2026-10-06T18:00:00Z",
     customers: { whatsapp: "+5492215551234" },
     order_items: [
-      { id: "i1", product_name: "Sauvage EDT", variant_label: "Decant 5 ml", unit_price: 14500, quantity: 1, line_total: 14500 },
-      { id: "i2", product_name: "Sauvage EDT", variant_label: "Decant 10 ml", unit_price: 26000, quantity: 1, line_total: 26000 },
+      { id: "i1", product_name: "Sauvage EDT", variant_label: "Decant 5 ml", unit_price: 14500, quantity: 1 },
+      { id: "i2", product_name: "Sauvage EDT", variant_label: "Decant 10 ml", unit_price: 26000, quantity: 1 },
     ],
     ...overrides,
   };

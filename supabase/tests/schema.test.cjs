@@ -290,6 +290,17 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   eq('índice: la lista del admin tiene su índice (status, created_at)',
     (await one(db, `select count(*) n from pg_indexes where schemaname = 'public' and indexname = 'orders_status_created_at_idx'`)).n, 1);
 
+  // `(select is_admin())` se evalúa una vez por consulta; `is_admin()` suelto, una vez por fila
+  // (guía de performance de RLS de Supabase). Postgres lo guarda como "( SELECT is_admin() AS is_admin)".
+  const bareIsAdmin = await db.query(`
+    select schemaname || '.' || tablename || ': ' || policyname as policy
+    from pg_policies
+    where regexp_replace(coalesce(qual, '') || ' ' || coalesce(with_check, ''),
+                         'SELECT (public\\.)?is_admin\\(\\)', '', 'g') ~ 'is_admin\\(\\)'
+    order by 1`);
+  eq('RLS: ninguna policy llama a is_admin() por fila (va dentro de un select)',
+    bareIsAdmin.rows.map((r) => r.policy).join(', '), '');
+
   console.log('\n[8] Cancelación automática de pedidos abandonados');
   const stale = (await one(db, orderCall({ wa: '+5492215550005', items: `[${item(V2, 1)}]` }))).r;
   const fresh = (await one(db, orderCall({ wa: '+5492215550006', items: `[${item(V2, 1)}]` }))).r;

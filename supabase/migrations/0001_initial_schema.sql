@@ -963,23 +963,27 @@ alter table public.stock_movements   enable row level security;
 alter table public.perfume_requests  enable row level security;
 alter table public.rate_limit_events enable row level security; -- sin políticas: nadie entra
 
+-- Convención: las policies llaman `(select public.is_admin())`, no `public.is_admin()`.
+-- Con el select, Postgres lo evalúa una vez por consulta (initPlan); suelto, una vez por
+-- fila. Lo verifica schema.test.cjs.
+
 -- Catálogo: público ve lo activo; admin ve y gestiona todo.
 create policy "catalog: public reads active products"
   on public.products for select
   to anon, authenticated
-  using (status = 'active' or public.is_admin());
+  using (status = 'active' or (select public.is_admin()));
 
 create policy "catalog: admin manages products"
   on public.products for all
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using ((select public.is_admin()))
+  with check ((select public.is_admin()));
 
 create policy "catalog: public reads variants of active products"
   on public.product_variants for select
   to anon, authenticated
   using (
-    public.is_admin()
+    (select public.is_admin())
     or exists (
       select 1 from public.products p
       where p.id = product_id and p.status = 'active'
@@ -989,54 +993,54 @@ create policy "catalog: public reads variants of active products"
 create policy "catalog: admin manages variants"
   on public.product_variants for all
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using ((select public.is_admin()))
+  with check ((select public.is_admin()));
 
 -- Datos de negocio y personales: SOLO admin. Sin políticas para anon = sin acceso.
 create policy "admin: read customers"
   on public.customers for select to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 create policy "admin: update customers"
   on public.customers for update to authenticated
-  using (public.is_admin()) with check (public.is_admin());
+  using ((select public.is_admin())) with check ((select public.is_admin()));
 
 create policy "admin: read orders"
   on public.orders for select to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 create policy "admin: update orders"
   on public.orders for update to authenticated
-  using (public.is_admin()) with check (public.is_admin());
+  using ((select public.is_admin())) with check ((select public.is_admin()));
 
 create policy "admin: read order_items"
   on public.order_items for select to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 create policy "admin: read stock movements"
   on public.stock_movements for select to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 -- El admin solo carga movimientos manuales: 'sale' y 'order_cancelled' son del sistema.
 create policy "admin: add manual stock movements"
   on public.stock_movements for insert to authenticated
   with check (
-    public.is_admin()
+    (select public.is_admin())
     and movement_type in ('initial_stock', 'restock', 'adjustment', 'damaged')
     and reference_id is null
   );
 
 create policy "admin: read perfume_requests"
   on public.perfume_requests for select to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 create policy "admin: update perfume_requests"
   on public.perfume_requests for update to authenticated
-  using (public.is_admin()) with check (public.is_admin());
+  using ((select public.is_admin())) with check ((select public.is_admin()));
 
 create policy "profiles: read own or admin"
   on public.profiles for select to authenticated
-  using (id = auth.uid() or public.is_admin());
+  using (id = auth.uid() or (select public.is_admin()));
 
 -- -----------------------------------------------------------------------------
 -- Storage: fotos de productos (lectura pública, escritura solo admin)
@@ -1067,15 +1071,15 @@ begin
 
   create policy "product-images: admin uploads"
     on storage.objects for insert to authenticated
-    with check (bucket_id = 'product-images' and public.is_admin());
+    with check (bucket_id = 'product-images' and (select public.is_admin()));
 
   create policy "product-images: admin updates"
     on storage.objects for update to authenticated
-    using (bucket_id = 'product-images' and public.is_admin());
+    using (bucket_id = 'product-images' and (select public.is_admin()));
 
   create policy "product-images: admin deletes"
     on storage.objects for delete to authenticated
-    using (bucket_id = 'product-images' and public.is_admin());
+    using (bucket_id = 'product-images' and (select public.is_admin()));
 end
 $storage$;
 

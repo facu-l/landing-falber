@@ -24,8 +24,8 @@ export default function AdminOrdersPage() {
 
 async function Orders() {
   const { supabase } = await requireAdmin();
-  const orders = await listAdminOrders(supabase);
-  return <AdminOrderList orders={orders} now={new Date()} />;
+  const { orders, closedTruncated } = await listAdminOrders(supabase);
+  return <AdminOrderList orders={orders} now={new Date()} closedTruncated={closedTruncated} />;
 }
 
 function ListSkeleton() {

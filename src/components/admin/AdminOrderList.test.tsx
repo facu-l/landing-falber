@@ -66,6 +66,14 @@ describe("AdminOrderList", () => {
     expect(screen.getAllByText("Falta el costo de envío")).toHaveLength(1);
   });
 
+  it("si el historial llegó al tope, avisa que hay cerrados más viejos", () => {
+    const { rerender } = render(<AdminOrderList now={NOW} orders={[order({})]} closedTruncated={false} />);
+    expect(screen.queryByText(/pedidos entregados o cancelados/)).toBeNull();
+
+    rerender(<AdminOrderList now={NOW} orders={[order({})]} closedTruncated />);
+    screen.getByText("Se muestran los últimos 100 pedidos entregados o cancelados.");
+  });
+
   it("sin pedidos lo dice", () => {
     render(<AdminOrderList now={NOW} orders={[]} />);
     screen.getByText("Todavía no hay pedidos.");

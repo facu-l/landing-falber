@@ -286,8 +286,9 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
     eq('transiciones: el fixture de order-transitions.json coincide con is_valid_order_transition', sorted(fromDb), sorted(fixture));
   }
 
-  eq('índice: la lista del admin (order by created_at desc) tiene su índice',
-    (await one(db, `select count(*) n from pg_indexes where schemaname = 'public' and indexname = 'orders_created_at_idx'`)).n, 1);
+  // La lista del admin filtra por estado (activos / cerrados) y ordena por fecha: (status, created_at).
+  eq('índice: la lista del admin tiene su índice (status, created_at)',
+    (await one(db, `select count(*) n from pg_indexes where schemaname = 'public' and indexname = 'orders_status_created_at_idx'`)).n, 1);
 
   console.log('\n[8] Cancelación automática de pedidos abandonados');
   const stale = (await one(db, orderCall({ wa: '+5492215550005', items: `[${item(V2, 1)}]` }))).r;

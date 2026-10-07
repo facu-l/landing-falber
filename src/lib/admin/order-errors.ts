@@ -14,6 +14,9 @@ const RELOAD = "Recargá la página para ver el pedido actualizado.";
  */
 export const ORDER_CHANGED = `El pedido cambió de estado mientras lo mirabas. ${RELOAD}`;
 
+/** El update no tocó ninguna fila sin filtrar por estado: el pedido no existe (o RLS no lo deja ver). */
+export const ORDER_NOT_FOUND = "No encontramos el pedido. Volvé a la lista de pedidos.";
+
 export const ADMIN_ORDER_ERRORS = {
   INVALID_STATUS_TRANSITION: ORDER_CHANGED,
   SHIPPING_COST_PICKUP: "Un pedido con retiro no lleva costo de envío.",

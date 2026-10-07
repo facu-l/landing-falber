@@ -14,7 +14,7 @@ Stack: Next.js (App Router) + TypeScript + Tailwind v4 + Supabase. Hosting: Netl
 - Las reglas de negocio viven en la DB (`supabase/migrations/`). El frontend las repite solo para mostrar errores amigables.
 - El stock cambia SOLO insertando en `stock_movements`. Nunca editar `product_variants.stock`.
 - Los pedidos se crean SOLO con la RPC `create_order`, desde un Server Action, con `service_role`.
-- Cada Server Action del admin empieza con `requireAdmin()` y usa la sesión del usuario (nunca `service_role`).
+- Cada Server Action del admin empieza con `requireAdminAction()` (cada página, con `requireAdmin()`) y usa la sesión del usuario (nunca `service_role`).
 - `SUPABASE_SERVICE_ROLE_KEY` nunca con prefijo `NEXT_PUBLIC_`.
 - UI: tokens semánticos de `DESIGN.md`, nunca hex directos. Sin emojis ni signos de exclamación en los textos de marca.
 - Hasta el primer deploy, `0001_initial_schema.sql` se edita directamente. Después, solo migraciones nuevas.

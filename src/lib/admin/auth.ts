@@ -59,3 +59,31 @@ export async function requireAdmin() {
   if (access.status !== "admin") redirect(ADMIN_LOGIN_PATH);
   return { supabase: access.supabase, user: access.user };
 }
+
+export const ADMIN_ACCESS_CHECK_FAILED = "No pudimos verificar tu acceso. Probá de nuevo en unos minutos.";
+
+export type AdminActionAccess =
+  | { ok: true; supabase: SupabaseServerClient; user: User }
+  | { ok: false; message: string };
+
+/**
+ * requireAdmin() para las Server Actions con formulario: misma regla (primera línea,
+ * sesión del usuario, sin admin al login), pero si no se puede verificar el acceso
+ * (Auth o la base no responden) devuelve el error en vez de lanzar. Lanzar reemplaza la
+ * página por error.tsx y el admin pierde lo que escribió.
+ *
+ * Solo getAdminStatus() va dentro del try: el redirect queda afuera y no hace falta
+ * relanzarlo (sin unstable_rethrow).
+ */
+export async function requireAdminAction(): Promise<AdminActionAccess> {
+  let access: AdminStatus;
+  try {
+    access = await getAdminStatus();
+  } catch (error) {
+    console.error("[admin] no se pudo verificar el acceso", error);
+    return { ok: false, message: ADMIN_ACCESS_CHECK_FAILED };
+  }
+
+  if (access.status !== "admin") redirect(ADMIN_LOGIN_PATH);
+  return { ok: true, supabase: access.supabase, user: access.user };
+}

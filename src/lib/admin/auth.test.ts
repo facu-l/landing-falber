@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: auth.getUser }, rpc: auth.rpc }),
 }));
 
-const { getAdminStatus, requireAdmin } = await import("./auth");
+const { ADMIN_ACCESS_CHECK_FAILED, getAdminStatus, requireAdmin, requireAdminAction } = await import("./auth");
 const { ADMIN_LOGIN_PATH } = await import("./paths");
 
 const USER = { id: "11111111-1111-1111-1111-111111111111", email: "admin@falber.test" };
@@ -84,5 +84,38 @@ describe("requireAdmin", () => {
     const result = await requireAdmin();
     expect(result.user).toEqual(USER);
     expect(result.supabase.rpc).toBe(auth.rpc);
+  });
+});
+
+// La variante de las Server Actions con formulario: un fallo al verificar no reemplaza la
+// página por error.tsx (se perdería lo escrito), vuelve al formulario como un error más.
+describe("requireAdminAction", () => {
+  it("un admin recibe el cliente con su sesión y el usuario", async () => {
+    session(true);
+    const result = await requireAdminAction();
+    expect(result).toMatchObject({ ok: true, user: USER });
+    expect(result.ok && result.supabase.rpc).toBe(auth.rpc);
+  });
+
+  it("sin sesión o sin perfil de admin redirige al login, igual que requireAdmin", async () => {
+    noSession();
+    await expect(requireAdminAction()).rejects.toEqual(redirectTo(ADMIN_LOGIN_PATH));
+    session(false);
+    await expect(requireAdminAction()).rejects.toEqual(redirectTo(ADMIN_LOGIN_PATH));
+  });
+
+  it.each([
+    ["is_admin falla", () => {
+      auth.getUser.mockResolvedValue({ data: { user: USER }, error: null });
+      auth.rpc.mockResolvedValue({ data: null, error: { message: "fetch failed" } });
+    }],
+    ["Auth no responde", () => getUserFails(new AuthRetryableFetchError("fetch failed", 0))],
+  ])("si %s, devuelve el error para el formulario y lo loguea", async (_case, arrange) => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    arrange();
+
+    await expect(requireAdminAction()).resolves.toEqual({ ok: false, message: ADMIN_ACCESS_CHECK_FAILED });
+    expect(log).toHaveBeenCalledWith("[admin] no se pudo verificar el acceso", expect.any(Error));
+    log.mockRestore();
   });
 });

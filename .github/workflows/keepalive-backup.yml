@@ -1,0 +1,85 @@
+name: Keepalive y backup
+
+# Una vez por día, contra el Supabase de producción:
+# 1. Ping a la API: el plan gratuito pausa el proyecto después de 7 días sin actividad.
+# 2. Backup (roles, esquema y datos) cifrado con gpg, como artefacto por 7 días.
+#    Tiene datos personales de clientes (Ley 25.326): nunca se sube sin cifrar.
+#
+# Se activa con la variable del repo BACKUP_ENABLED = true (Settings → Secrets and
+# variables → Actions → Variables), después de cargar los secretos. Mientras no exista
+# el proyecto en la nube el job se saltea, en vez de fallar todos los días.
+#
+# Secretos:
+#   SUPABASE_URL              https://<ref>.supabase.co
+#   SUPABASE_PUBLISHABLE_KEY  la clave publishable (la misma de la web)
+#   SUPABASE_DB_URL           cadena del Session pooler (puerto 5432): los runners de
+#                             GitHub no tienen IPv6 y la conexión directa es solo IPv6
+#   BACKUP_PASSPHRASE         guardada también fuera de GitHub: sin ella el backup no sirve
+#
+# Restaurar: documento maestro → Fase 6 → "Backups".
+
+on:
+  schedule:
+    - cron: "17 6 * * *" # 03:17 en Argentina (UTC-3)
+  workflow_dispatch:
+
+concurrency:
+  group: keepalive-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  keepalive-backup:
+    name: Ping y backup de Supabase
+    if: vars.BACKUP_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Verificar secretos
+        run: |
+          missing=0
+          for name in SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_DB_URL BACKUP_PASSPHRASE; do
+            if [ -z "${!name}" ]; then echo "::error::Falta el secreto $name"; missing=1; fi
+          done
+          exit "$missing"
+
+      - name: Ping a la API
+        # Lee un producto con la clave pública (RLS: solo los activos). -f falla con un 4xx/5xx.
+        run: |
+          curl -fsS -o /dev/null "$SUPABASE_URL/rest/v1/products?select=id&limit=1" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY"
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0 # la misma del devDependency
+
+      - name: Backup
+        run: |
+          mkdir backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/roles.sql --role-only
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/data.sql --use-copy --data-only
+
+      - name: Cifrar
+        # La passphrase entra por stdin, no como argumento (no queda en la lista de procesos).
+        run: |
+          name="falber-$(date -u +%Y%m%d-%H%M)"
+          tar -czf "$name.tar.gz" backup
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 -o "$name.tar.gz.gpg" "$name.tar.gz"
+          rm -rf backup "$name.tar.gz"
+          echo "BACKUP_FILE=$name.tar.gz.gpg" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 7
+          if-no-files-found: error

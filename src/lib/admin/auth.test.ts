@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { AuthApiError, AuthRetryableFetchError, AuthSessionMissingError } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ getUser: vi.fn(), rpc: vi.fn() }));
@@ -14,8 +15,9 @@ const USER = { id: "11111111-1111-1111-1111-111111111111", email: "admin@falber.
 
 afterEach(() => vi.clearAllMocks());
 
-const noSession = () =>
-  auth.getUser.mockResolvedValue({ data: { user: null }, error: { message: "Auth session missing" } });
+// Los errores son las clases reales de auth-js: así se prueba contra lo que devuelve getUser().
+const getUserFails = (error: Error) => auth.getUser.mockResolvedValue({ data: { user: null }, error });
+const noSession = () => getUserFails(new AuthSessionMissingError());
 const session = (isAdmin: boolean) => {
   auth.getUser.mockResolvedValue({ data: { user: USER }, error: null });
   auth.rpc.mockResolvedValue({ data: isAdmin, error: null });
@@ -46,6 +48,23 @@ describe("getAdminStatus", () => {
     auth.getUser.mockResolvedValue({ data: { user: USER }, error: null });
     auth.rpc.mockResolvedValue({ data: null, error: { message: "fetch failed" } });
     await expect(getAdminStatus()).rejects.toThrow("is_admin");
+  });
+
+  // Auth respondió que la sesión no vale (revocada, usuario borrado): la cookie sigue ahí,
+  // pero es "sin sesión". Si lanzara, el login también fallaría y no habría cómo volver a entrar.
+  it("con la sesión revocada en Auth (4xx) es 'anonymous'", async () => {
+    getUserFails(new AuthApiError("Session from session_id claim in JWT does not exist", 403, "session_not_found"));
+    await expect(getAdminStatus()).resolves.toMatchObject({ status: "anonymous" });
+    expect(auth.rpc).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["sin red", new AuthRetryableFetchError("fetch failed", 0)],
+    ["con Auth caído (503)", new AuthRetryableFetchError("Service Unavailable", 503)],
+  ])("%s lanza (error.tsx) en vez de mostrar el login", async (_case, error) => {
+    getUserFails(error);
+    await expect(getAdminStatus()).rejects.toThrow("No se pudo verificar la sesión");
+    expect(auth.rpc).not.toHaveBeenCalled();
   });
 });
 

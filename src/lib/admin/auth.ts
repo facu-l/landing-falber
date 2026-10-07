@@ -1,5 +1,5 @@
 import "server-only";
-import type { User } from "@supabase/supabase-js";
+import { isAuthApiError, isAuthSessionMissingError, type AuthError, type User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_LOGIN_PATH } from "./paths";
@@ -22,7 +22,12 @@ export async function getAdminStatus(): Promise<AdminStatus> {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+  // Auth sin responder (red, 5xx) no es "sin sesión": que lo muestre error.tsx.
+  if (authError && !isNoSession(authError)) {
+    throw new Error(`No se pudo verificar la sesión (getUser): ${authError.message}`);
+  }
   if (!user) return { status: "anonymous", supabase };
 
   const { data: isAdmin, error } = await supabase.rpc("is_admin");
@@ -30,6 +35,15 @@ export async function getAdminStatus(): Promise<AdminStatus> {
   if (error) throw new Error(`No se pudo verificar el acceso (is_admin): ${error.message}`);
 
   return { status: isAdmin ? "admin" : "forbidden", supabase, user };
+}
+
+/**
+ * Auth contestó que no hay una sesión válida: no hay cookie, o la que hay fue revocada o
+ * es de un usuario borrado (4xx). Eso es "anonymous" y lleva al login, donde se puede
+ * volver a entrar. Lanzar ahí dejaría al admin sin salida: el login también llama acá.
+ */
+function isNoSession(error: AuthError) {
+  return isAuthSessionMissingError(error) || (isAuthApiError(error) && error.status < 500);
 }
 
 /**

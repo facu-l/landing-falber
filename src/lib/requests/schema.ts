@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { firstFieldErrors } from "@/lib/forms/field-errors";
 import { fullNameField, optionalText, whatsappField } from "@/lib/forms/fields";
 import { LIMITS } from "@/lib/forms/limits";
 
@@ -40,11 +41,5 @@ export function parseRequest(rawInput: Record<string, unknown>): RequestParseRes
   const result = requestSchema.safeParse({ ...OPTIONAL_FIELDS, ...rawInput });
   if (result.success) return { success: true, data: result.data };
 
-  // Un mensaje por campo (el primero): el formulario muestra uno debajo de cada input.
-  const fieldErrors: RequestFieldErrors = {};
-  for (const issue of result.error.issues) {
-    const field = issue.path[0] as RequestField | undefined;
-    if (field && !fieldErrors[field]) fieldErrors[field] = issue.message;
-  }
-  return { success: false, fieldErrors };
+  return { success: false, fieldErrors: firstFieldErrors<RequestField>(result.error.issues) };
 }

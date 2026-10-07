@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { firstFieldErrors } from "@/lib/forms/field-errors";
 
 /*
  * Validación del login del admin (/admin/login). Solo da errores por campo y en
@@ -40,10 +41,5 @@ export function parseLogin(rawInput: Record<string, unknown>): LoginParseResult 
   const result = loginSchema.safeParse({ email: "", password: "", ...rawInput });
   if (result.success) return { success: true, data: result.data };
 
-  const fieldErrors: LoginFieldErrors = {};
-  for (const issue of result.error.issues) {
-    const field = issue.path[0] as LoginField | undefined;
-    if (field && !fieldErrors[field]) fieldErrors[field] = issue.message;
-  }
-  return { success: false, fieldErrors };
+  return { success: false, fieldErrors: firstFieldErrors<LoginField>(result.error.issues) };
 }

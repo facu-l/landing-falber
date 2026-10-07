@@ -87,6 +87,7 @@ describe("signOut", () => {
     auth.signOut.mockResolvedValue({ error: null });
 
     await expect(signOut()).rejects.toEqual(redirectTo(ADMIN_LOGIN_PATH));
-    expect(auth.signOut).toHaveBeenCalled();
+    // Solo esta sesión: sin scope, supabase-js usa "global" y cierra también la del celular.
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: "local" });
   });
 });

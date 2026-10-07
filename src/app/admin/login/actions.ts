@@ -34,8 +34,9 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
   redirect(ADMIN_ORDERS_PATH);
 }
 
+/** Cierra solo esta sesión: sin scope, supabase-js usa "global" y cierra las de todos los dispositivos. */
 export async function signOut() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
   redirect(ADMIN_LOGIN_PATH);
 }

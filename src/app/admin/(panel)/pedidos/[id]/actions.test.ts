@@ -244,12 +244,19 @@ describe("setShippingCost", () => {
 
   it("un error desconocido se loguea, muestra un mensaje genérico y conserva lo escrito", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    const error = { message: "fetch failed" };
-    databaseAnswers({ data: null, error });
+    databaseAnswers({
+      data: null,
+      error: { message: "new row violates check constraint", code: "23514", details: "Failing row contains (Ana Pérez)" },
+    });
 
     await expect(
       setShippingCost({ status: "idle" }, form({ orderId: ORDER_ID, shippingCost: "4500" })),
     ).resolves.toEqual({ status: "error", message: GENERIC_ADMIN_ORDER_ERROR, values: { shippingCost: "4500" } });
-    expect(log).toHaveBeenCalledWith("[admin] cargar el costo de envío falló", error);
+    // Solo código y mensaje: details trae la fila con datos del cliente.
+    expect(log).toHaveBeenCalledWith("[admin] cargar el costo de envío falló", {
+      code: "23514",
+      message: "new row violates check constraint",
+    });
+    expect(JSON.stringify(log.mock.calls)).not.toContain("Ana Pérez");
   });
 });

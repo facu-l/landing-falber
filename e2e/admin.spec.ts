@@ -35,6 +35,12 @@ test("un admin confirma un pedido y le carga el costo de envío", async ({ page 
 
   await signInAdmin(page, admin);
   await expect(page).toHaveURL("/admin/pedidos");
+
+  // El JavaScript de la página no puede leer la sesión: un XSS en la tienda no llega al panel.
+  const session = (await page.context().cookies()).filter((cookie) => cookie.name.startsWith("sb-"));
+  expect(session.length).toBeGreaterThan(0);
+  for (const cookie of session) expect(cookie.httpOnly, cookie.name).toBe(true);
+
   await page.getByRole("link", { name: order.orderNumber }).click();
 
   await expect(page).toHaveURL(`/admin/pedidos/${order.id}`);

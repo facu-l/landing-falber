@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminProxyRedirect } from "@/lib/admin/paths";
+import { sessionCookieOptions } from "@/lib/supabase/cookies";
 import { supabasePublicEnv } from "@/lib/supabase/env";
 import type { Database } from "@/types/database";
 
@@ -22,6 +23,7 @@ export async function proxy(request: NextRequest) {
   let cacheHeaders: Record<string, string> = {};
 
   const supabase = createServerClient<Database>(url, publishableKey, {
+    cookieOptions: sessionCookieOptions(),
     cookies: {
       getAll() {
         return request.cookies.getAll();

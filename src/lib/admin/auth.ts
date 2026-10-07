@@ -37,13 +37,18 @@ export async function getAdminStatus(): Promise<AdminStatus> {
   return { status: isAdmin ? "admin" : "forbidden", supabase, user };
 }
 
+const TOO_MANY_REQUESTS = 429;
+
 /**
  * Auth contestó que no hay una sesión válida: no hay cookie, o la que hay fue revocada o
  * es de un usuario borrado (4xx). Eso es "anonymous" y lleva al login, donde se puede
  * volver a entrar. Lanzar ahí dejaría al admin sin salida: el login también llama acá.
+ *
+ * El 429 (Auth limitando pedidos) no: la sesión sigue valiendo, es Auth que no responde.
  */
 function isNoSession(error: AuthError) {
-  return isAuthSessionMissingError(error) || (isAuthApiError(error) && error.status < 500);
+  if (isAuthSessionMissingError(error)) return true;
+  return isAuthApiError(error) && error.status < 500 && error.status !== TOO_MANY_REQUESTS;
 }
 
 /**

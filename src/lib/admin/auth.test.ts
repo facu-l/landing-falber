@@ -61,6 +61,9 @@ describe("getAdminStatus", () => {
   it.each([
     ["sin red", new AuthRetryableFetchError("fetch failed", 0)],
     ["con Auth caído (503)", new AuthRetryableFetchError("Service Unavailable", 503)],
+    ["con un error interno de Auth (500)", new AuthApiError("Internal error", 500, "unexpected_failure")],
+    // La sesión sigue siendo válida: mandarlo al login le haría perder lo escrito.
+    ["con Auth limitando pedidos (429)", new AuthApiError("Too many requests", 429, "over_request_rate_limit")],
   ])("%s lanza (error.tsx) en vez de mostrar el login", async (_case, error) => {
     getUserFails(error);
     await expect(getAdminStatus()).rejects.toThrow("No se pudo verificar la sesión");
@@ -110,6 +113,7 @@ describe("requireAdminAction", () => {
       auth.rpc.mockResolvedValue({ data: null, error: { message: "fetch failed" } });
     }],
     ["Auth no responde", () => getUserFails(new AuthRetryableFetchError("fetch failed", 0))],
+    ["Auth limita los pedidos (429)", () => getUserFails(new AuthApiError("Too many requests", 429, "over_request_rate_limit"))],
   ])("si %s, devuelve el error para el formulario y lo loguea", async (_case, arrange) => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     arrange();

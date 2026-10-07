@@ -242,6 +242,8 @@ create table public.orders (
 
 create index orders_customer_id_idx on public.orders (customer_id);
 create index orders_status_created_at_idx on public.orders (status, created_at desc);
+-- La lista del admin ordena todos los pedidos por fecha (sin filtro de estado).
+create index orders_created_at_idx on public.orders (created_at desc);
 
 create trigger orders_updated_at
   before update on public.orders

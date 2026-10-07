@@ -18,6 +18,8 @@ import type { Database } from "@/types/database";
 export async function proxy(request: NextRequest) {
   const { url, publishableKey } = supabasePublicEnv();
   let response = NextResponse.next({ request });
+  // Headers que pide Supabase al escribir cookies (Cache-Control): van también en un redirect.
+  let cacheHeaders: Record<string, string> = {};
 
   const supabase = createServerClient<Database>(url, publishableKey, {
     cookies: {
@@ -30,6 +32,7 @@ export async function proxy(request: NextRequest) {
         response = NextResponse.next({ request });
         for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options);
         // Cache-Control y compañía: una respuesta con la sesión de alguien no se cachea.
+        cacheHeaders = headers;
         for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
       },
     },
@@ -44,6 +47,7 @@ export async function proxy(request: NextRequest) {
   const redirect = NextResponse.redirect(new URL(destination, request.url));
   // Si el refresco borró cookies (sesión inválida), el redirect también las borra.
   for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+  for (const [key, value] of Object.entries(cacheHeaders)) redirect.headers.set(key, value);
   return redirect;
 }
 

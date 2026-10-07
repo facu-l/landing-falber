@@ -30,6 +30,17 @@ test("un usuario que no es admin no ve pedidos", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Ingresar" })).toBeVisible();
 });
 
+test("un admin con sesión que abre el login va directo a los pedidos", async ({ page }) => {
+  const admin = await createTestUser({ admin: true });
+  await signInAdmin(page, admin);
+  await expect(page).toHaveURL("/admin/pedidos");
+
+  await page.goto("/admin/login");
+
+  await expect(page).toHaveURL("/admin/pedidos");
+  await expect(page.getByRole("heading", { name: "Pedidos" })).toBeVisible();
+});
+
 test("un admin confirma un pedido y le carga el costo de envío", async ({ page }) => {
   const [admin, order] = await Promise.all([createTestUser({ admin: true }), createDeliveryOrder()]);
 

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ADMIN_ORDER_ERRORS, GENERIC_ADMIN_ORDER_ERROR } from "@/lib/admin/order-errors";
+import { ADMIN_ORDER_ERRORS, GENERIC_ADMIN_ORDER_ERROR, ORDER_CHANGED } from "@/lib/admin/order-errors";
 import { SHIPPING_COST_ERRORS } from "@/lib/admin/shipping";
 import { formatARS } from "@/lib/format";
 
@@ -27,11 +27,12 @@ function form(fields: Record<string, string>) {
   return data;
 }
 
-/** update().eq().select() de supabase-js, con la respuesta que da la base. */
+/** update().eq()[.eq()].select() de supabase-js, con la respuesta que da la base. */
 function databaseAnswers(result: { data: unknown; error: unknown }) {
   mocks.select.mockResolvedValue(result);
-  mocks.eq.mockReturnValue({ select: mocks.select });
-  mocks.update.mockReturnValue({ eq: mocks.eq });
+  const filters = { eq: mocks.eq, select: mocks.select };
+  mocks.eq.mockReturnValue(filters);
+  mocks.update.mockReturnValue(filters);
 }
 
 beforeEach(() => {
@@ -45,36 +46,60 @@ afterEach(() => {
 });
 
 describe("updateOrderStatus", () => {
+  // El form manda el estado que el admin estaba viendo (fromStatus) y el elegido (status).
+  const change = (status: string, fromStatus = "pending") => form({ orderId: ORDER_ID, fromStatus, status });
+
   it("sin admin no escribe nada (requireAdmin corta con un redirect)", async () => {
     mocks.requireAdmin.mockRejectedValue(new Error("NEXT_REDIRECT"));
 
-    await expect(updateOrderStatus({ status: "idle" }, form({ orderId: ORDER_ID, status: "confirmed" }))).rejects.toThrow(
-      "NEXT_REDIRECT",
-    );
+    await expect(updateOrderStatus({ status: "idle" }, change("confirmed"))).rejects.toThrow("NEXT_REDIRECT");
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
-  it("cambia el estado con la sesión del admin y refresca la página", async () => {
-    await expect(
-      updateOrderStatus({ status: "idle" }, form({ orderId: ORDER_ID, status: "confirmed" })),
-    ).resolves.toEqual({ status: "success", message: "Estado actualizado: Confirmado." });
+  it("cambia el estado solo si el pedido sigue en el estado que el admin veía, y refresca", async () => {
+    await expect(updateOrderStatus({ status: "idle" }, change("confirmed"))).resolves.toEqual({
+      status: "success",
+      message: "Estado actualizado: Confirmado.",
+    });
 
     expect(mocks.update).toHaveBeenCalledWith({ status: "confirmed" });
     expect(mocks.eq).toHaveBeenCalledWith("id", ORDER_ID);
+    expect(mocks.eq).toHaveBeenCalledWith("status", "pending");
     expect(mocks.refresh).toHaveBeenCalled();
     expect(mocks.updateTag).not.toHaveBeenCalled();
   });
 
+  it("si el pedido cambió desde otra pestaña (0 filas), no lo pisa y pide recargar", async () => {
+    // Ej.: la pestaña vieja muestra 'pending', pero ya está 'paid'. Cancelar no puede pasar.
+    databaseAnswers({ data: [], error: null });
+
+    await expect(updateOrderStatus({ status: "idle" }, change("cancelled"))).resolves.toEqual({
+      status: "error",
+      message: ORDER_CHANGED,
+    });
+    expect(mocks.updateTag).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
   it("al cancelar vence el caché del catálogo: el stock volvió (decisión 34)", async () => {
-    await updateOrderStatus({ status: "idle" }, form({ orderId: ORDER_ID, status: "cancelled" }));
+    await updateOrderStatus({ status: "idle" }, change("cancelled"));
     expect(mocks.updateTag).toHaveBeenCalledWith("catalog");
   });
 
-  it("un estado que no existe o un id que no es UUID no llegan a la base", async () => {
-    for (const fields of [
-      { orderId: ORDER_ID, status: "archivado" },
-      { orderId: "FAL-0001", status: "confirmed" },
-    ]) {
+  it("re-guardar el mismo estado no llega a la base", async () => {
+    await expect(updateOrderStatus({ status: "idle" }, change("pending", "pending"))).resolves.toMatchObject({
+      status: "error",
+    });
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("un estado que no existe, un estado de origen que falta o un id que no es UUID no llegan a la base", async () => {
+    const invalid: Record<string, string>[] = [
+      { orderId: ORDER_ID, fromStatus: "pending", status: "archivado" },
+      { orderId: ORDER_ID, status: "confirmed" },
+      { orderId: "FAL-0001", fromStatus: "pending", status: "confirmed" },
+    ];
+    for (const fields of invalid) {
       await expect(updateOrderStatus({ status: "idle" }, form(fields))).resolves.toMatchObject({ status: "error" });
     }
     expect(mocks.update).not.toHaveBeenCalled();
@@ -83,9 +108,10 @@ describe("updateOrderStatus", () => {
   it("si la base rechaza la transición, explica que el pedido cambió", async () => {
     databaseAnswers({ data: null, error: { message: "INVALID_STATUS_TRANSITION", details: "cancelled -> confirmed" } });
 
-    await expect(
-      updateOrderStatus({ status: "idle" }, form({ orderId: ORDER_ID, status: "confirmed" })),
-    ).resolves.toEqual({ status: "error", message: ADMIN_ORDER_ERRORS.INVALID_STATUS_TRANSITION });
+    await expect(updateOrderStatus({ status: "idle" }, change("confirmed"))).resolves.toEqual({
+      status: "error",
+      message: ADMIN_ORDER_ERRORS.INVALID_STATUS_TRANSITION,
+    });
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
@@ -94,17 +120,11 @@ describe("updateOrderStatus", () => {
     const error = { message: "fetch failed" };
     databaseAnswers({ data: null, error });
 
-    await expect(
-      updateOrderStatus({ status: "idle" }, form({ orderId: ORDER_ID, status: "confirmed" })),
-    ).resolves.toEqual({ status: "error", message: GENERIC_ADMIN_ORDER_ERROR });
+    await expect(updateOrderStatus({ status: "idle" }, change("confirmed"))).resolves.toEqual({
+      status: "error",
+      message: GENERIC_ADMIN_ORDER_ERROR,
+    });
     expect(log).toHaveBeenCalledWith("[admin] cambiar el estado del pedido falló", error);
-  });
-
-  it("si no actualizó ninguna fila (no existe o RLS), lo dice", async () => {
-    databaseAnswers({ data: [], error: null });
-
-    const state = await updateOrderStatus({ status: "idle" }, form({ orderId: ORDER_ID, status: "confirmed" }));
-    expect(state).toEqual({ status: "error", message: "No encontramos el pedido. Volvé a la lista de pedidos." });
   });
 });
 

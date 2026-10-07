@@ -30,6 +30,8 @@ describe("OrderStatusForm", () => {
     const sent: FormData = mocks.updateOrderStatus.mock.calls[0][1];
     expect(sent.get("orderId")).toBe(ORDER_ID);
     expect(sent.get("status")).toBe("confirmed");
+    // El estado que el admin estaba viendo: la acción solo escribe si el pedido sigue así.
+    expect(sent.get("fromStatus")).toBe("pending");
     expect((await screen.findByRole("status")).textContent).toBe("Estado actualizado: Confirmado.");
   });
 

@@ -4,7 +4,8 @@ import { refresh, updateTag } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/auth";
 import type { OrderActionState } from "@/lib/admin/order-action-state";
-import { adminOrderError } from "@/lib/admin/order-errors";
+import { adminOrderError, ORDER_CHANGED } from "@/lib/admin/order-errors";
+import type { OrderStatus } from "@/lib/admin/order-transitions";
 import { parseShippingCost } from "@/lib/admin/shipping";
 import { formatARS } from "@/lib/format";
 import { formValues } from "@/lib/forms/form-data";
@@ -24,23 +25,28 @@ type OrderUpdate = Pick<Database["public"]["Tables"]["orders"]["Update"], "statu
 
 const orderId = z.uuid();
 
-const statusChange = z.object({
-  orderId,
-  status: z.enum(Constants.public.Enums.order_status),
-});
+const orderStatus = z.enum(Constants.public.Enums.order_status);
+
+const statusChange = z
+  .object({ orderId, fromStatus: orderStatus, status: orderStatus })
+  .refine((change) => change.status !== change.fromStatus);
 
 /**
  * Cambia el estado de un pedido. La base valida la transición (is_valid_order_transition)
  * y al cancelar devuelve el stock (trigger handle_order_status_change).
+ *
+ * Compare-and-set: el update filtra por el estado que el admin estaba viendo (fromStatus).
+ * Sin eso, una pestaña vieja que muestra "pendiente" podía cancelar un pedido que ya
+ * estaba pagado: cancelar es válido desde casi cualquier estado, la base no lo frenaba.
  */
 export async function updateOrderStatus(_prev: OrderActionState, formData: FormData): Promise<OrderActionState> {
   const { supabase } = await requireAdmin();
 
   const parsed = statusChange.safeParse(formValues(formData));
   if (!parsed.success) return { status: "error", message: "Elegí un estado de la lista." };
-  const { status } = parsed.data;
+  const { orderId: id, fromStatus, status } = parsed.data;
 
-  const failure = await updateOrder(supabase, parsed.data.orderId, { status }, "cambiar el estado del pedido");
+  const failure = await updateOrder(supabase, id, { status }, "cambiar el estado del pedido", fromStatus);
   if (failure) return { status: "error", message: failure };
 
   // Cancelar devolvió stock: el catálogo cacheado tiene que verlo ya (decisión 34).
@@ -78,15 +84,27 @@ export async function setShippingCost(_prev: OrderActionState, formData: FormDat
   };
 }
 
-/** Escribe en el pedido. Devuelve el mensaje de error para el admin, o null si salió bien. */
-async function updateOrder(supabase: SessionClient, id: string, change: OrderUpdate, what: string) {
-  // select: sin él, un pedido que RLS no deja ver "se actualiza" sin error y sin filas.
-  const { data, error } = await supabase.from("orders").update(change).eq("id", id).select("id");
+/**
+ * Escribe en el pedido. Devuelve el mensaje de error para el admin, o null si salió bien.
+ * Con expectedStatus, solo escribe si el pedido sigue en ese estado.
+ */
+async function updateOrder(
+  supabase: SessionClient,
+  id: string,
+  change: OrderUpdate,
+  what: string,
+  expectedStatus?: OrderStatus,
+) {
+  let query = supabase.from("orders").update(change).eq("id", id);
+  if (expectedStatus) query = query.eq("status", expectedStatus);
+  // select: sin él, 0 filas (no existe, RLS o cambió de estado) "se actualiza" sin error.
+  const { data, error } = await query.select("id");
 
   if (error) {
     const mapped = adminOrderError(error);
     if (!mapped.known) console.error(`[admin] ${what} falló`, error);
     return mapped.message;
   }
-  return data?.length ? null : NOT_FOUND;
+  if (data?.length) return null;
+  return expectedStatus ? ORDER_CHANGED : NOT_FOUND;
 }

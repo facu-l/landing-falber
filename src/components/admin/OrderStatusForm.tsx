@@ -47,6 +47,8 @@ export function OrderStatusForm({ order }: Props) {
   return (
     <form action={formAction} className="flex flex-col items-start gap-4">
       <input type="hidden" name="orderId" value={order.id} />
+      {/* Compare-and-set: la acción solo escribe si el pedido sigue en el estado que se ve acá. */}
+      <input type="hidden" name="fromStatus" value={order.status} />
       {/*
         key: React resetea el <form> después de la acción y el <select> volvería a la opción
         que tenía al montarse (decisión 48). Remontarlo en cada respuesta y en cada estado

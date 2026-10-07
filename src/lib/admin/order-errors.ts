@@ -8,8 +8,14 @@ import { type DbError, mapDbError } from "@/lib/db-errors";
 
 const RELOAD = "Recargá la página para ver el pedido actualizado.";
 
+/**
+ * El pedido ya no está en el estado que el admin veía (otra pestaña, pg_cron) o ya no
+ * existe: el cambio de estado filtra por el estado de origen y no tocó ninguna fila.
+ */
+export const ORDER_CHANGED = `El pedido cambió de estado mientras lo mirabas. ${RELOAD}`;
+
 export const ADMIN_ORDER_ERRORS = {
-  INVALID_STATUS_TRANSITION: `El pedido cambió de estado mientras lo mirabas. ${RELOAD}`,
+  INVALID_STATUS_TRANSITION: ORDER_CHANGED,
   SHIPPING_COST_PICKUP: "Un pedido con retiro no lleva costo de envío.",
   SHIPPING_COST_LOCKED: `El pedido ya salió o está cerrado: el costo de envío no se puede cambiar. ${RELOAD}`,
 } as const;

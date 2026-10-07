@@ -44,14 +44,14 @@
 
 ### Vulnerabilidades de `npm audit`
 
-**What:** Revisar las 5 vulnerabilidades altas que reporta `npm audit` (entre ellas `braces`, denegación de servicio con patrones anidados) y actualizar lo que se pueda sin cambios incompatibles.
+**What:** Las 5 vulnerabilidades altas de `npm audit` son una sola cadena del linter: `eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob@3.3.1` → `micromatch` → `braces@3.0.3` (agotamiento de la pila con patrones glob muy anidados). Actualizar cuando exista un arreglo.
 
-**Why:** Estaban antes de la Fase 3. La única solución que ofrece npm es `npm audit fix --force`, que salta a versiones con cambios incompatibles. Son dependencias de herramientas (build, tests), no código que corre con datos del cliente, pero hay que confirmarlo.
+**Why:** Revisado en la Fase 6 (2026-10-07): riesgo aceptado, sin cambios. `npm audit --omit=dev` da 0: nada llega al bundle ni al servidor. El ataque necesita controlar los patrones que recibe el linter, y salen de nuestra config (máquina local y CI). No hay arreglo: `braces@3.0.3` es la última versión y está en el rango vulnerable, `eslint-config-next@16.4.0` sigue fijando `fast-glob@3.3.1`, y un `overrides` no tiene a qué versión sana apuntar. `npm audit fix --force` propone bajar a `eslint-config-next@14`, incompatible con Next 16.
 
-**Context:** Correr `npm audit` y ver, por cada una, si es de `dependencies` o de `devDependencies` y si llega al bundle o al servidor. Cualquier cambio en el lockfile se valida en Linux (memoria del proyecto: npm en Windows borra `@emnapi/*`). Señal: antes de la Fase 6 (lanzamiento).
+**Context:** Para revisar: `npm audit` y `npm ls braces`. Cualquier cambio en el lockfile se valida en Linux (memoria del proyecto: npm en Windows borra `@emnapi/*`). Señal: una versión nueva de `braces` fuera del rango, un `@next/eslint-plugin-next` sin `fast-glob`, o una vulnerabilidad nueva que aparezca con `--omit=dev`.
 
 **Effort:** S
-**Priority:** P2
+**Priority:** P3
 **Depends on:** —
 
 ### Puerto ocupado en el runner de CI

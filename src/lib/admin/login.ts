@@ -25,7 +25,7 @@ export type LoginParseResult = { success: true; data: LoginData } | { success: f
 export const LOGIN_ERRORS = {
   invalid_credentials: "El email o la contraseña no coinciden.",
   over_request_rate_limit: "Demasiados intentos. Esperá unos minutos y probá de nuevo.",
-  // Turnstile no dio token (o venció): mismo mensaje que el checkout y los encargos.
+  // Turnstile no dio token (o venció): mismo texto que el checkout y los encargos, con el botón de este formulario.
   captcha_failed: "No pudimos verificar tu navegador. Esperá unos segundos y volvé a tocar Ingresar.",
 } as const;
 

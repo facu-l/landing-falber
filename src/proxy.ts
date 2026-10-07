@@ -11,7 +11,7 @@ import type { Database } from "@/types/database";
  * 1. Refresca la sesión de Supabase en cada navegación del admin. Los Server
  *    Components no pueden escribir cookies; sin esto el token vence a mitad de uso.
  * 2. Chequeo optimista: sin sesión, al login. NO es la seguridad: eso es
- *    requireAdmin() en cada página y acción, y RLS en la base.
+ *    requireAdmin() en cada página, requireAdminAction() en cada acción y RLS en la base.
  *
  * La tienda pública no tiene sesión: correrlo ahí solo sumaría una llamada a Auth
  * en cada visita.

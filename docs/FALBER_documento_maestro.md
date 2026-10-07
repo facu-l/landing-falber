@@ -646,6 +646,10 @@ psql "$SUPABASE_DB_URL" --single-transaction -v ON_ERROR_STOP=1 -f backup/roles.
 
 `session_replication_role = replica` apaga los triggers mientras se cargan los datos: sin eso, `stock_movements` volvería a sumar el stock y los triggers de pedidos rechazarían las filas históricas.
 
+El dump **no trae** los jobs de pg_cron ni el historial de migraciones (verificado: la base local tiene 2 jobs y el dump, ninguno). Después de restaurar:
+1. Habilitar pg_cron (Database → Extensions) y correr `supabase/migrations/0002_schedule_jobs.sql`. Verificar con `select jobname from cron.job` (dos jobs). Sin esto, los pedidos abandonados no se cancelan y el stock queda reservado.
+2. Marcar las migraciones como aplicadas: `npx supabase migration repair --status applied 0001 0002`. Sin esto, un `supabase db push` intentaría aplicar `0001` de nuevo.
+
 **Lecciones:**
 - Leer el comportamiento real antes de seguir una receta: "lanzar si no es `AuthSessionMissingError`" (TODOS.md) dejaba a un admin con la sesión revocada sin poder volver a entrar. Lo mostró leer qué devuelve auth-js para cada caso, y quedó como test con las clases reales (decisión 72).
 - Un CAPTCHA protege la puerta por la que pasa el atacante, no la del formulario. El de la Server Action se salteaba pegándole directo a Auth con la clave pública. Se verificó con una llamada sin token (`captcha_failed`) antes de darlo por cerrado.
@@ -700,7 +704,8 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 - [ ] Variables de Netlify cargadas (lista en `.env.example`), entre ellas `NEXT_PUBLIC_WHATSAPP_NUMBER` (5492355481449) e `IP_HASH_SECRET` (generado, 32 caracteres o más). Sin la del WhatsApp, `/pedido/[id]` falla al cargar.
 - [ ] En Netlify llega `x-nf-client-connection-ip` (un pedido de prueba deja una fila en `rate_limit_events` con una clave distinta de la de `"unknown"`).
 - [ ] Supabase → Authentication → Sign In / Providers: "Allow new users to sign up" **apagado** y el proveedor **Email habilitado** (si se apaga Email, el admin no puede entrar; decisión 61). Admin creado a mano: Authentication → Add user + su fila en `profiles` (nota al final de `0001`).
-- [ ] Supabase → Authentication → Attack Protection: CAPTCHA con Turnstile y el **secreto real** (decisión 75). Sin esto el login funciona pero queda sin CAPTCHA; con el secreto de prueba, cualquier token pasa. En Cloudflare, el dominio de producción en el widget.
+- [ ] Supabase → Authentication → Attack Protection: CAPTCHA con Turnstile y el **secreto real** (decisión 75). Sin esto el login funciona pero queda sin CAPTCHA; con el secreto de prueba, cualquier token pasa. En Cloudflare, el dominio de producción en el widget. Verificar con una llamada directa a `/auth/v1/token?grant_type=password` sin token: tiene que responder `captcha_failed`.
+- [ ] **Nunca `supabase config push` contra producción:** subiría `supabase/config.toml`, que tiene el secreto de prueba del CAPTCHA (cualquier token pasaría) y la configuración local de Auth. La nube se configura solo desde el dashboard.
 - [ ] Login del admin en producción: entra a `/admin/pedidos`; otra cuenta sin perfil ve "sin acceso". En DevTools → Application → Cookies, las `sb-…` son `HttpOnly` y `Secure`.
 - [ ] Pedido de prueba completo en el celular: WhatsApp abre con el mensaje correcto.
 - [ ] Doble click en "Realizar compra" crea un solo pedido.

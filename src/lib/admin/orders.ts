@@ -3,7 +3,7 @@ import type { createClient } from "@/lib/supabase/server";
 import type { OrderStatus } from "./order-transitions";
 
 /*
- * Lecturas del admin. Reciben el cliente que devuelve requireAdmin(): corren con la
+ * Lecturas del admin. Reciben el cliente que devuelve requireAdmin() (o requireAdminAction()): corren con la
  * sesión del usuario y RLS ("admin: read orders"). Nunca service_role.
  * Sin 'use cache': el panel siempre muestra el estado actual.
  */

@@ -219,6 +219,7 @@ web3 = 30
 # El secreto es la clave de PRUEBA pública de Cloudflare (siempre pasa, la misma de
 # .env.example): este archivo solo configura el Supabase local y el del CI. En la nube,
 # Authentication → Attack Protection → CAPTCHA, con el secreto real.
+# NUNCA `supabase config push` contra producción: subiría este secreto de prueba.
 [auth.captcha]
 enabled = true
 provider = "turnstile"

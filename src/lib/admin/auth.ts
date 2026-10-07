@@ -15,7 +15,7 @@ export type AdminStatus =
  * Quién está del otro lado, según la sesión (no según la URL):
  * - getUser() valida la sesión contra Supabase Auth (no confía solo en la cookie).
  * - is_admin() mira public.profiles con el rol del usuario.
- * Lo usan requireAdmin() y el login (para mostrar "sin acceso" a una cuenta que no es admin).
+ * Lo usan requireAdmin(), requireAdminAction() y el login (para mostrar "sin acceso" a una cuenta que no es admin).
  */
 export async function getAdminStatus(): Promise<AdminStatus> {
   const supabase = await createClient();

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { signOut } from "@/app/admin/login/actions";
 import { ADMIN_ORDERS_PATH } from "@/lib/admin/paths";
 
-const linkClasses = "text-label uppercase text-text-secondary transition-colors duration-150 hover:text-text";
+const linkClasses = "inline-flex min-h-11 items-center text-label uppercase text-text-secondary transition-colors duration-150 hover:text-text";
 
 /**
  * Páginas del panel (todo menos el login). La navegación es estática: cada página

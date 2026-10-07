@@ -20,7 +20,7 @@ export default function AdminOrderPage({ params }: PageProps<"/admin/pedidos/[id
     <div className="flex flex-col gap-8">
       <Link
         href={ADMIN_ORDERS_PATH}
-        className="self-start text-caption text-text-secondary uppercase underline underline-offset-4 hover:text-text"
+        className="inline-flex min-h-11 items-center self-start text-caption text-text-secondary uppercase underline underline-offset-4 hover:text-text"
       >
         Volver a pedidos
       </Link>
@@ -61,8 +61,8 @@ async function Order({ params }: Pick<PageProps<"/admin/pedidos/[id]">, "params"
 function DetailSkeleton() {
   return (
     <div aria-hidden className="flex flex-col gap-6">
-      <div className="h-10 w-1/3 bg-surface-raised" />
-      <div className="h-48 w-full bg-surface-raised" />
+      <div className="h-10 w-1/3 bg-surface-overlay" />
+      <div className="h-48 w-full bg-surface-overlay" />
     </div>
   );
 }

@@ -53,9 +53,9 @@ function NoAccess({ email }: { email?: string }) {
 function LoginSkeleton() {
   return (
     <div aria-hidden className="flex flex-col gap-6">
-      <div className="h-13 w-full bg-surface-raised" />
-      <div className="h-13 w-full bg-surface-raised" />
-      <div className="h-12 w-full bg-surface-raised" />
+      <div className="h-13 w-full bg-surface-overlay" />
+      <div className="h-13 w-full bg-surface-overlay" />
+      <div className="h-12 w-full bg-surface-overlay" />
     </div>
   );
 }

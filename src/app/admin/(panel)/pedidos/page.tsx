@@ -32,7 +32,7 @@ function ListSkeleton() {
   return (
     <div aria-hidden className="flex flex-col gap-4">
       {[0, 1, 2].map((row) => (
-        <div key={row} className="h-16 w-full bg-surface-raised" />
+        <div key={row} className="h-16 w-full bg-surface-overlay" />
       ))}
     </div>
   );

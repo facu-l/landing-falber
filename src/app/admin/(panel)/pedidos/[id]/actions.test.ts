@@ -151,6 +151,22 @@ describe("updateOrderStatus", () => {
     });
     expect(log).toHaveBeenCalledWith("[admin] cambiar el estado del pedido falló", error);
   });
+
+  it("loguea solo el código y el mensaje del error, nunca details (la fila con datos del cliente)", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    databaseAnswers({
+      data: null,
+      error: { message: "new row violates check constraint", code: "23514", details: "Failing row contains (Ana Pérez, Calle 7 123)" },
+    });
+
+    await updateOrderStatus({ status: "idle" }, change("confirmed"));
+
+    expect(log).toHaveBeenCalledWith("[admin] cambiar el estado del pedido falló", {
+      code: "23514",
+      message: "new row violates check constraint",
+    });
+    expect(JSON.stringify(log.mock.calls)).not.toContain("Ana Pérez");
+  });
 });
 
 describe("setShippingCost", () => {

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { mapDbError } from "./db-errors";
+import { loggableDbError, mapDbError } from "./db-errors";
 
 const MESSAGES = { RATE_LIMITED: "Demasiados intentos.", NOT_FOUND: "No existe." } as const;
 const FALLBACK = "Algo falló.";
@@ -32,5 +32,13 @@ describe("mapDbError", () => {
       detail: null,
       known: false,
     });
+  });
+});
+
+describe("loggableDbError", () => {
+  it("se queda con el código y el mensaje, sin details ni hint", () => {
+    expect(
+      loggableDbError({ message: "new row violates check constraint", code: "23514", details: "Failing row contains (Ana Pérez)" }),
+    ).toEqual({ code: "23514", message: "new row violates check constraint" });
   });
 });

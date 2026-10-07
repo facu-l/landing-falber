@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAdminAction } from "@/lib/admin/auth";
 import type { OrderActionState } from "@/lib/admin/order-action-state";
 import { adminOrderError, ORDER_CHANGED, ORDER_NOT_FOUND } from "@/lib/admin/order-errors";
+import { loggableDbError } from "@/lib/db-errors";
 import type { OrderStatus } from "@/lib/admin/order-transitions";
 import { parseShippingCost } from "@/lib/admin/shipping";
 import { formatARS } from "@/lib/format";
@@ -104,7 +105,7 @@ async function updateOrder(
 
   if (error) {
     const mapped = adminOrderError(error);
-    if (!mapped.known) console.error(`[admin] ${what} falló`, error);
+    if (!mapped.known) console.error(`[admin] ${what} falló`, loggableDbError(error));
     return mapped.message;
   }
   if (data?.length) return null;

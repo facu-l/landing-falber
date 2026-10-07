@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { formValues, TURNSTILE_FIELD } from "@/lib/forms/form-data";
+import { loggableDbError } from "@/lib/db-errors";
 import { GENERIC_REQUEST_ERROR, requestError } from "@/lib/requests/errors";
 import { parseRequest, type RequestData } from "@/lib/requests/schema";
 import type { RequestState } from "@/lib/requests/state";
@@ -39,7 +40,7 @@ export async function createPerfumeRequest(_prev: RequestState, formData: FormDa
 
     if (error) {
       const mapped = requestError(error);
-      if (!mapped.known) console.error("[encargos] create_perfume_request falló", error);
+      if (!mapped.known) console.error("[encargos] create_perfume_request falló", loggableDbError(error));
       return { status: "error", message: mapped.message, values };
     }
 

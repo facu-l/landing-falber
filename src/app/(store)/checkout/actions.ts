@@ -6,6 +6,7 @@ import { CATALOG_TAG } from "@/lib/catalog/queries";
 import { type CheckoutData, parseCheckout } from "@/lib/checkout/schema";
 import type { CheckoutState } from "@/lib/checkout/state";
 import { formValues, TURNSTILE_FIELD } from "@/lib/forms/form-data";
+import { loggableDbError } from "@/lib/db-errors";
 import { GENERIC_ORDER_ERROR, orderError } from "@/lib/order-errors";
 import { verifyHumanRequest } from "@/lib/security/verify-request";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -43,7 +44,7 @@ export async function createOrder(_prev: CheckoutState, formData: FormData): Pro
 
     if (error) {
       const mapped = orderError(error);
-      if (!mapped.known) console.error("[checkout] create_order falló", error);
+      if (!mapped.known) console.error("[checkout] create_order falló", loggableDbError(error));
       return { status: "error", message: mapped.message, variantId: mapped.variantId, values };
     }
 

@@ -4,6 +4,7 @@
 
 export const ADMIN_LOGIN_PATH = "/admin/login";
 export const ADMIN_ORDERS_PATH = "/admin/pedidos";
+export const ADMIN_SHIPPING_PATH = "/admin/envios";
 
 const isAdminPath = (pathname: string) => pathname === "/admin" || pathname.startsWith("/admin/");
 

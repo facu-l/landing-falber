@@ -987,11 +987,11 @@ revoke insert, update, delete on public.perfume_requests from anon, authenticate
 grant update (status) on public.perfume_requests to authenticated;
 
 revoke all on public.rate_limit_events from anon, authenticated;
+revoke all on public.perfume_requests_ranking from anon;
 
 -- Envíos estimados: todos los leen; el admin solo cambia los montos (sin agregar ni borrar filas).
 revoke insert, update, delete on public.shipping_rates from anon, authenticated;
 grant update (estimate_to_branch, estimate_to_home) on public.shipping_rates to authenticated;
-revoke all on public.perfume_requests_ranking from anon;
 
 -- -----------------------------------------------------------------------------
 -- Row Level Security

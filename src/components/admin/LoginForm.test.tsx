@@ -39,6 +39,24 @@ describe("LoginForm", () => {
     expect(sent.get(TURNSTILE_FIELD)).toBe("token-0");
   });
 
+  it("después de errores por campo conserva el token: la acción no llegó a usarlo", async () => {
+    mocks.signIn.mockImplementation(async () => ({
+      status: "error",
+      fieldErrors: { password: "Escribí tu contraseña." },
+      values: { email: "admin@falber.test" },
+    }));
+    render(<LoginForm />);
+
+    type("Email", "admin@falber.test");
+    submit();
+    await screen.findByText("Escribí tu contraseña.");
+    type("Contraseña", "clave");
+    submit();
+
+    await waitFor(() => expect(mocks.signIn).toHaveBeenCalledTimes(2));
+    expect((mocks.signIn.mock.calls[1][1] as FormData).get(TURNSTILE_FIELD)).toBe("token-0");
+  });
+
   it("después de un error del servidor pide un token nuevo: cada uno sirve una sola vez", async () => {
     mocks.signIn.mockResolvedValue({
       status: "error",

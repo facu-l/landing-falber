@@ -16,8 +16,9 @@ export function LoginForm() {
   const [serverErrors, setServerErrors] = useState(0);
   const [state, formAction, pending] = useActionState(async (prev: LoginState, formData: FormData) => {
     const next = await signIn(prev, formData);
-    // El token ya se usó (o era inválido): Turnstile tiene que dar uno nuevo.
-    if (next.status === "error") setServerErrors((key) => key + 1);
+    // Con errores por campo la acción cortó antes de Auth: el token sigue sin usar.
+    // En cualquier otro error ya se usó (o era inválido): Turnstile tiene que dar uno nuevo.
+    if (next.status === "error" && !next.fieldErrors) setServerErrors((key) => key + 1);
     return next;
   }, INITIAL_LOGIN_STATE);
   const errors = state.status === "error" ? (state.fieldErrors ?? {}) : {};

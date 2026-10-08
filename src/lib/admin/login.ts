@@ -29,6 +29,13 @@ export const LOGIN_ERRORS = {
   captcha_failed: "No pudimos verificar tu navegador. Esperá unos segundos y volvé a tocar Ingresar.",
 } as const;
 
+/**
+ * El formulario llegó sin token: Turnstile no cargó (bloqueador de anuncios, DNS, falta la
+ * site key). Esperar no lo arregla, y llamar a Auth sin token solo gasta el límite de intentos.
+ */
+export const TURNSTILE_MISSING =
+  "No pudimos cargar la verificación del navegador. Desactivá el bloqueador de anuncios o probá con otro navegador.";
+
 export const GENERIC_LOGIN_ERROR = "No pudimos iniciar sesión. Probá de nuevo en unos minutos.";
 
 /** known = false: no es un error esperado (red, configuración). Hay que loguearlo. */

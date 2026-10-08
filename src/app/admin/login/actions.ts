@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { loginError, parseLogin } from "@/lib/admin/login";
+import { loginError, parseLogin, TURNSTILE_MISSING } from "@/lib/admin/login";
 import type { LoginState } from "@/lib/admin/login-state";
 import { ADMIN_LOGIN_PATH, ADMIN_ORDERS_PATH } from "@/lib/admin/paths";
 import { formValues, stringField, TURNSTILE_FIELD } from "@/lib/forms/form-data";
@@ -26,11 +26,11 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
   const parsed = parseLogin(values);
   if (!parsed.success) return { status: "error", fieldErrors: parsed.fieldErrors, values: { email } };
 
+  const captchaToken = stringField(formData, TURNSTILE_FIELD);
+  if (!captchaToken) return { status: "error", message: TURNSTILE_MISSING, values: { email } };
+
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    ...parsed.data,
-    options: { captchaToken: stringField(formData, TURNSTILE_FIELD) ?? undefined },
-  });
+  const { error } = await supabase.auth.signInWithPassword({ ...parsed.data, options: { captchaToken } });
 
   if (error) {
     const mapped = loginError(error.code);

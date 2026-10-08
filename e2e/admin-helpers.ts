@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { ensureLocalUser, localAdminClient, randomPassword } from "../scripts/local-users";
-import { randomDigits } from "./helpers";
+import { randomDigits, waitForTurnstile } from "./helpers";
 
 /*
  * Helpers de los E2E del admin. Usuarios y pedidos nuevos por test, contra Supabase
@@ -57,6 +57,8 @@ export async function signInAdmin(page: Page, user: TestUser) {
   await page.goto("/admin/login");
   await page.getByLabel("Email", { exact: true }).fill(user.email);
   await page.getByLabel("Contraseña", { exact: true }).fill(user.password);
+  // Auth exige el CAPTCHA ([auth.captcha] en supabase/config.toml).
+  await waitForTurnstile(page);
   await page.getByRole("button", { name: "Ingresar" }).click();
 }
 

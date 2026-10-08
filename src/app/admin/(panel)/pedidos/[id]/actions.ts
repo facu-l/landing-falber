@@ -2,9 +2,10 @@
 
 import { refresh, updateTag } from "next/cache";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/admin/auth";
+import { requireAdminAction } from "@/lib/admin/auth";
 import type { OrderActionState } from "@/lib/admin/order-action-state";
-import { adminOrderError, ORDER_CHANGED } from "@/lib/admin/order-errors";
+import { adminOrderError, ORDER_CHANGED, ORDER_NOT_FOUND } from "@/lib/admin/order-errors";
+import { loggableDbError } from "@/lib/db-errors";
 import type { OrderStatus } from "@/lib/admin/order-transitions";
 import { parseShippingCost } from "@/lib/admin/shipping";
 import { formatARS } from "@/lib/format";
@@ -13,14 +14,12 @@ import { ORDER_STATUS_LABELS } from "@/lib/orders/summary";
 import { Constants, type Database } from "@/types/database";
 
 /*
- * Acciones del detalle de un pedido. Cada una empieza con requireAdmin() y escribe con
+ * Acciones del detalle de un pedido. Cada una empieza con requireAdminAction() y escribe con
  * el cliente de la sesión (RLS + permisos de columna: solo status y shipping_cost).
  * Las reglas las valida la base; acá solo se traducen sus errores.
  */
 
-const NOT_FOUND = "No encontramos el pedido. Volvé a la lista de pedidos.";
-
-type SessionClient = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
+type SessionClient = Extract<Awaited<ReturnType<typeof requireAdminAction>>, { ok: true }>["supabase"];
 type OrderUpdate = Pick<Database["public"]["Tables"]["orders"]["Update"], "status" | "shipping_cost">;
 
 const orderId = z.uuid();
@@ -40,7 +39,9 @@ const statusChange = z
  * estaba pagado: cancelar es válido desde casi cualquier estado, la base no lo frenaba.
  */
 export async function updateOrderStatus(_prev: OrderActionState, formData: FormData): Promise<OrderActionState> {
-  const { supabase } = await requireAdmin();
+  const access = await requireAdminAction();
+  if (!access.ok) return { status: "error", message: access.message };
+  const { supabase } = access;
 
   const parsed = statusChange.safeParse(formValues(formData));
   if (!parsed.success) return { status: "error", message: "Elegí un estado de la lista." };
@@ -61,13 +62,15 @@ export async function updateOrderStatus(_prev: OrderActionState, formData: FormD
  * pedidos enviados o cerrados (guard_shipping_cost). No cambia stock: sin updateTag.
  */
 export async function setShippingCost(_prev: OrderActionState, formData: FormData): Promise<OrderActionState> {
-  const { supabase } = await requireAdmin();
+  const access = await requireAdminAction();
 
   const values = formValues(formData);
   const kept = { shippingCost: values.shippingCost ?? "" };
+  if (!access.ok) return { status: "error", message: access.message, values: kept };
+  const { supabase } = access;
 
   const id = orderId.safeParse(values.orderId);
-  if (!id.success) return { status: "error", message: NOT_FOUND, values: kept };
+  if (!id.success) return { status: "error", message: ORDER_NOT_FOUND, values: kept };
   const cost = parseShippingCost(kept.shippingCost);
   if (!cost.success) return { status: "error", message: cost.error, values: kept };
 
@@ -102,9 +105,9 @@ async function updateOrder(
 
   if (error) {
     const mapped = adminOrderError(error);
-    if (!mapped.known) console.error(`[admin] ${what} falló`, error);
+    if (!mapped.known) console.error(`[admin] ${what} falló`, loggableDbError(error));
     return mapped.message;
   }
   if (data?.length) return null;
-  return expectedStatus ? ORDER_CHANGED : NOT_FOUND;
+  return expectedStatus ? ORDER_CHANGED : ORDER_NOT_FOUND;
 }

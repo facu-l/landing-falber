@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useActionState, useState } from "react";
+import { type ReactNode, useActionState, useRef, useState } from "react";
 import { createOrder } from "@/app/(store)/checkout/actions";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -11,6 +11,7 @@ import { clearCart, useCart } from "@/lib/cart/cart-store";
 import { type ResolvedCart, resolveCart, type VariantIndex } from "@/lib/cart/resolve";
 import { type CheckoutState, INITIAL_CHECKOUT_STATE } from "@/lib/checkout/state";
 import { cn } from "@/lib/cn";
+import { useFocusFirstInvalid } from "@/lib/forms/focus-first-invalid";
 import { LIMITS } from "@/lib/forms/limits";
 import { formatARS } from "@/lib/format";
 import { useIsClient } from "@/lib/use-is-client";
@@ -49,6 +50,8 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
     }
     return next;
   }, INITIAL_CHECKOUT_STATE);
+  const form = useRef<HTMLFormElement>(null);
+  useFocusFirstInvalid(form, state.status === "error" ? state.fieldErrors : undefined);
 
   if (state.status === "success") {
     return <p className="text-body text-text-secondary">Pedido registrado. Abriendo el detalle de tu compra.</p>;
@@ -81,7 +84,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
 
   return (
     <div className="grid gap-12 md:grid-cols-[1fr_22rem] md:gap-16">
-      <form action={formAction} noValidate className="flex flex-col gap-10">
+      <form ref={form} action={formAction} noValidate className="flex flex-col gap-10">
         <input type="hidden" name="requestId" value={requestId} />
         <input type="hidden" name="items" value={serializeCart(cart)} />
 

@@ -161,6 +161,40 @@ describe("CheckoutForm", () => {
     expect(localStorage.getItem(CART_STORAGE_KEY)).not.toBeNull();
   });
 
+  // En el celular el botón queda abajo: sin esto, los errores de arriba quedan fuera de la pantalla.
+  it("con errores por campo lleva el foco al primero de la página", async () => {
+    mocks.createOrder.mockResolvedValue({
+      status: "error",
+      fieldErrors: { whatsapp: "Revisá el número.", fullName: "Escribí tu nombre y apellido." },
+      values: { fullName: "A", whatsapp: "555" },
+    });
+    render(<CheckoutForm index={index} />);
+    fillValidForm();
+    submit();
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Nombre y apellido")));
+  });
+
+  it("si el segundo envío vuelve con los mismos errores, el foco vuelve al primero", async () => {
+    // Un objeto nuevo por respuesta, como llega de una Server Action real (deserializado).
+    mocks.createOrder.mockImplementation(async () => ({
+      status: "error",
+      fieldErrors: { fullName: "Escribí tu nombre y apellido." },
+      values: { fullName: "A" },
+    }));
+    render(<CheckoutForm index={index} />);
+    fillValidForm();
+    submit();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Nombre y apellido")));
+
+    // El cliente se va a otro campo y vuelve a enviar sin corregir.
+    (screen.getByLabelText("WhatsApp") as HTMLInputElement).focus();
+    submit();
+
+    await waitFor(() => expect(mocks.createOrder).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Nombre y apellido")));
+  });
+
   it("después de un error conserva la entrega y el pago elegidos (el reset del form no los desmarca)", async () => {
     mocks.createOrder.mockResolvedValue({
       status: "error",

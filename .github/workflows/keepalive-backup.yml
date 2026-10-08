@@ -1,0 +1,102 @@
+name: Keepalive y backup
+
+# Una vez por día, contra el Supabase de producción, dos jobs independientes:
+# 1. keepalive: ping a la API. El plan gratuito pausa el proyecto después de 7 días sin
+#    actividad. No depende del backup: si falta un secreto del backup, el ping sigue.
+# 2. backup: roles, esquema y datos, cifrados con gpg, como artefacto por 7 días.
+#    Tiene datos personales de clientes (Ley 25.326): nunca se sube sin cifrar.
+#
+# Cada job se activa con su variable del repo (Settings → Secrets and variables →
+# Actions → Variables): KEEPALIVE_ENABLED = true y BACKUP_ENABLED = true, después de
+# cargar sus secretos. Mientras no exista el proyecto en la nube se saltean en vez de
+# fallar todos los días.
+#
+# Secretos, cada uno solo en el step que lo usa (no en el job: las actions de terceros
+# no los ven). Las actions van fijadas por SHA de commit, con su versión al lado.
+#   SUPABASE_URL              https://<ref>.supabase.co                       (keepalive)
+#   SUPABASE_PUBLISHABLE_KEY  la clave publishable, la misma de la web        (keepalive)
+#   SUPABASE_DB_URL           cadena del Session pooler (puerto 5432): los runners de
+#                             GitHub no tienen IPv6 y la conexión directa es solo IPv6 (backup)
+#   BACKUP_PASSPHRASE         guardada también fuera de GitHub: sin ella el backup no sirve (backup)
+#
+# Restaurar: documento maestro → Fase 6 → "Backups".
+
+on:
+  schedule:
+    - cron: "17 6 * * *" # 03:17 en Argentina (UTC-3)
+  workflow_dispatch:
+
+concurrency:
+  group: keepalive-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  keepalive:
+    name: Ping a Supabase
+    if: vars.KEEPALIVE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping a la API
+        # Lee un producto con la clave pública (RLS: solo los activos). -f falla con un 4xx/5xx.
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          for name in SUPABASE_URL SUPABASE_PUBLISHABLE_KEY; do
+            if [ -z "${!name}" ]; then echo "::error::Falta el secreto $name"; exit 1; fi
+          done
+          curl -fsS -o /dev/null "$SUPABASE_URL/rest/v1/products?select=id&limit=1" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY"
+
+  backup:
+    name: Backup cifrado
+    if: vars.BACKUP_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Verificar secretos
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          missing=0
+          for name in SUPABASE_DB_URL BACKUP_PASSPHRASE; do
+            if [ -z "${!name}" ]; then echo "::error::Falta el secreto $name"; missing=1; fi
+          done
+          exit "$missing"
+
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.119.0 # la misma del devDependency
+
+      - name: Backup
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          mkdir backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/roles.sql --role-only
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/data.sql --use-copy --data-only
+
+      - name: Cifrar
+        # La passphrase entra por stdin, no como argumento (no queda en la lista de procesos).
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          name="falber-$(date -u +%Y%m%d-%H%M)"
+          tar -czf "$name.tar.gz" backup
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 -o "$name.tar.gz.gpg" "$name.tar.gz"
+          rm -rf backup "$name.tar.gz"
+          echo "BACKUP_FILE=$name.tar.gz.gpg" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 7
+          if-no-files-found: error

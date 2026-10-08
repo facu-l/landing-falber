@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminProxyRedirect } from "@/lib/admin/paths";
+import { sessionCookieOptions } from "@/lib/supabase/cookies";
 import { supabasePublicEnv } from "@/lib/supabase/env";
 import type { Database } from "@/types/database";
 
@@ -10,7 +11,7 @@ import type { Database } from "@/types/database";
  * 1. Refresca la sesión de Supabase en cada navegación del admin. Los Server
  *    Components no pueden escribir cookies; sin esto el token vence a mitad de uso.
  * 2. Chequeo optimista: sin sesión, al login. NO es la seguridad: eso es
- *    requireAdmin() en cada página y acción, y RLS en la base.
+ *    requireAdmin() en cada página, requireAdminAction() en cada acción y RLS en la base.
  *
  * La tienda pública no tiene sesión: correrlo ahí solo sumaría una llamada a Auth
  * en cada visita.
@@ -22,6 +23,7 @@ export async function proxy(request: NextRequest) {
   let cacheHeaders: Record<string, string> = {};
 
   const supabase = createServerClient<Database>(url, publishableKey, {
+    cookieOptions: sessionCookieOptions(),
     cookies: {
       getAll() {
         return request.cookies.getAll();

@@ -30,11 +30,28 @@ test("un usuario que no es admin no ve pedidos", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Ingresar" })).toBeVisible();
 });
 
+test("un admin con sesión que abre el login va directo a los pedidos", async ({ page }) => {
+  const admin = await createTestUser({ admin: true });
+  await signInAdmin(page, admin);
+  await expect(page).toHaveURL("/admin/pedidos");
+
+  await page.goto("/admin/login");
+
+  await expect(page).toHaveURL("/admin/pedidos");
+  await expect(page.getByRole("heading", { name: "Pedidos" })).toBeVisible();
+});
+
 test("un admin confirma un pedido y le carga el costo de envío", async ({ page }) => {
   const [admin, order] = await Promise.all([createTestUser({ admin: true }), createDeliveryOrder()]);
 
   await signInAdmin(page, admin);
   await expect(page).toHaveURL("/admin/pedidos");
+
+  // El JavaScript de la página no puede leer la sesión: un XSS en la tienda no llega al panel.
+  const session = (await page.context().cookies()).filter((cookie) => cookie.name.startsWith("sb-"));
+  expect(session.length).toBeGreaterThan(0);
+  for (const cookie of session) expect(cookie.httpOnly, cookie.name).toBe(true);
+
   await page.getByRole("link", { name: order.orderNumber }).click();
 
   await expect(page).toHaveURL(`/admin/pedidos/${order.id}`);

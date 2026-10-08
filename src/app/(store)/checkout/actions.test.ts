@@ -154,4 +154,18 @@ describe("createOrder", () => {
     });
     expect(log).toHaveBeenCalled();
   });
+  // Un check que falla pone la fila en details ("Failing row contains (...)"): datos del
+  // cliente que no pueden terminar en los logs de Netlify (Ley 25.326).
+  it("loguea solo el código y el mensaje del error, nunca details", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { message: "new row violates check constraint", code: "23514", details: "Failing row contains (Ana Pérez, +5492215551234, Calle 7 123)" },
+    });
+
+    await createOrder({ status: "idle" }, form());
+
+    expect(log).toHaveBeenCalledWith("[checkout] create_order falló", { code: "23514", message: "new row violates check constraint" });
+    expect(JSON.stringify(log.mock.calls)).not.toContain("Ana Pérez");
+  });
 });

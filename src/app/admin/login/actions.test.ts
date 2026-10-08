@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GENERIC_LOGIN_ERROR, LOGIN_ERRORS } from "@/lib/admin/login";
+import { GENERIC_LOGIN_ERROR, LOGIN_ERRORS, TURNSTILE_MISSING } from "@/lib/admin/login";
 import { ADMIN_LOGIN_PATH, ADMIN_ORDERS_PATH } from "@/lib/admin/paths";
+import { TURNSTILE_FIELD } from "@/lib/forms/form-data";
 
 const auth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.fn() }));
 vi.mock("server-only", () => ({}));
@@ -10,10 +11,12 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth }) }
 const { signIn, signOut } = await import("./actions");
 
 const PASSWORD = "clave-de-prueba";
+const TOKEN = "token-de-turnstile";
 
+/** El formulario como lo manda LoginForm: con el token de Turnstile, salvo que el test lo pise. */
 function form(fields: Record<string, string>) {
   const data = new FormData();
-  for (const [key, value] of Object.entries(fields)) data.set(key, value);
+  for (const [key, value] of Object.entries({ [TURNSTILE_FIELD]: TOKEN, ...fields })) data.set(key, value);
   return data;
 }
 
@@ -32,7 +35,44 @@ describe("signIn", () => {
     await expect(
       signIn({ status: "idle" }, form({ email: " Admin@Falber.test", password: PASSWORD })),
     ).rejects.toEqual(redirectTo(ADMIN_ORDERS_PATH));
-    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: "admin@falber.test", password: PASSWORD });
+    // El token de Turnstile lo verifica Supabase Auth (CAPTCHA nativo): así también queda
+    // protegido el endpoint de Auth, que no pasa por esta acción.
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({
+      email: "admin@falber.test",
+      password: PASSWORD,
+      options: { captchaToken: TOKEN },
+    });
+  });
+
+  it("si Auth rechaza el CAPTCHA, pide esperar y volver a intentar", async () => {
+    auth.signInWithPassword.mockResolvedValue({ data: {}, error: { code: "captcha_failed", message: "x" } });
+
+    const state = await signIn({ status: "idle" }, form({ email: "admin@falber.test", password: PASSWORD }));
+    expect(state).toMatchObject({ status: "error", message: LOGIN_ERRORS.captcha_failed });
+  });
+
+  // Turnstile no cargó (bloqueador, DNS, sin site key): llamar a Auth gastaría el límite de
+  // intentos y la respuesta ("esperá unos segundos") no ayudaría.
+  const withoutTokenField = () => {
+    const data = new FormData();
+    data.set("email", "admin@falber.test");
+    data.set("password", PASSWORD);
+    return data;
+  };
+
+  it.each([
+    ["con el token vacío", () => form({ email: "admin@falber.test", password: PASSWORD, [TURNSTILE_FIELD]: "" })],
+    ["sin el campo del token", withoutTokenField],
+  ])("%s no llama a Auth y explica que no cargó la verificación", async (_case, build) => {
+    const state = await signIn({ status: "idle" }, build());
+
+    expect(state).toEqual({ status: "error", message: TURNSTILE_MISSING, values: { email: "admin@falber.test" } });
+    expect(auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it("un formulario incompleto da los errores por campo antes de mirar el token", async () => {
+    const state = await signIn({ status: "idle" }, form({ email: "", password: "", [TURNSTILE_FIELD]: "" }));
+    expect(state).toMatchObject({ status: "error", fieldErrors: { email: expect.any(String) } });
   });
 
   it("un formulario incompleto no llama a Supabase y devuelve los errores por campo", async () => {

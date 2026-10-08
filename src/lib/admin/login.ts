@@ -25,7 +25,17 @@ export type LoginParseResult = { success: true; data: LoginData } | { success: f
 export const LOGIN_ERRORS = {
   invalid_credentials: "El email o la contraseña no coinciden.",
   over_request_rate_limit: "Demasiados intentos. Esperá unos minutos y probá de nuevo.",
+  // Turnstile no dio token (o venció): mismo texto que el checkout y los encargos, con el botón de este formulario.
+  captcha_failed: "No pudimos verificar tu navegador. Esperá unos segundos y volvé a tocar Ingresar.",
 } as const;
+
+/**
+ * El formulario llegó sin token: lo más común es que el widget invisible todavía no
+ * terminara (Enter apenas se abre la página); si se repite, Turnstile no carga (bloqueador
+ * de anuncios, DNS). Llamar a Auth sin token solo gastaría el límite de intentos.
+ */
+export const TURNSTILE_MISSING =
+  "Todavía no pudimos verificar tu navegador. Esperá unos segundos y volvé a tocar Ingresar. Si se repite, desactivá el bloqueador de anuncios o probá con otro navegador.";
 
 export const GENERIC_LOGIN_ERROR = "No pudimos iniciar sesión. Probá de nuevo en unos minutos.";
 

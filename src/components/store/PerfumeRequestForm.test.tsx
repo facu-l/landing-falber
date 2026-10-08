@@ -230,6 +230,19 @@ describe("PerfumeRequestForm al enviar", () => {
     expect(mocks.turnstileResets).toBe(1);
   });
 
+  it("con errores por campo lleva el foco al primero de la página", async () => {
+    mocks.createPerfumeRequest.mockResolvedValue({
+      status: "error",
+      fieldErrors: { whatsapp: "Revisá el número.", perfumeName: "Escribí el perfume." },
+      values: { perfumeName: "", fullName: "Ana Pérez", whatsapp: "555" },
+    });
+    render(<PerfumeRequestForm prefill={null} />);
+    fillCustomer();
+    submit();
+
+    await waitFor(() => expect(document.activeElement).toBe(field("Perfume")));
+  });
+
   it("si cambia la presentación mientras se envía, después del error el select y la etiqueta siguen la elección actual", async () => {
     let resolve!: (state: RequestState) => void;
     mocks.createPerfumeRequest.mockReturnValueOnce(new Promise<RequestState>((r) => (resolve = r)));

@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { AuthApiError, AuthRetryableFetchError, AuthSessionMissingError } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ getUser: vi.fn(), rpc: vi.fn() }));
@@ -7,15 +8,16 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: auth.getUser }, rpc: auth.rpc }),
 }));
 
-const { getAdminStatus, requireAdmin } = await import("./auth");
+const { ADMIN_ACCESS_CHECK_FAILED, getAdminStatus, requireAdmin, requireAdminAction } = await import("./auth");
 const { ADMIN_LOGIN_PATH } = await import("./paths");
 
 const USER = { id: "11111111-1111-1111-1111-111111111111", email: "admin@falber.test" };
 
 afterEach(() => vi.clearAllMocks());
 
-const noSession = () =>
-  auth.getUser.mockResolvedValue({ data: { user: null }, error: { message: "Auth session missing" } });
+// Los errores son las clases reales de auth-js: así se prueba contra lo que devuelve getUser().
+const getUserFails = (error: Error) => auth.getUser.mockResolvedValue({ data: { user: null }, error });
+const noSession = () => getUserFails(new AuthSessionMissingError());
 const session = (isAdmin: boolean) => {
   auth.getUser.mockResolvedValue({ data: { user: USER }, error: null });
   auth.rpc.mockResolvedValue({ data: isAdmin, error: null });
@@ -47,6 +49,26 @@ describe("getAdminStatus", () => {
     auth.rpc.mockResolvedValue({ data: null, error: { message: "fetch failed" } });
     await expect(getAdminStatus()).rejects.toThrow("is_admin");
   });
+
+  // Auth respondió que la sesión no vale (revocada, usuario borrado): la cookie sigue ahí,
+  // pero es "sin sesión". Si lanzara, el login también fallaría y no habría cómo volver a entrar.
+  it("con la sesión revocada en Auth (4xx) es 'anonymous'", async () => {
+    getUserFails(new AuthApiError("Session from session_id claim in JWT does not exist", 403, "session_not_found"));
+    await expect(getAdminStatus()).resolves.toMatchObject({ status: "anonymous" });
+    expect(auth.rpc).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["sin red", new AuthRetryableFetchError("fetch failed", 0)],
+    ["con Auth caído (503)", new AuthRetryableFetchError("Service Unavailable", 503)],
+    ["con un error interno de Auth (500)", new AuthApiError("Internal error", 500, "unexpected_failure")],
+    // La sesión sigue siendo válida: mandarlo al login le haría perder lo escrito.
+    ["con Auth limitando pedidos (429)", new AuthApiError("Too many requests", 429, "over_request_rate_limit")],
+  ])("%s lanza (error.tsx) en vez de mostrar el login", async (_case, error) => {
+    getUserFails(error);
+    await expect(getAdminStatus()).rejects.toThrow("No se pudo verificar la sesión");
+    expect(auth.rpc).not.toHaveBeenCalled();
+  });
 });
 
 describe("requireAdmin", () => {
@@ -65,5 +87,39 @@ describe("requireAdmin", () => {
     const result = await requireAdmin();
     expect(result.user).toEqual(USER);
     expect(result.supabase.rpc).toBe(auth.rpc);
+  });
+});
+
+// La variante de las Server Actions con formulario: un fallo al verificar no reemplaza la
+// página por error.tsx (se perdería lo escrito), vuelve al formulario como un error más.
+describe("requireAdminAction", () => {
+  it("un admin recibe el cliente con su sesión y el usuario", async () => {
+    session(true);
+    const result = await requireAdminAction();
+    expect(result).toMatchObject({ ok: true, user: USER });
+    expect(result.ok && result.supabase.rpc).toBe(auth.rpc);
+  });
+
+  it("sin sesión o sin perfil de admin redirige al login, igual que requireAdmin", async () => {
+    noSession();
+    await expect(requireAdminAction()).rejects.toEqual(redirectTo(ADMIN_LOGIN_PATH));
+    session(false);
+    await expect(requireAdminAction()).rejects.toEqual(redirectTo(ADMIN_LOGIN_PATH));
+  });
+
+  it.each([
+    ["is_admin falla", () => {
+      auth.getUser.mockResolvedValue({ data: { user: USER }, error: null });
+      auth.rpc.mockResolvedValue({ data: null, error: { message: "fetch failed" } });
+    }],
+    ["Auth no responde", () => getUserFails(new AuthRetryableFetchError("fetch failed", 0))],
+    ["Auth limita los pedidos (429)", () => getUserFails(new AuthApiError("Too many requests", 429, "over_request_rate_limit"))],
+  ])("si %s, devuelve el error para el formulario y lo loguea", async (_case, arrange) => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    arrange();
+
+    await expect(requireAdminAction()).resolves.toEqual({ ok: false, message: ADMIN_ACCESS_CHECK_FAILED });
+    expect(log).toHaveBeenCalledWith("[admin] no se pudo verificar el acceso", expect.any(Error));
+    log.mockRestore();
   });
 });

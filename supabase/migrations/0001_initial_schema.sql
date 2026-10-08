@@ -237,6 +237,13 @@ create table public.orders (
   ),
   constraint cash_only_for_pickup check (
     payment_method <> 'cash' or delivery_method = 'pickup'
+  ),
+  -- Mismos topes que el checkout (src/lib/forms/limits.ts). length() de null es null: pasa.
+  constraint delivery_lengths check (
+    length(delivery_address) <= 120
+    and length(delivery_city) <= 60
+    and length(delivery_postal_code) <= 10
+    and length(delivery_reference) <= 120
   )
 );
 
@@ -577,6 +584,8 @@ declare
   v_email          text := nullif(trim(coalesce(p_email, '')), '');
   v_address        text := nullif(trim(coalesce(p_delivery_address, '')), '');
   v_city           text := nullif(trim(coalesce(p_delivery_city, '')), '');
+  v_postal_code    text := nullif(trim(coalesce(p_delivery_postal_code, '')), '');
+  v_reference      text := nullif(trim(coalesce(p_delivery_reference, '')), '');
   v_note           text := nullif(trim(coalesce(p_order_note, '')), '');
   v_payment        public.payment_method;
   v_delivery       public.delivery_method;
@@ -629,6 +638,19 @@ begin
   if v_note is not null and length(v_note) > 100 then
     raise exception using message = 'NOTE_TOO_LONG';
   end if;
+  -- Mismos topes que el checkout; detail = el campo (el formulario ya marca cuál).
+  if length(v_address) > 120 then
+    raise exception using message = 'DELIVERY_DATA_TOO_LONG', detail = 'address';
+  end if;
+  if length(v_city) > 60 then
+    raise exception using message = 'DELIVERY_DATA_TOO_LONG', detail = 'city';
+  end if;
+  if length(v_postal_code) > 10 then
+    raise exception using message = 'DELIVERY_DATA_TOO_LONG', detail = 'postal_code';
+  end if;
+  if length(v_reference) > 120 then
+    raise exception using message = 'DELIVERY_DATA_TOO_LONG', detail = 'reference';
+  end if;
 
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
     raise exception using message = 'EMPTY_CART';
@@ -679,9 +701,7 @@ begin
   values (
     p_request_id, v_customer_id, v_name, v_email,
     v_payment, v_delivery,
-    v_address, v_city,
-    nullif(trim(coalesce(p_delivery_postal_code, '')), ''),
-    nullif(trim(coalesce(p_delivery_reference, '')), ''),
+    v_address, v_city, v_postal_code, v_reference,
     v_note, 0
   )
   on conflict (request_id) do nothing
@@ -963,23 +983,27 @@ alter table public.stock_movements   enable row level security;
 alter table public.perfume_requests  enable row level security;
 alter table public.rate_limit_events enable row level security; -- sin políticas: nadie entra
 
+-- Convención: las policies llaman `(select public.is_admin())`, no `public.is_admin()`.
+-- Con el select, Postgres lo evalúa una vez por consulta (initPlan); suelto, una vez por
+-- fila. Lo verifica schema.test.cjs.
+
 -- Catálogo: público ve lo activo; admin ve y gestiona todo.
 create policy "catalog: public reads active products"
   on public.products for select
   to anon, authenticated
-  using (status = 'active' or public.is_admin());
+  using (status = 'active' or (select public.is_admin()));
 
 create policy "catalog: admin manages products"
   on public.products for all
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using ((select public.is_admin()))
+  with check ((select public.is_admin()));
 
 create policy "catalog: public reads variants of active products"
   on public.product_variants for select
   to anon, authenticated
   using (
-    public.is_admin()
+    (select public.is_admin())
     or exists (
       select 1 from public.products p
       where p.id = product_id and p.status = 'active'
@@ -989,54 +1013,54 @@ create policy "catalog: public reads variants of active products"
 create policy "catalog: admin manages variants"
   on public.product_variants for all
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using ((select public.is_admin()))
+  with check ((select public.is_admin()));
 
 -- Datos de negocio y personales: SOLO admin. Sin políticas para anon = sin acceso.
 create policy "admin: read customers"
   on public.customers for select to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 create policy "admin: update customers"
   on public.customers for update to authenticated
-  using (public.is_admin()) with check (public.is_admin());
+  using ((select public.is_admin())) with check ((select public.is_admin()));
 
 create policy "admin: read orders"
   on public.orders for select to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 create policy "admin: update orders"
   on public.orders for update to authenticated
-  using (public.is_admin()) with check (public.is_admin());
+  using ((select public.is_admin())) with check ((select public.is_admin()));
 
 create policy "admin: read order_items"
   on public.order_items for select to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 create policy "admin: read stock movements"
   on public.stock_movements for select to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 -- El admin solo carga movimientos manuales: 'sale' y 'order_cancelled' son del sistema.
 create policy "admin: add manual stock movements"
   on public.stock_movements for insert to authenticated
   with check (
-    public.is_admin()
+    (select public.is_admin())
     and movement_type in ('initial_stock', 'restock', 'adjustment', 'damaged')
     and reference_id is null
   );
 
 create policy "admin: read perfume_requests"
   on public.perfume_requests for select to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
 
 create policy "admin: update perfume_requests"
   on public.perfume_requests for update to authenticated
-  using (public.is_admin()) with check (public.is_admin());
+  using ((select public.is_admin())) with check ((select public.is_admin()));
 
 create policy "profiles: read own or admin"
   on public.profiles for select to authenticated
-  using (id = auth.uid() or public.is_admin());
+  using (id = auth.uid() or (select public.is_admin()));
 
 -- -----------------------------------------------------------------------------
 -- Storage: fotos de productos (lectura pública, escritura solo admin)
@@ -1067,15 +1091,15 @@ begin
 
   create policy "product-images: admin uploads"
     on storage.objects for insert to authenticated
-    with check (bucket_id = 'product-images' and public.is_admin());
+    with check (bucket_id = 'product-images' and (select public.is_admin()));
 
   create policy "product-images: admin updates"
     on storage.objects for update to authenticated
-    using (bucket_id = 'product-images' and public.is_admin());
+    using (bucket_id = 'product-images' and (select public.is_admin()));
 
   create policy "product-images: admin deletes"
     on storage.objects for delete to authenticated
-    using (bucket_id = 'product-images' and public.is_admin());
+    using (bucket_id = 'product-images' and (select public.is_admin()));
 end
 $storage$;
 

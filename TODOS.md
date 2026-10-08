@@ -44,14 +44,14 @@
 
 ### Vulnerabilidades de `npm audit`
 
-**What:** Revisar las 5 vulnerabilidades altas que reporta `npm audit` (entre ellas `braces`, denegación de servicio con patrones anidados) y actualizar lo que se pueda sin cambios incompatibles.
+**What:** Las 5 vulnerabilidades altas de `npm audit` son una sola cadena del linter: `eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob@3.3.1` → `micromatch` → `braces@3.0.3` (agotamiento de la pila con patrones glob muy anidados). Actualizar cuando exista un arreglo.
 
-**Why:** Estaban antes de la Fase 3. La única solución que ofrece npm es `npm audit fix --force`, que salta a versiones con cambios incompatibles. Son dependencias de herramientas (build, tests), no código que corre con datos del cliente, pero hay que confirmarlo.
+**Why:** Revisado en la Fase 6 (2026-10-07): riesgo aceptado, sin cambios. `npm audit --omit=dev` da 0: nada llega al bundle ni al servidor. El ataque necesita controlar los patrones que recibe el linter, y salen de nuestra config (máquina local y CI). No hay arreglo: `braces@3.0.3` es la última versión y está en el rango vulnerable, `eslint-config-next@16.4.0` sigue fijando `fast-glob@3.3.1`, y un `overrides` no tiene a qué versión sana apuntar. `npm audit fix --force` propone bajar a `eslint-config-next@14`, incompatible con Next 16.
 
-**Context:** Correr `npm audit` y ver, por cada una, si es de `dependencies` o de `devDependencies` y si llega al bundle o al servidor. Cualquier cambio en el lockfile se valida en Linux (memoria del proyecto: npm en Windows borra `@emnapi/*`). Señal: antes de la Fase 6 (lanzamiento).
+**Context:** Para revisar: `npm audit` y `npm ls braces`. Cualquier cambio en el lockfile se valida en Linux (memoria del proyecto: npm en Windows borra `@emnapi/*`). Señal: una versión nueva de `braces` fuera del rango, un `@next/eslint-plugin-next` sin `fast-glob`, o una vulnerabilidad nueva que aparezca con `--omit=dev`.
 
 **Effort:** S
-**Priority:** P2
+**Priority:** P3
 **Depends on:** —
 
 ### Puerto ocupado en el runner de CI
@@ -66,62 +66,7 @@
 **Priority:** P3
 **Depends on:** —
 
-## Checkout
-
-### Largos máximos de los datos de envío en la base
-
-**What:** `check` en `orders` (o validación en `create_order`) para el largo de `delivery_address` (120), `delivery_city` (60), `delivery_postal_code` (10) y `delivery_reference` (120), los mismos topes que hoy aplica solo zod.
-
-**Why:** Las reglas de negocio viven en la base (CLAUDE.md). Hoy esos largos existen solo en el schema del checkout (decisión 40). Alcanza porque `create_order` solo se llama desde esa Server Action, pero si otra vía la llama (admin, script), la base aceptaría textos de cualquier largo.
-
-**Context:** Como ya hubo deploy o no según cuándo se haga: hasta el primer deploy se edita `0001_initial_schema.sql`; después, migración nueva. Lleva su test en `schema.test.cjs` y un código de error nuevo (ej. `ADDRESS_TOO_LONG`) en `ORDER_ERRORS`: el test de `order-errors.test.ts` falla si falta el mensaje. Señal: antes del primer deploy, que es cuando todavía se edita `0001`.
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** —
-
-### Llevar el foco al primer campo con error
-
-**What:** Cuando la Server Action devuelve errores por campo, mover el foco (y el scroll) al primer campo inválido del checkout y de `/encargos`.
-
-**Why:** En el celular el botón queda abajo y los errores de los primeros campos (ej. "Perfume") quedan fuera de la pantalla: el cliente ve que no pasó nada. Visto en la revisión visual de la Fase 4 (375 px).
-
-**Context:** Los dos formularios usan `useActionState` y ya marcan `aria-invalid`. Un efecto que, con `state.status === "error"` y `fieldErrors`, haga `form.querySelector('[aria-invalid="true"]')?.focus()` resuelve los dos; se puede compartir junto con `TurnstileField`. Test de componente: después de un error, `document.activeElement` es el primer campo inválido. Señal: antes del lanzamiento.
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** —
-
 ## Anti-abuso
-
-### CAPTCHA en el login del admin
-
-**What:** Activar el CAPTCHA nativo de Supabase Auth con Turnstile en `/admin/login` (`[auth.captcha]` en `supabase/config.toml` y en el dashboard; el token va en `signInWithPassword({ options: { captchaToken } })`), reusando `TurnstileField`.
-
-**Why:** Hoy el login solo tiene los límites de Supabase Auth (`over_request_rate_limit`, con su mensaje en `LOGIN_ERRORS`). Es la única puerta al panel y la cuenta del admin es una sola: un ataque de contraseñas desde muchas IPs no choca con un límite por IP. Decisión 60.
-
-**Context:** Con el CAPTCHA activo en Auth, **todo** login necesita token, también el de los E2E y el de `npm run db:admin` (que no hace login: no lo afecta). En CI y local, las claves de prueba de Cloudflare (siempre pasan). Agregar un test de la acción que mande el token. Señal: intentos fallidos repetidos en los logs de Auth, o antes del lanzamiento si sobra tiempo en la Fase 6.
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** —
-
-### Endurecer la sesión del admin
-
-**What:** Lo que el `/review` de la Fase 5 encontró y quedó fuera del PR:
-1. Cookies de sesión `httpOnly` y `secure` (`cookieOptions` en `src/lib/supabase/server.ts` y `src/proxy.ts`). El cliente de navegador (`src/lib/supabase/client.ts`) no se usa: borrarlo o anotar que necesitaría cookies legibles.
-2. `getAdminStatus()` ignora el error de `getUser()`: un fallo de red de Auth se trata como "sin sesión" y el admin ve el login en vez de `error.tsx`. Lanzar si el error no es `AuthSessionMissingError`.
-3. En las acciones del detalle, un fallo de `is_admin` dentro de `requireAdmin()` reemplaza la página por `error.tsx` y se pierde lo escrito: devolver un error al formulario (y relanzar los `redirect`).
-4. Policies RLS con `(select public.is_admin())` en vez de `public.is_admin()` (guía de performance de Supabase: una llamada por consulta, no por fila).
-5. Tests propuestos: un no-admin no puede hacer UPDATE de pedidos (`schema.test.cjs` [10]), costo de envío y despacho en el mismo update, `SHIPPING_COST_LOCKED` en `completed`, ramas negativas de `setShippingCost`, una cancelación rechazada no llama a `updateTag`, un admin logueado que abre `/admin/login` va a los pedidos.
-
-**Why:** Ninguno rompe hoy con un solo admin y sin XSS conocido, pero (1) es la diferencia entre un XSS en la tienda y el control del panel, y (2)/(3) confunden al admin justo cuando Supabase falla.
-
-**Context:** Hallazgos del red team, el revisor adversarial y los especialistas de testing y performance (Fase 5). La auditoría del costo de envío cambiado después de pagado quedó descartada por ahora (el `total` se recalcula y `updated_at` marca el cambio). Señal: antes del lanzamiento (Fase 6), junto con el CAPTCHA del login.
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** —
 
 ### Límite de encargos por número de WhatsApp
 
@@ -146,18 +91,6 @@
 **Effort:** S
 **Priority:** P2
 **Depends on:** El dominio de producción definido.
-
-### No loguear el error completo de la base
-
-**What:** En las Server Actions de checkout y encargos, loguear solo `code` y `message` del `PostgrestError` desconocido, no el objeto entero.
-
-**Why:** Si salta un `check` de una tabla, Postgres pone en `details` la fila que falló ("Failing row contains (...)"), con nombre, WhatsApp o aclaración del cliente. Eso terminaría en los logs de Netlify (Ley 25.326).
-
-**Context:** `console.error("[encargos] ...", error)` y su par en `checkout/actions.ts`. Los tests que hoy esperan que se loguee siguen valiendo; agregar uno que verifique que `details` no aparece en el log. Señal: antes del lanzamiento.
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** —
 
 ### Medir los largos igual que Postgres
 
@@ -219,6 +152,28 @@
 **Depends on:** None
 
 ## Completed
+
+Hechos en la Fase 6, parte A (`feat/launch-hardening`, 2026-10-07). El detalle está en el documento maestro, sección 3.K.
+
+### Endurecer la sesión del admin
+
+Cookies `httpOnly` y `secure` (decisión 73), fallos de red de Auth en `getAdminStatus` sin dejar afuera una sesión revocada (decisión 72), `requireAdminAction` en las acciones con formulario (decisión 71), `(select is_admin())` en las policies (decisión 74) y los tests propuestos.
+
+### CAPTCHA en el login del admin
+
+CAPTCHA nativo de Supabase Auth con `TurnstileField` (decisión 75). En la nube falta activarlo con el secreto real (checklist de la sección 11).
+
+### Largos máximos de los datos de envío en la base
+
+`DELIVERY_DATA_TOO_LONG` en `create_order` y el check `delivery_lengths` (decisión 77).
+
+### Llevar el foco al primer campo con error
+
+`useFocusFirstInvalid` en checkout y encargos (decisión 79).
+
+### No loguear el error completo de la base
+
+`loggableDbError` en checkout, encargos y las acciones del admin (decisión 78).
 
 ### Reintento de un pedido justo en el límite por IP
 

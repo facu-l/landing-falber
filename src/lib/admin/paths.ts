@@ -9,7 +9,7 @@ const isAdminPath = (pathname: string) => pathname === "/admin" || pathname.star
 
 /**
  * Chequeo optimista del proxy: solo mira si hay sesión. Si la cuenta es admin lo
- * decide requireAdmin() en cada página y acción (y RLS en la base).
+ * decide requireAdmin() en cada página y requireAdminAction() en cada acción (y RLS en la base).
  * null = dejar pasar.
  */
 export function adminProxyRedirect(pathname: string, hasSession: boolean): string | null {

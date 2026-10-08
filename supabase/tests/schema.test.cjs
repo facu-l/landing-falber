@@ -67,11 +67,11 @@ const q = (v) => (v === null ? 'null' : `'${v}'`);
 function orderCall(opts = {}) {
   const o = {
     req: randomUUID(), client: key(), name: 'Juan Pérez', wa: '+5492215551234', email: null,
-    pay: 'transfer', delivery: 'pickup', address: null, city: null, note: 'sin aclaración', items: '[]',
+    pay: 'transfer', delivery: 'pickup', address: null, city: null, postal: null, ref: null, note: 'sin aclaración', items: '[]',
     ...opts,
   };
   return `select public.create_order(${q(o.req)}, ${q(o.client)}, ${q(o.name)}, ${q(o.wa)}, ${q(o.email)},
-    ${q(o.pay)}, ${q(o.delivery)}, ${q(o.address)}, ${q(o.city)}, null, null, ${q(o.note)}, '${o.items}'::jsonb) as r`;
+    ${q(o.pay)}, ${q(o.delivery)}, ${q(o.address)}, ${q(o.city)}, ${q(o.postal)}, ${q(o.ref)}, ${q(o.note)}, '${o.items}'::jsonb) as r`;
 }
 const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${quantity}}`;
 
@@ -218,6 +218,24 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await expectError(db, 'email inválido → INVALID_EMAIL', orderCall({ email: 'no-es-email', items: `[${item(V1, 1)}]` }), 'INVALID_EMAIL');
   await expectError(db, 'aclaración de 101 caracteres → NOTE_TOO_LONG', orderCall({ note: 'x'.repeat(101), items: `[${item(V1, 1)}]` }), 'NOTE_TOO_LONG');
   await expectError(db, 'método de pago inexistente → INVALID_PAYMENT_METHOD', orderCall({ pay: 'crypto', items: `[${item(V1, 1)}]` }), 'INVALID_PAYMENT_METHOD');
+  // Largos de los datos de envío: los mismos topes que el checkout (src/lib/forms/limits.ts).
+  const shipTo = (fields) => orderCall({ delivery: 'delivery', address: 'Calle 7 123', city: 'La Plata', items: `[${item(V1, 1)}]`, ...fields });
+  for (const [i, [field, fields, max]] of [
+    ['address', (v) => ({ address: v }), 120],
+    ['city', (v) => ({ city: v }), 60],
+    ['postal_code', (v) => ({ postal: v }), 10],
+    ['reference', (v) => ({ ref: v }), 120],
+  ].entries()) {
+    await expectError(db, `envío: ${field} de ${max + 1} caracteres → DELIVERY_DATA_TOO_LONG`,
+      shipTo({ wa: `+54922155501${i}0`, ...fields('x'.repeat(max + 1)) }), 'DELIVERY_DATA_TOO_LONG', field);
+  }
+  const atMax = (await one(db, shipTo({ wa: '+5492215550010', address: 'a'.repeat(120), city: 'c'.repeat(60), postal: 'p'.repeat(10), ref: 'r'.repeat(120) }))).r;
+  eq('envío: los cuatro datos en su largo máximo se aceptan',
+    (await one(db, `select length(delivery_reference) n from orders where id='${atMax.order_id}'`)).n, 120);
+  for (const [column, max] of [['delivery_address', 120], ['delivery_city', 60], ['delivery_postal_code', 10], ['delivery_reference', 120]]) {
+    await expectError(db, `Studio tampoco guarda ${column} de ${max + 1} caracteres (check de la tabla)`,
+      `update orders set ${column} = repeat('x', ${max + 1}) where id='${atMax.order_id}'`, 'delivery_lengths');
+  }
   const envio = (await one(db, orderCall({ wa: '+5492215550002', delivery: 'delivery', address: 'Calle 7 123', city: 'La Plata', items: `[${item(V1, 1)}]` }))).r;
   ok('transferencia + envío con dirección se acepta (' + envio.order_number + ')');
 
@@ -290,6 +308,17 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   eq('índice: la lista del admin tiene su índice (status, created_at)',
     (await one(db, `select count(*) n from pg_indexes where schemaname = 'public' and indexname = 'orders_status_created_at_idx'`)).n, 1);
 
+  // `(select is_admin())` se evalúa una vez por consulta; `is_admin()` suelto, una vez por fila
+  // (guía de performance de RLS de Supabase). Postgres lo guarda como "( SELECT is_admin() AS is_admin)".
+  const bareIsAdmin = await db.query(`
+    select schemaname || '.' || tablename || ': ' || policyname as policy
+    from pg_policies
+    where regexp_replace(coalesce(qual, '') || ' ' || coalesce(with_check, ''),
+                         'SELECT (public\\.)?is_admin\\(\\)', '', 'g') ~ 'is_admin\\(\\)'
+    order by 1`);
+  eq('RLS: ninguna policy llama a is_admin() por fila (va dentro de un select)',
+    bareIsAdmin.rows.map((r) => r.policy).join(', '), '');
+
   console.log('\n[8] Cancelación automática de pedidos abandonados');
   const stale = (await one(db, orderCall({ wa: '+5492215550005', items: `[${item(V2, 1)}]` }))).r;
   const fresh = (await one(db, orderCall({ wa: '+5492215550006', items: `[${item(V2, 1)}]` }))).r;
@@ -321,8 +350,12 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await db.exec(asUser);
   eq('usuario común NO ve pedidos', (await one(db, 'select count(*) c from orders')).c, 0);
   eq('usuario común: el UPDATE de precio afecta 0 filas (RLS)', (await db.query(`update product_variants set price = 1 where id='${V1}' returning id`)).rows.length, 0);
+  // Tiene el permiso de columna (update status, shipping_cost) como el admin: lo frena RLS, no el grant.
+  eq('usuario común: el UPDATE del estado de un pedido afecta 0 filas (RLS)',
+    (await db.query(`update orders set status = 'confirmed' where id='${fresh.order_id}' returning id`)).rows.length, 0);
   await reset(db);
   eq('...y el precio sigue intacto', (await one(db, `select price from product_variants where id='${V1}'`)).price, 8000);
+  eq('...y el pedido sigue pendiente', (await one(db, `select status from orders where id='${fresh.order_id}'`)).status, 'pending');
 
   console.log('\n[11] Seguridad: admin');
   await db.exec(asAdmin);
@@ -363,6 +396,18 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await db.exec(`${asAdmin} update orders set status='completed', shipping_cost = 2000 where id='${shipped.order_id}'`);
   ok('cambiar el estado de un pedido con costo de envío no choca con la regla');
   await reset(db);
+  await expectError(db, 'costo de envío de un pedido completado → SHIPPING_COST_LOCKED',
+    `${asAdmin} update orders set shipping_cost = 2500 where id='${shipped.order_id}'`, 'SHIPPING_COST_LOCKED', 'completed');
+  // La regla mira el estado viejo (decisión 56): cargar el costo al despachar vale.
+  const dispatch = (await one(db, orderCall({ wa: '+5492215550009', delivery: 'delivery', address: 'Calle 9 789', city: 'La Plata', items: `[${item(V1, 1)}]` }))).r;
+  for (const s of ['confirmed', 'paid', 'preparing']) {
+    await db.exec(`update orders set status='${s}' where id='${dispatch.order_id}'`);
+  }
+  await db.exec(`${asAdmin} update orders set status='shipped', shipping_cost = 1500 where id='${dispatch.order_id}'`);
+  await reset(db);
+  const dispatched = await one(db, `select status, total from orders where id='${dispatch.order_id}'`);
+  eq('costo de envío y despacho en el mismo update: queda enviado', dispatched.status, 'shipped');
+  eq('...con el costo sumado al total', dispatched.total, 9000 + 1500);
   const byAdmin = (await one(db, orderCall({ wa: '+5492215550008', items: `[${item(V1, 1)}]` }))).r;
   await db.exec(`${asAdmin} update orders set status='cancelled' where id='${byAdmin.order_id}'`);
   eq('auditoría: la devolución de una cancelación del admin queda firmada por el admin',

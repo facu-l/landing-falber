@@ -9,8 +9,7 @@ import { LIMITS } from "@/lib/forms/limits";
  * el formulario manda todo como texto y acá sale normalizado para create_order.
  *
  * Repite las reglas de create_order solo para dar errores por campo y en castellano;
- * la base las vuelve a validar. Los largos de dirección, ciudad, código postal y
- * referencia existen solo acá: la base no los limita.
+ * la base las vuelve a validar (también los largos de envío: DELIVERY_DATA_TOO_LONG).
  */
 
 const item = z.object({

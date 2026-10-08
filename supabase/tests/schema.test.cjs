@@ -232,8 +232,10 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   const atMax = (await one(db, shipTo({ wa: '+5492215550010', address: 'a'.repeat(120), city: 'c'.repeat(60), postal: 'p'.repeat(10), ref: 'r'.repeat(120) }))).r;
   eq('envío: los cuatro datos en su largo máximo se aceptan',
     (await one(db, `select length(delivery_reference) n from orders where id='${atMax.order_id}'`)).n, 120);
-  await expectError(db, 'Studio tampoco guarda una dirección de 121 caracteres (check de la tabla)',
-    `update orders set delivery_address = repeat('a', 121) where id='${atMax.order_id}'`, 'delivery_lengths');
+  for (const [column, max] of [['delivery_address', 120], ['delivery_city', 60], ['delivery_postal_code', 10], ['delivery_reference', 120]]) {
+    await expectError(db, `Studio tampoco guarda ${column} de ${max + 1} caracteres (check de la tabla)`,
+      `update orders set ${column} = repeat('x', ${max + 1}) where id='${atMax.order_id}'`, 'delivery_lengths');
+  }
   const envio = (await one(db, orderCall({ wa: '+5492215550002', delivery: 'delivery', address: 'Calle 7 123', city: 'La Plata', items: `[${item(V1, 1)}]` }))).r;
   ok('transferencia + envío con dirección se acepta (' + envio.order_number + ')');
 

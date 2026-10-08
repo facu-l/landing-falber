@@ -9,7 +9,7 @@ Tienda online de decants y perfumes · Next.js + Supabase · v6.1 · 2026-10-08
 **v4.0:** Fase 4 implementada en `feat/requests`: `/encargos` con precarga desde un producto agotado. Decisiones 44 a 54 (sección 3.I), entre ellas el fix del checkout que perdía "Envío a domicilio" tras un error del servidor y las que salieron del `/review`; lecciones y plan de tests.
 **v5.0:** Fase 5 implementada en `feat/admin-orders`: login del admin, lista y detalle de pedidos, cambio de estado y costo de envío, tema Platinum y `src/proxy.ts`. Decisiones 55 a 70 (sección 3.J), entre ellas la regla del costo de envío en la base, el fix de `config.toml` que apagaba el login con email y, del `/review`, el compare-and-set del estado y la lista con todos los activos; lecciones, plan de tests y checklist.
 **v6.0:** Fase 6, parte A (código antes del lanzamiento) en `feat/launch-hardening`: sesión del admin endurecida (cookies `httpOnly`, fallos de Auth, `requireAdminAction`, `(select is_admin())`), CAPTCHA nativo de Supabase en el login, GitHub Action de keepalive y backup cifrado, largos de envío en la base, logs sin datos personales y foco al primer error. Decisiones 71 a 80 (sección 3.K), backups, lecciones, plan de tests y checklist.
-**v6.1:** envíos estimados en el checkout (`feat/shipping-estimates`): el checkout muestra el envío estimado a sucursal y a domicilio, que el admin edita en `/admin/envios`. Decisiones 81 a 85 (sección 3.L).
+**v6.1:** envíos estimados en el checkout (`feat/shipping-estimates`): el checkout muestra el envío estimado a sucursal y a domicilio, que el admin edita en `/admin/envios`. Decisiones 81 a 86 (sección 3.L).
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -275,11 +275,12 @@ Pedido del dueño: al elegir "Envío a domicilio", mostrar "Envío estimado a su
 
 | # | Decisión | Por qué |
 |---|---|---|
-| 81 | **Los montos viven en la base, en `shipping_rates` (una sola fila: `id = true`)**, y se editan en `/admin/envios`. Lectura pública; solo el admin cambia los dos montos (RLS con `(select is_admin())` y permisos de columna); nadie agrega ni borra filas. Pesos enteros con el tope de $ 1.000.000 de la decisión 65 | Una variable de entorno solo cambia con un deploy, y el dueño los quiere cambiar cuando lo necesite. Una fila fija y sin borrado: el checkout nunca se queda sin estimados |
+| 81 | **Los montos viven en la base, en `shipping_rates` (una sola fila: `id = true`)**, y se editan en `/admin/envios`. Lectura pública; solo el admin cambia los dos montos (RLS con `(select is_admin())` y permisos de columna); nadie agrega ni borra filas: triggers `BEFORE DELETE` y `BEFORE TRUNCATE` (`SHIPPING_RATES_REQUIRED`, también para Studio) y `truncate` revocado a los roles públicos. Pesos enteros con el tope de $ 1.000.000 de la decisión 65, atado al de TS por un test | Una variable de entorno solo cambia con un deploy, y el dueño los quiere cambiar cuando lo necesite. Sin la fila, `/admin/envios` no tiene qué editar y el admin no puede crearla (no tiene insert). `TRUNCATE` no pasa por RLS y Supabase lo otorga por defecto (`/review`) |
 | 82 | **Son solo informativos:** el cliente no elige entre sucursal y domicilio, y el pedido sigue naciendo con el envío "a coordinar" (`shipping_cost = null`); el admin carga el costo real como antes | Decisión del dueño. Con los precios informativos no hay cómo saber cuál sumar: sumar uno obligaría a corregir muchos pedidos |
 | 83 | **`getShippingRates()` cacheado con su propio tag (`shipping-rates`) y `cacheLife('minutes')`**, como el catálogo; guardar en el admin hace `updateTag`. Si la lectura falla, el checkout vuelve al texto de siempre y lo loguea (`getShippingRatesOrNull`) | El checkout ve el monto nuevo al instante. A diferencia del catálogo (sin él no hay compra), los estimados no pueden bloquear una venta |
-| 84 | **El formulario reusa `parseShippingCost`** (acepta `9000`, `9.000` y `$ 9.000`, mismo tope), **pero vacío no vale** | Un estimado vacío se mostraría como "$ 0" en el checkout |
-| 85 | **El E2E corre solo en el proyecto desktop, calienta el caché antes de cambiar los montos y restaura los del seed** | Una sola fila para toda la tienda: escritorio y celular en paralelo se pisarían. Sin el caché caliente, sacar el `updateTag` igual pasaba (verificado con esa mutación) |
+| 84 | **El formulario reusa `parseShippingCost`** (acepta `9000`, `9.000` y `$ 9.000`, mismo tope), **pero vacío no vale. 0 sí: el checkout muestra "Envío a sucursal: gratis"** | Vacío es ambiguo (¿gratis o sin cargar?); 0 es una decisión explícita (una promo). Antes del `/review`, un 0 tipeado por error se publicaba como "$ 0"; el dueño eligió que signifique envío gratis |
+| 85 | **El E2E corre solo en el proyecto desktop (skip a nivel de archivo con `isMobile`), calienta el caché antes de cambiar los montos sin suponer con cuál arranca, y restaura los del seed** | Una sola fila para toda la tienda: con el skip dentro del test, el `afterEach` de mobile igual corría y pisaba la fila. Sin el caché caliente, sacar el `updateTag` igual pasaba (verificado con esa mutación). La restauración directa no invalida el caché: suponer "$ 9.000" al arrancar fallaba en un reintento (`/review`) |
+| 86 | **La navegación del panel marca la sección actual** (`AdminNavLink`: `aria-current="page"` y color de texto principal, también en subpáginas) | Con dos secciones no se veía dónde estaba el admin ni lo anunciaba el lector de pantalla. Las clases compartidas van en un módulo común: el layout es de servidor y no importa valores de un módulo cliente |
 
 ---
 
@@ -644,7 +645,7 @@ Antes de codear, el plan de commits. Al final: /review, PDF y PR.
 
 Dos cambios sobre lo pedido, acordados antes de codear: el CAPTCHA es el nativo de Supabase Auth y no `verifyHumanRequest` (decisión 75), y el backup va cifrado (decisión 76). De los pendientes entraron los largos de envío, los logs sin datos personales, el foco al primer error y la revisión de `npm audit`; quedaron afuera el límite de encargos por WhatsApp (señal reactiva), atar Turnstile al dominio (necesita el dominio de producción) y medir largos como Postgres (P3). Las decisiones están en la sección 3.K (71 a 80).
 
-**Antes de la parte B: envíos estimados** (`feat/shipping-estimates`, decisiones 81 a 85). Toca la base, así que va antes del primer deploy.
+**Antes de la parte B: envíos estimados** (`feat/shipping-estimates`, decisiones 81 a 86). Toca la base, así que va antes del primer deploy.
 
 **Parte B — nube y deploy.** Proyecto de Supabase con `0001` y `0002` (pg_cron), Auth (sección 11), secretos y variable del backup, deploy en Netlify. Después, `/design-review` → `/qa` → `/cso` → `/review`.
 

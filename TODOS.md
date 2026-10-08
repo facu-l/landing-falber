@@ -104,6 +104,18 @@
 **Priority:** P3
 **Depends on:** —
 
+### Revocar TRUNCATE en todas las tablas
+
+**What:** `revoke truncate on all tables in schema public from anon, authenticated` en `0001` (o en una migración nueva, si ya hubo deploy), con un test en `schema.test.cjs` que lo verifique con `has_table_privilege`.
+
+**Why:** Supabase otorga `ALL` por defecto en las tablas de `public`, y `0001` solo revoca `insert`, `update` y `delete`. `TRUNCATE` no pasa por RLS. No es explotable por la API (PostgREST no expone `TRUNCATE`), pero contradice "nadie borra el historial". En `shipping_rates` ya está revocado (decisión 81). Visto en el `/review` de los envíos estimados.
+
+**Context:** Antes del primer deploy se edita `0001` directo. Señal: antes de la parte B, si sobra tiempo; si no, con la primera migración nueva.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** —
+
 ## Catálogo
 
 ### Reemplazar las fotos placeholder por fotos reales

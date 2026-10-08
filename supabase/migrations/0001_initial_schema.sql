@@ -480,6 +480,27 @@ create trigger shipping_rates_updated_at
 
 insert into public.shipping_rates (estimate_to_branch, estimate_to_home) values (7000, 9000);
 
+-- La fila no se borra: sin ella /admin/envios no tiene qué editar y el admin no puede
+-- crearla (no tiene insert). Frena también a Studio (rol postgres) y a TRUNCATE.
+create or replace function public.prevent_shipping_rates_removal()
+returns trigger
+language plpgsql
+as $$
+begin
+  raise exception using
+    message = 'SHIPPING_RATES_REQUIRED',
+    hint    = 'Los envíos estimados son una sola fila que usa el checkout: se editan, no se borran.';
+end;
+$$;
+
+create trigger shipping_rates_prevent_delete
+  before delete on public.shipping_rates
+  for each row execute function public.prevent_shipping_rates_removal();
+
+create trigger shipping_rates_prevent_truncate
+  before truncate on public.shipping_rates
+  for each statement execute function public.prevent_shipping_rates_removal();
+
 -- -----------------------------------------------------------------------------
 -- Estados del pedido: transiciones válidas
 --
@@ -990,7 +1011,8 @@ revoke all on public.rate_limit_events from anon, authenticated;
 revoke all on public.perfume_requests_ranking from anon;
 
 -- Envíos estimados: todos los leen; el admin solo cambia los montos (sin agregar ni borrar filas).
-revoke insert, update, delete on public.shipping_rates from anon, authenticated;
+-- truncate: RLS no lo frena, y Supabase lo otorga por defecto en las tablas de public.
+revoke insert, update, delete, truncate on public.shipping_rates from anon, authenticated;
 grant update (estimate_to_branch, estimate_to_home) on public.shipping_rates to authenticated;
 
 -- -----------------------------------------------------------------------------

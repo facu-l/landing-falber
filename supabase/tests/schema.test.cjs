@@ -509,6 +509,16 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
     `${asAdmin} delete from shipping_rates`, 'permission denied');
   await expectError(db, 'Studio (postgres) tampoco crea una segunda fila',
     'insert into shipping_rates (estimate_to_branch, estimate_to_home) values (1, 1)', 'duplicate key');
+  // Sin la fila, /admin/envios no tiene qué editar y el admin no puede crearla: nunca falta.
+  await expectError(db, 'Studio (postgres) no borra la fila de estimados → SHIPPING_RATES_REQUIRED',
+    'delete from shipping_rates', 'SHIPPING_RATES_REQUIRED');
+  await expectError(db, 'Studio (postgres) no vacía la tabla con TRUNCATE → SHIPPING_RATES_REQUIRED',
+    'truncate shipping_rates', 'SHIPPING_RATES_REQUIRED');
+  for (const role of ['anon', 'authenticated']) {
+    eq(`${role} no tiene TRUNCATE sobre shipping_rates (RLS no lo frena)`,
+      (await one(db, `select has_table_privilege('${role}', 'public.shipping_rates', 'TRUNCATE') ok`)).ok, false);
+  }
+  eq('la fila de estimados sigue ahí', (await one(db, 'select count(*) n from shipping_rates')).n, 1);
 
   console.log(`\nRESULTADO: ${passed} pasaron, ${failed} fallaron`);
   process.exit(failed ? 1 : 0);

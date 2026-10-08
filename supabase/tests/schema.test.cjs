@@ -480,6 +480,36 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await db.exec(`select setval('order_number_seq', 12344)`);
   eq('numeración no se trunca después de 9999', (await one(db, 'select public.next_order_number() n')).n, 'FAL-12345');
 
+  console.log('\n[13] Estimados de envío (los muestra el checkout, los edita el admin)');
+  const rates = await one(db, 'select count(*) n, min(estimate_to_branch) branch, min(estimate_to_home) home from shipping_rates');
+  eq('shipping_rates: una sola fila', rates.n, 1);
+  eq('shipping_rates: arranca con $ 7.000 a sucursal', rates.branch, 7000);
+  eq('shipping_rates: arranca con $ 9.000 a domicilio', rates.home, 9000);
+  await db.exec('set role anon');
+  eq('anon lee los estimados (el checkout es público)',
+    (await one(db, 'select estimate_to_home from shipping_rates')).estimate_to_home, 9000);
+  await reset(db);
+  await expectError(db, 'anon NO cambia los estimados', 'set role anon; update shipping_rates set estimate_to_home = 1', 'permission denied');
+  await db.exec(asUser);
+  eq('usuario común: el UPDATE de los estimados afecta 0 filas (RLS)',
+    (await db.query('update shipping_rates set estimate_to_home = 1 returning id')).rows.length, 0);
+  await reset(db);
+  await db.exec(`${asAdmin} update shipping_rates set estimate_to_branch = 7500, estimate_to_home = 9500`);
+  await reset(db);
+  const updated = await one(db, 'select estimate_to_branch, estimate_to_home, updated_at > now() - interval \'1 minute\' fresh from shipping_rates');
+  eq('admin cambia el estimado a sucursal', updated.estimate_to_branch, 7500);
+  eq('admin cambia el estimado a domicilio', updated.estimate_to_home, 9500);
+  eq('updated_at se actualiza al cambiar', updated.fresh, true);
+  await expectError(db, 'estimado negativo se rechaza', `${asAdmin} update shipping_rates set estimate_to_home = -1`, 'check constraint');
+  await expectError(db, 'estimado de más de $ 1.000.000 se rechaza (un cero de más)',
+    `${asAdmin} update shipping_rates set estimate_to_branch = 1000001`, 'check constraint');
+  await expectError(db, 'admin NO agrega otra fila de estimados',
+    `${asAdmin} insert into shipping_rates (estimate_to_branch, estimate_to_home) values (1, 1)`, 'permission denied');
+  await expectError(db, 'admin NO borra los estimados (el checkout se quedaría sin ellos)',
+    `${asAdmin} delete from shipping_rates`, 'permission denied');
+  await expectError(db, 'Studio (postgres) tampoco crea una segunda fila',
+    'insert into shipping_rates (estimate_to_branch, estimate_to_home) values (1, 1)', 'duplicate key');
+
   console.log(`\nRESULTADO: ${passed} pasaron, ${failed} fallaron`);
   process.exit(failed ? 1 : 0);
 })();

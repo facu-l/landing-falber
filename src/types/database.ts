@@ -145,6 +145,19 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"shipping_rates": {
+                  Row: {
+                    "estimate_to_branch": number,"estimate_to_home": number,"id": boolean,"updated_at": string
+                  }
+                  Insert: {
+                    "estimate_to_branch": number,"estimate_to_home": number,"id"?: boolean,"updated_at"?: string
+                  }
+                  Update: {
+                    "estimate_to_branch"?: number,"estimate_to_home"?: number,"id"?: boolean,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"stock_movements": {
                   Row: {
                     "created_at": string,"created_by": string | null,"id": string,"movement_type": Database["public"]['Enums']["stock_movement_type"],"note": string | null,"quantity": number,"reference_id": string | null,"variant_id": string

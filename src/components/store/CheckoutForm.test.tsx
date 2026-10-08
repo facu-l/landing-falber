@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CART_STORAGE_KEY, serializeCart } from "@/lib/cart/cart";
 import type { VariantIndex } from "@/lib/cart/resolve";
 import type { CheckoutState } from "@/lib/checkout/state";
+import { formatARS } from "@/lib/format";
 
 const mocks = vi.hoisted(() => ({
   createOrder: vi.fn(),
@@ -159,6 +160,22 @@ describe("CheckoutForm", () => {
     expect(screen.getByRole("complementary", { name: "Tu pedido" }).textContent).toMatch("Sin stock suficiente");
     expect(mocks.turnstileResets).toBe(1);
     expect(localStorage.getItem(CART_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it("debajo de 'Envío a domicilio' muestra los envíos estimados y que el costo se coordina", () => {
+    render(<CheckoutForm index={index} shippingEstimates={{ toBranch: 7000, toHome: 9000 }} />);
+    const option = screen.getByRole("radio", { name: /Envío a domicilio/ });
+    expect(option.closest("label")?.textContent).toContain(`Envío estimado a sucursal ${formatARS(7000)}`);
+    expect(option.closest("label")?.textContent).toContain(`Envío estimado a domicilio ${formatARS(9000)}`);
+    expect(option.closest("label")?.textContent).toContain("El costo final se coordina por WhatsApp.");
+  });
+
+  // Los estimados son informativos: si no se pudieron leer, no bloquean la compra.
+  it("sin estimados vuelve al texto de siempre", () => {
+    render(<CheckoutForm index={index} shippingEstimates={null} />);
+    const option = screen.getByRole("radio", { name: /Envío a domicilio/ });
+    expect(option.closest("label")?.textContent).toContain("El costo del envío se coordina por WhatsApp.");
+    expect(option.closest("label")?.textContent).not.toContain("estimado");
   });
 
   // En el celular el botón queda abajo: sin esto, los errores de arriba quedan fuera de la pantalla.

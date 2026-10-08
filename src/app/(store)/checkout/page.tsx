@@ -4,6 +4,7 @@ import { CartSkeleton } from "@/components/store/CartView";
 import { CheckoutForm } from "@/components/store/CheckoutForm";
 import { buildVariantIndex } from "@/lib/cart/resolve";
 import { getCatalog } from "@/lib/catalog/queries";
+import { getShippingRatesOrNull } from "@/lib/shipping/queries";
 
 export const metadata: Metadata = {
   title: "Finalizar compra",
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 // Igual que /carrito: el formulario cruza el carrito con el catálogo cacheado para el resumen.
+// Los envíos estimados también vienen cacheados; si fallan, el checkout sigue sin ellos.
 export default function CheckoutPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 py-12 md:px-8 md:py-16">
@@ -23,6 +25,6 @@ export default function CheckoutPage() {
 }
 
 async function CheckoutWithCatalog() {
-  const index = buildVariantIndex(await getCatalog());
-  return <CheckoutForm index={index} />;
+  const [catalog, shippingEstimates] = await Promise.all([getCatalog(), getShippingRatesOrNull()]);
+  return <CheckoutForm index={buildVariantIndex(catalog)} shippingEstimates={shippingEstimates} />;
 }

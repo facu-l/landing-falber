@@ -461,6 +461,47 @@ end;
 $$;
 
 -- -----------------------------------------------------------------------------
+-- 10. shipping_rates — envíos estimados que muestra el checkout (los edita el admin)
+-- -----------------------------------------------------------------------------
+-- Una sola fila (id = true). Son solo informativos: el pedido nace con el costo de
+-- envío "a coordinar" (null) y el admin carga el real. Pesos enteros, mismo tope que
+-- el costo de envío del pedido en el admin: frena un cero de más.
+
+create table public.shipping_rates (
+  id                 boolean primary key default true check (id),
+  estimate_to_branch integer not null check (estimate_to_branch between 0 and 1000000),
+  estimate_to_home   integer not null check (estimate_to_home between 0 and 1000000),
+  updated_at         timestamptz not null default now()
+);
+
+create trigger shipping_rates_updated_at
+  before update on public.shipping_rates
+  for each row execute function public.set_updated_at();
+
+insert into public.shipping_rates (estimate_to_branch, estimate_to_home) values (7000, 9000);
+
+-- La fila no se borra: sin ella /admin/envios no tiene qué editar y el admin no puede
+-- crearla (no tiene insert). Frena también a Studio (rol postgres) y a TRUNCATE.
+create or replace function public.prevent_shipping_rates_removal()
+returns trigger
+language plpgsql
+as $$
+begin
+  raise exception using
+    message = 'SHIPPING_RATES_REQUIRED',
+    hint    = 'Los envíos estimados son una sola fila que usa el checkout: se editan, no se borran.';
+end;
+$$;
+
+create trigger shipping_rates_prevent_delete
+  before delete on public.shipping_rates
+  for each row execute function public.prevent_shipping_rates_removal();
+
+create trigger shipping_rates_prevent_truncate
+  before truncate on public.shipping_rates
+  for each statement execute function public.prevent_shipping_rates_removal();
+
+-- -----------------------------------------------------------------------------
 -- Estados del pedido: transiciones válidas
 --
 --   pending ─► confirmed ─► paid ──────► preparing ─┬─► ready_for_pickup ─► completed  (retiro)
@@ -969,6 +1010,11 @@ grant update (status) on public.perfume_requests to authenticated;
 revoke all on public.rate_limit_events from anon, authenticated;
 revoke all on public.perfume_requests_ranking from anon;
 
+-- Envíos estimados: todos los leen; el admin solo cambia los montos (sin agregar ni borrar filas).
+-- truncate: RLS no lo frena, y Supabase lo otorga por defecto en las tablas de public.
+revoke insert, update, delete, truncate on public.shipping_rates from anon, authenticated;
+grant update (estimate_to_branch, estimate_to_home) on public.shipping_rates to authenticated;
+
 -- -----------------------------------------------------------------------------
 -- Row Level Security
 -- -----------------------------------------------------------------------------
@@ -982,6 +1028,7 @@ alter table public.order_items       enable row level security;
 alter table public.stock_movements   enable row level security;
 alter table public.perfume_requests  enable row level security;
 alter table public.rate_limit_events enable row level security; -- sin políticas: nadie entra
+alter table public.shipping_rates    enable row level security;
 
 -- Convención: las policies llaman `(select public.is_admin())`, no `public.is_admin()`.
 -- Con el select, Postgres lo evalúa una vez por consulta (initPlan); suelto, una vez por
@@ -1061,6 +1108,16 @@ create policy "admin: update perfume_requests"
 create policy "profiles: read own or admin"
   on public.profiles for select to authenticated
   using (id = auth.uid() or (select public.is_admin()));
+
+-- Envíos estimados: el checkout (público) los lee; solo el admin los cambia.
+create policy "shipping: public reads estimates"
+  on public.shipping_rates for select
+  to anon, authenticated
+  using (true);
+
+create policy "shipping: admin updates estimates"
+  on public.shipping_rates for update to authenticated
+  using ((select public.is_admin())) with check ((select public.is_admin()));
 
 -- -----------------------------------------------------------------------------
 -- Storage: fotos de productos (lectura pública, escritura solo admin)

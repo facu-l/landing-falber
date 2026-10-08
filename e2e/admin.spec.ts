@@ -6,13 +6,21 @@ import { createDeliveryOrder, createTestUser, expectOnLogin, signInAdmin } from 
  * Cada test crea su usuario (y su pedido) con contraseñas al azar (e2e/admin-helpers.ts).
  */
 
-test("/admin sin sesión redirige al login", async ({ page }) => {
-  await page.goto("/admin/pedidos");
-  await expectOnLogin(page);
-  await expect(page.getByLabel("Contraseña", { exact: true })).toBeVisible();
-});
+/** Las páginas del panel (todas menos el login): cada una tiene que estar protegida. */
+const PANEL_PAGES = [
+  { path: "/admin/pedidos", heading: "Pedidos" },
+  { path: "/admin/envios", heading: "Envíos" },
+];
 
-test("un usuario que no es admin no ve pedidos", async ({ page }) => {
+for (const { path } of PANEL_PAGES) {
+  test(`${path} sin sesión redirige al login`, async ({ page }) => {
+    await page.goto(path);
+    await expectOnLogin(page);
+    await expect(page.getByLabel("Contraseña", { exact: true })).toBeVisible();
+  });
+}
+
+test("un usuario que no es admin no ve ninguna página del panel", async ({ page }) => {
   const user = await createTestUser({ admin: false });
 
   await signInAdmin(page, user);
@@ -21,9 +29,11 @@ test("un usuario que no es admin no ve pedidos", async ({ page }) => {
   await expectOnLogin(page);
   await expect(page.getByRole("status")).toContainText(`La cuenta ${user.email} no tiene acceso al panel.`);
 
-  await page.goto("/admin/pedidos");
-  await expectOnLogin(page);
-  await expect(page.getByRole("heading", { name: "Pedidos" })).toHaveCount(0);
+  for (const { path, heading } of PANEL_PAGES) {
+    await page.goto(path);
+    await expectOnLogin(page);
+    await expect(page.getByRole("heading", { name: heading })).toHaveCount(0);
+  }
 
   // Puede salir y queda el formulario.
   await page.getByRole("button", { name: "Salir" }).click();

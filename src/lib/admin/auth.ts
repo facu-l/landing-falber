@@ -52,7 +52,7 @@ function isNoSession(error: AuthError) {
 }
 
 /**
- * Primera línea de cada Server Action y página del panel.
+ * Primera línea de cada página del panel (las Server Actions usan requireAdminAction).
  * Devuelve el cliente con la sesión del usuario: RLS sigue decidiendo. Nunca service_role.
  * Sin sesión o sin perfil de admin, al login (que muestra el formulario o "sin acceso").
  *

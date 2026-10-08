@@ -176,6 +176,13 @@
  * ------------------------------------------------------------------------- */
 
 @layer base {
+  /* Al enfocar un campo (useFocusFirstInvalid) o saltar a un ancla, el navegador lo deja
+     debajo del header fijo de la tienda (64 px, 72 px en desktop) con lugar para la
+     etiqueta que va arriba del campo. Medido a 375 px: 80 px dejaba la etiqueta tapada. */
+  html {
+    scroll-padding-top: calc(var(--spacing) * 28);
+  }
+
   body {
     background-color: var(--surface);
     color: var(--text);

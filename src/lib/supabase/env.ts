@@ -6,12 +6,32 @@
  */
 export function supabasePublicEnv() {
   return {
-    url: required("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL),
+    url: supabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL),
     publishableKey: required(
       "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     ),
   };
+}
+
+/**
+ * La URL base del proyecto, sin path. El cliente agrega el de cada servicio
+ * (/rest/v1, /auth/v1): con /rest/v1 pegado, el build falla con
+ * "Invalid path specified in request URL", un error que no dice qué variable revisar.
+ */
+export function supabaseUrl(value: string | undefined): string {
+  const name = "NEXT_PUBLIC_SUPABASE_URL";
+  const url = required(name, value);
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    throw new Error(`${name} no es una URL válida. Ejemplo: https://<ref>.supabase.co`);
+  }
+  if (pathname !== "/") {
+    throw new Error(`${name} tiene que ser la URL base, sin path (sacá "${pathname}").`);
+  }
+  return url;
 }
 
 export function required(name: string, value: string | undefined): string {

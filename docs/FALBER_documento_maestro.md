@@ -683,6 +683,17 @@ El dump **no trae** los jobs de pg_cron ni el historial de migraciones (verifica
 - Un mock que devuelve siempre el mismo objeto no se comporta como una Server Action: cada respuesta real llega como un objeto nuevo. Un efecto que depende de esa identidad (el foco al primer error) solo se prueba con `mockImplementation(async () => ({ ... }))`.
 - Un test que crea pedidos tiene que usar un WhatsApp propio por caso: sin la regla, los primeros casos crearon pedidos y los siguientes fallaron por `TOO_MANY_PENDING_ORDERS`, no por lo que probaban.
 
+**Parte B — hecho (2026-10-08).** Supabase en São Paulo con `0001` y `0002` aplicadas con `supabase db push` y verificadas (RLS en todas las tablas, 2 jobs de pg_cron, bucket `product-images` con sus 3 policies); desde acá `0001` queda congelada y todo cambio de esquema va en una migración nueva. Auth con el registro público apagado, Email habilitado, CAPTCHA Turnstile con el secreto real y el admin con su fila en `profiles`. Widget de Turnstile invisible con los hostnames `falber.com.ar` y `falber.netlify.app`. Deploy de `main` en `falber.netlify.app` con 7 variables (sin `NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL`: en producción las fotos salen de Storage). Probado en producción: compra completa desde el celular (WhatsApp correcto, pedido pendiente en el admin), la cancelación devuelve el stock y la IP se hashea con la IP real (claves distintas desde dos redes). Dominio con Netlify DNS, delegado en NIC Argentina.
+
+**Parte B — falta:** secretos y variables del backup en GitHub (con la passphrase) y una corrida manual; la Site URL de Supabase en `https://falber.com.ar` cuando propague la delegación; el checklist de la sección 11; `/design-review` → `/qa` → `/cso` → `/review`.
+
+**Lecciones de la parte B:**
+- `NEXT_PUBLIC_SUPABASE_URL` es la URL base, sin path: con `/rest/v1` el build falla con "Invalid path specified in request URL", que no dice qué variable revisar. Ahora `supabaseUrl()` la valida y nombra la variable (`src/lib/supabase/env.test.ts`).
+- El primer build con la base vacía dejó `/carrito` y `/checkout` prerenderizados sin productos hasta que se regeneraron. Cargar el catálogo antes del primer deploy, o redeployar después de cargarlo.
+- El widget de Turnstile valida el hostname: el de Netlify (`*.netlify.app`) tiene que estar en la lista además del dominio propio, o el login falla antes de conectar el dominio.
+- Después de cambiar algo en el dashboard de Supabase, recargar y verificar: el switch del registro público apareció prendido después de apagarlo.
+- Con CAPTCHA activo en Auth, un signup sin token devuelve `captcha_failed` antes de mirar si el registro está abierto: esa llamada no prueba que esté cerrado. El registro cerrado se verifica en el dashboard (recargando).
+
 ### Flujo completo
 
 ```

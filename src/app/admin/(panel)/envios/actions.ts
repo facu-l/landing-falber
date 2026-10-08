@@ -2,10 +2,10 @@
 
 import { refresh, updateTag } from "next/cache";
 import { requireAdminAction } from "@/lib/admin/auth";
-import { GENERIC_ADMIN_ORDER_ERROR } from "@/lib/admin/order-errors";
 import {
   parseShippingEstimates,
   SHIPPING_ESTIMATES_NOT_SAVED,
+  SHIPPING_ESTIMATES_SAVE_ERROR,
   type ShippingEstimatesState,
 } from "@/lib/admin/shipping-estimates";
 import { loggableDbError } from "@/lib/db-errors";
@@ -39,7 +39,7 @@ export async function updateShippingEstimates(
 
   if (error) {
     console.error("[admin] guardar los envíos estimados falló", loggableDbError(error));
-    return { status: "error", message: GENERIC_ADMIN_ORDER_ERROR, values };
+    return { status: "error", message: SHIPPING_ESTIMATES_SAVE_ERROR, values };
   }
   if (!data?.length) return { status: "error", message: SHIPPING_ESTIMATES_NOT_SAVED, values };
 

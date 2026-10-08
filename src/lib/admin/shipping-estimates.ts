@@ -9,6 +9,7 @@ import { parseShippingCost } from "./shipping";
  */
 
 export const SHIPPING_ESTIMATE_REQUIRED = "Escribí el envío estimado en pesos (ej. 7000 o 7.000).";
+export const SHIPPING_ESTIMATES_SAVE_ERROR = "No pudimos guardar los envíos estimados. Probá de nuevo en unos segundos.";
 export const SHIPPING_ESTIMATES_NOT_SAVED = "No pudimos guardar los envíos estimados. Recargá la página y probá de nuevo.";
 
 export type ShippingEstimateField = keyof ShippingRates;

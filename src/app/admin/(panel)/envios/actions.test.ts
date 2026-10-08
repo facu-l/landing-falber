@@ -1,7 +1,10 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GENERIC_ADMIN_ORDER_ERROR } from "@/lib/admin/order-errors";
-import { SHIPPING_ESTIMATE_REQUIRED, SHIPPING_ESTIMATES_NOT_SAVED } from "@/lib/admin/shipping-estimates";
+import {
+  SHIPPING_ESTIMATE_REQUIRED,
+  SHIPPING_ESTIMATES_NOT_SAVED,
+  SHIPPING_ESTIMATES_SAVE_ERROR,
+} from "@/lib/admin/shipping-estimates";
 
 const mocks = vi.hoisted(() => ({
   requireAdminAction: vi.fn(),
@@ -106,7 +109,7 @@ describe("updateShippingEstimates", () => {
       updateShippingEstimates({ status: "idle" }, form({ toBranch: "7000", toHome: "9000" })),
     ).resolves.toEqual({
       status: "error",
-      message: GENERIC_ADMIN_ORDER_ERROR,
+      message: SHIPPING_ESTIMATES_SAVE_ERROR,
       values: { toBranch: "7000", toHome: "9000" },
     });
     expect(log).toHaveBeenCalledWith("[admin] guardar los envíos estimados falló", { code: "XX000", message: "fetch failed" });

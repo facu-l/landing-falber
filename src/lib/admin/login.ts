@@ -30,11 +30,12 @@ export const LOGIN_ERRORS = {
 } as const;
 
 /**
- * El formulario llegó sin token: Turnstile no cargó (bloqueador de anuncios, DNS, falta la
- * site key). Esperar no lo arregla, y llamar a Auth sin token solo gasta el límite de intentos.
+ * El formulario llegó sin token: lo más común es que el widget invisible todavía no
+ * terminara (Enter apenas se abre la página); si se repite, Turnstile no carga (bloqueador
+ * de anuncios, DNS). Llamar a Auth sin token solo gastaría el límite de intentos.
  */
 export const TURNSTILE_MISSING =
-  "No pudimos cargar la verificación del navegador. Desactivá el bloqueador de anuncios o probá con otro navegador.";
+  "Todavía no pudimos verificar tu navegador. Esperá unos segundos y volvé a tocar Ingresar. Si se repite, desactivá el bloqueador de anuncios o probá con otro navegador.";
 
 export const GENERIC_LOGIN_ERROR = "No pudimos iniciar sesión. Probá de nuevo en unos minutos.";
 

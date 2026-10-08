@@ -4,12 +4,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TURNSTILE_FIELD } from "@/lib/forms/form-data";
 import type { LoginState } from "@/lib/admin/login-state";
 
-const mocks = vi.hoisted(() => ({ signIn: vi.fn() }));
+const mocks = vi.hoisted(() => ({ signIn: vi.fn(), tokenReady: true, resets: 0 }));
 vi.mock("@/app/admin/login/actions", () => ({ signIn: mocks.signIn }));
-// Sin el script de Cloudflare: entrega un token distinto por cada resetKey.
+// Sin el script de Cloudflare: entrega un token distinto por cada resetKey (o ninguno,
+// con tokenReady = false: el widget todavía no terminó) y cuenta los resets.
 vi.mock("@/components/store/Turnstile", () => ({
   Turnstile: ({ onToken, resetKey }: { onToken: (t: string | null) => void; resetKey: number }) => {
-    useEffect(() => onToken(`token-${resetKey}`), [onToken, resetKey]);
+    useEffect(() => {
+      if (resetKey > 0) mocks.resets++;
+      onToken(mocks.tokenReady ? `token-${resetKey}` : null);
+    }, [onToken, resetKey]);
     return null;
   },
 }));
@@ -20,7 +24,11 @@ const field = (label: string) => screen.getByLabelText(label, { exact: true }) a
 const type = (label: string, value: string) => fireEvent.change(field(label), { target: { value } });
 const submit = () => fireEvent.click(screen.getByRole("button", { name: "Ingresar" }));
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  mocks.tokenReady = true;
+  mocks.resets = 0;
+});
 
 describe("LoginForm", () => {
   it("manda email y contraseña a signIn", async () => {
@@ -55,6 +63,25 @@ describe("LoginForm", () => {
 
     await waitFor(() => expect(mocks.signIn).toHaveBeenCalledTimes(2));
     expect((mocks.signIn.mock.calls[1][1] as FormData).get(TURNSTILE_FIELD)).toBe("token-0");
+  });
+
+  // El admin aprieta Enter antes de que el widget invisible entregue el token: resetearlo
+  // ahí lo haría empezar de nuevo y demoraría todavía más el token.
+  it("si se envió sin token, no resetea el widget", async () => {
+    mocks.tokenReady = false;
+    mocks.signIn.mockImplementation(async () => ({
+      status: "error",
+      message: "No pudimos verificar tu navegador.",
+      values: { email: "admin@falber.test" },
+    }));
+    render(<LoginForm />);
+
+    type("Email", "admin@falber.test");
+    type("Contraseña", "clave");
+    submit();
+    await screen.findByRole("alert");
+
+    expect(mocks.resets).toBe(0);
   });
 
   it("después de un error del servidor pide un token nuevo: cada uno sirve una sola vez", async () => {

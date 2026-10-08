@@ -6,6 +6,7 @@ import { TurnstileField } from "@/components/store/TurnstileField";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { INITIAL_LOGIN_STATE, type LoginState } from "@/lib/admin/login-state";
+import { TURNSTILE_FIELD } from "@/lib/forms/form-data";
 
 /**
  * Login del admin. Si sale bien, la acción redirige a los pedidos; si no, vuelve
@@ -16,9 +17,11 @@ export function LoginForm() {
   const [serverErrors, setServerErrors] = useState(0);
   const [state, formAction, pending] = useActionState(async (prev: LoginState, formData: FormData) => {
     const next = await signIn(prev, formData);
-    // Con errores por campo la acción cortó antes de Auth: el token sigue sin usar.
-    // En cualquier otro error ya se usó (o era inválido): Turnstile tiene que dar uno nuevo.
-    if (next.status === "error" && !next.fieldErrors) setServerErrors((key) => key + 1);
+    // Un token nuevo solo si el anterior llegó a Auth (cada uno sirve una vez). Si no se
+    // mandó (el widget no terminó) o hubo errores por campo, resetear solo demora el token.
+    const sentToken = Boolean(formData.get(TURNSTILE_FIELD));
+    const failedAtAuth = next.status === "error" && !next.fieldErrors;
+    if (sentToken && failedAtAuth) setServerErrors((key) => key + 1);
     return next;
   }, INITIAL_LOGIN_STATE);
   const errors = state.status === "error" ? (state.fieldErrors ?? {}) : {};

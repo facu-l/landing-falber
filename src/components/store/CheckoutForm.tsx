@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { useFocusFirstInvalid } from "@/lib/forms/focus-first-invalid";
 import { LIMITS } from "@/lib/forms/limits";
 import { formatARS } from "@/lib/format";
+import { type ShippingRates, shippingEstimateLines } from "@/lib/shipping/rates";
 import { useIsClient } from "@/lib/use-is-client";
 import { CartSkeleton, EmptyCart } from "./CartView";
 import { FormSection } from "@/components/ui/FormSection";
@@ -28,8 +29,16 @@ type PaymentMethod = "transfer" | "cash";
  *   create_order devuelve el pedido existente en vez de duplicarlo.
  * - El botón se deshabilita mientras la acción corre (doble click).
  * - Al terminar se vacía el carrito y se navega a /pedido/[id].
+ * - shippingEstimates: los envíos estimados de /admin/envios. Sin ellos (no se pudieron
+ *   leer) queda el texto de siempre: son informativos y no bloquean la compra.
  */
-export function CheckoutForm({ index }: { index: VariantIndex }) {
+export function CheckoutForm({
+  index,
+  shippingEstimates = null,
+}: {
+  index: VariantIndex;
+  shippingEstimates?: ShippingRates | null;
+}) {
   const cart = useCart();
   const isClient = useIsClient();
   const router = useRouter();
@@ -144,7 +153,7 @@ export function CheckoutForm({ index }: { index: VariantIndex }) {
               checked={delivery === "delivery"}
               onChange={() => chooseDelivery("delivery")}
               label="Envío a domicilio"
-              detail="El costo del envío se coordina por WhatsApp."
+              detail={<DeliveryDetail estimates={shippingEstimates} />}
             />
           </RadioGroup>
           {delivery === "delivery" && (
@@ -256,7 +265,7 @@ type RadioOptionProps = {
   checked: boolean;
   onChange: () => void;
   label: string;
-  detail: string;
+  detail: ReactNode;
   disabled?: boolean;
 };
 
@@ -283,6 +292,20 @@ function RadioOption({ name, value, checked, onChange, label, detail, disabled =
       <span className="text-body text-text">{label}</span>
       <span className="text-body-sm text-text-secondary">{detail}</span>
     </label>
+  );
+}
+
+function DeliveryDetail({ estimates }: { estimates: ShippingRates | null }) {
+  if (!estimates) return "El costo del envío se coordina por WhatsApp.";
+  return (
+    <>
+      {shippingEstimateLines(estimates).map((line) => (
+        <span key={line} className="block">
+          {line}
+        </span>
+      ))}
+      <span className="block">El costo final se coordina por WhatsApp.</span>
+    </>
   );
 }
 

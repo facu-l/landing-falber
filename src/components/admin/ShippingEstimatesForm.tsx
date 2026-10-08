@@ -27,7 +27,7 @@ export function ShippingEstimatesForm({ estimates }: { estimates: ShippingRates 
         name="toBranch"
         inputMode="numeric"
         autoComplete="off"
-        hint="En pesos, sin centavos."
+        hint="En pesos, sin centavos. 0: envío gratis."
         defaultValue={values.toBranch}
         error={errors.toBranch}
       />
@@ -36,7 +36,7 @@ export function ShippingEstimatesForm({ estimates }: { estimates: ShippingRates 
         name="toHome"
         inputMode="numeric"
         autoComplete="off"
-        hint="En pesos, sin centavos."
+        hint="En pesos, sin centavos. 0: envío gratis."
         defaultValue={values.toHome}
         error={errors.toHome}
       />

@@ -500,6 +500,10 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   eq('admin cambia el estimado a sucursal', updated.estimate_to_branch, 7500);
   eq('admin cambia el estimado a domicilio', updated.estimate_to_home, 9500);
   eq('updated_at se actualiza al cambiar', updated.fresh, true);
+  await db.exec(`${asAdmin} update shipping_rates set estimate_to_branch = 0, estimate_to_home = 1000000`);
+  await reset(db);
+  eq('un estimado en 0 (envío gratis) y uno en $ 1.000.000 (el tope) se aceptan',
+    (await one(db, 'select estimate_to_branch + estimate_to_home n from shipping_rates')).n, 1000000);
   await expectError(db, 'estimado negativo se rechaza', `${asAdmin} update shipping_rates set estimate_to_home = -1`, 'check constraint');
   await expectError(db, 'estimado de más de $ 1.000.000 se rechaza (un cero de más)',
     `${asAdmin} update shipping_rates set estimate_to_branch = 1000001`, 'check constraint');

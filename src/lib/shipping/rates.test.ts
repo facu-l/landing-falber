@@ -18,4 +18,13 @@ describe("shippingEstimateLines", () => {
       `Envío estimado a domicilio ${formatARS(9000)}`,
     ]);
   });
+
+  // 0 lo carga el admin a propósito (una promo): "$ 0" se leería como un error.
+  it("un monto en 0 se muestra como envío gratis", () => {
+    expect(shippingEstimateLines({ toBranch: 0, toHome: 9000 })).toEqual([
+      "Envío a sucursal: gratis",
+      `Envío estimado a domicilio ${formatARS(9000)}`,
+    ]);
+    expect(shippingEstimateLines({ toBranch: 7000, toHome: 0 })[1]).toBe("Envío a domicilio: gratis");
+  });
 });

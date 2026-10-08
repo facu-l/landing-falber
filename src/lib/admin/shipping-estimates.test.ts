@@ -12,8 +12,16 @@ describe("parseShippingEstimates", () => {
     });
   });
 
-  // A diferencia del costo de un pedido, un estimado vacío no es "a coordinar":
-  // el checkout mostraría "$ 0".
+  // 0 es explícito: el checkout lo muestra como envío gratis.
+  it("0 vale: es envío gratis", () => {
+    expect(parseShippingEstimates({ toBranch: "0", toHome: "9000" })).toEqual({
+      success: true,
+      data: { toBranch: 0, toHome: 9000 },
+    });
+  });
+
+  // A diferencia del costo de un pedido, vacío no es "a coordinar": es ambiguo
+  // (¿gratis o sin cargar?). Para envío gratis se escribe 0.
   it("vacío no vale: los dos campos son obligatorios", () => {
     expect(parseShippingEstimates({ toBranch: " ", toHome: "" })).toEqual({
       success: false,

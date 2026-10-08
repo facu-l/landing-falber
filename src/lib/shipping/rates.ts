@@ -15,9 +15,12 @@ export function toShippingRates(row: ShippingRatesRow): ShippingRates {
   return { toBranch: row.estimate_to_branch, toHome: row.estimate_to_home };
 }
 
+/** 0 lo carga el admin a propósito (una promo): se muestra como gratis, no como "$ 0". */
 export function shippingEstimateLines(rates: ShippingRates): string[] {
-  return [
-    `Envío estimado a sucursal ${formatARS(rates.toBranch)}`,
-    `Envío estimado a domicilio ${formatARS(rates.toHome)}`,
-  ];
+  return [estimateLine("sucursal", rates.toBranch), estimateLine("domicilio", rates.toHome)];
+}
+
+function estimateLine(destination: "sucursal" | "domicilio", amount: number): string {
+  if (amount === 0) return `Envío a ${destination}: gratis`;
+  return `Envío estimado a ${destination} ${formatARS(amount)}`;
 }

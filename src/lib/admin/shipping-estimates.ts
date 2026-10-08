@@ -5,7 +5,7 @@ import { parseShippingCost } from "./shipping";
 /*
  * Envíos estimados en /admin/envios: los dos montos que el checkout muestra debajo de
  * "Envío a domicilio". Reusa el parser del costo de envío de un pedido (mismo formato
- * y tope), pero acá vacío no vale: el checkout mostraría "$ 0".
+ * y tope), pero acá vacío no vale: es ambiguo. 0 sí: el checkout muestra "gratis".
  */
 
 export const SHIPPING_ESTIMATE_REQUIRED = "Escribí el envío estimado en pesos (ej. 7000 o 7.000).";

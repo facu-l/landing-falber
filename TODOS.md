@@ -90,7 +90,7 @@
 
 **Effort:** S
 **Priority:** P2
-**Depends on:** El dominio de producción definido.
+**Depends on:** El dominio en producción: `falber.com.ar` (Fase 6, parte B).
 
 ### Medir los largos igual que Postgres
 

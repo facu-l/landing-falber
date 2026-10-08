@@ -647,7 +647,15 @@ Dos cambios sobre lo pedido, acordados antes de codear: el CAPTCHA es el nativo 
 
 **Antes de la parte B: envíos estimados** (`feat/shipping-estimates`, decisiones 81 a 86). Toca la base, así que va antes del primer deploy.
 
-**Parte B — nube y deploy.** Proyecto de Supabase con `0001` y `0002` (pg_cron), Auth (sección 11), secretos y variable del backup, deploy en Netlify. Después, `/design-review` → `/qa` → `/cso` → `/review`.
+**Parte B — nube, deploy y dominio.** Proyecto de Supabase con `0001` y `0002` (pg_cron), Auth (sección 11), secretos y variables del workflow, deploy en Netlify. Después, `/design-review` → `/qa` → `/cso` → `/review`.
+
+**Dominio: `falber.com.ar`.** En este orden, porque cada paso depende del anterior:
+1. Deploy y pruebas en la URL de Netlify (`*.netlify.app`).
+2. Conectar `falber.com.ar` en Netlify (Domain management). En NIC Argentina, las delegaciones del dominio apuntan a los nameservers que da Netlify DNS. Netlify emite el certificado HTTPS solo. Decidir el canónico (`falber.com.ar` o `www.falber.com.ar`): el otro redirige a ese.
+3. Con el dominio andando: Supabase → Authentication → URL Configuration → Site URL = `https://falber.com.ar`; en Cloudflare, el widget de Turnstile con `falber.com.ar` como hostname.
+4. TODOS.md → "Atar el token de Turnstile a la acción y al dominio": queda desbloqueado (`SITE_HOSTNAMES` = `falber.com.ar`, más el host de Netlify si se siguen usando los deploys de preview).
+
+El dominio no se difunde hasta tener el catálogo y las fotos reales cargados (TODOS.md → Catálogo).
 
 **Backups (decisión 76).** El workflow `.github/workflows/keepalive-backup.yml` corre todos los días a las 03:17 y a mano (Actions → Keepalive y backup → Run workflow). Para activarlo, en GitHub → Settings → Secrets and variables → Actions:
 - Secretos: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_DB_URL` (Supabase → Connect → **Session pooler**, puerto 5432) y `BACKUP_PASSPHRASE` (generada, guardada también en un gestor de contraseñas: sin ella el backup no sirve).
@@ -732,6 +740,8 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 - [ ] Bucket `product-images` y sus 3 policies creados (`select * from storage.buckets`; `select policyname from pg_policies where schemaname = 'storage'`). Si las tablas de Storage no existieran al migrar, `0001` falla con `STORAGE_TABLES_MISSING` (solo en local, con el rol `falber_local_dev` de `supabase/roles.sql`, se omite con un NOTICE).
 - [ ] GitHub Action de keepalive + backup corriendo: secretos, `KEEPALIVE_ENABLED` y `BACKUP_ENABLED` cargados (Fase 6 → Backups), una corrida a mano en verde, y el artefacto descargado se descifra con la passphrase.
 - [ ] Deploy en Netlify (no Vercel Hobby: prohíbe uso comercial).
+- [ ] `https://falber.com.ar` responde con HTTPS válido y la variante sin elegir (con o sin `www`) redirige a la canónica. Site URL de Supabase y hostname del widget de Turnstile con `falber.com.ar` (Fase 6 → Dominio).
+- [ ] Catálogo y fotos reales cargados antes de difundir el dominio (nada del seed de prueba en producción).
 - [ ] Prueba en iPhone y Android; aviso de datos personales en el checkout.
 
 ---

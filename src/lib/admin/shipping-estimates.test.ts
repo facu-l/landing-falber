@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { SHIPPING_COST_ERRORS } from "./shipping";
-import { parseShippingEstimates, SHIPPING_ESTIMATE_REQUIRED } from "./shipping-estimates";
+import { migrationSql } from "@/test/migration";
+import { SHIPPING_COST_ERRORS, SHIPPING_COST_MAX } from "./shipping";
+import { getShippingEstimatesForAdmin, parseShippingEstimates, SHIPPING_ESTIMATE_REQUIRED } from "./shipping-estimates";
 
 describe("parseShippingEstimates", () => {
   it("acepta los montos como se escriben (4500, 4.500, $ 4.500)", () => {
@@ -36,5 +37,38 @@ describe("parseShippingEstimates", () => {
       success: false,
       fieldErrors: { toHome: SHIPPING_ESTIMATE_REQUIRED },
     });
+  });
+});
+
+// El parser y el check de la base repiten el tope: si cambia uno solo, el admin guarda
+// un monto que la base rechaza con un error genérico (o al revés).
+describe("el tope de los estimados coincide con la migración", () => {
+  it.each(["estimate_to_branch", "estimate_to_home"])("%s usa SHIPPING_COST_MAX", (column) => {
+    // \s+: las columnas están alineadas con espacios en la migración.
+    expect(migrationSql()).toMatch(
+      new RegExp(`${column}\\s+integer not null check \\(${column} between 0 and ${SHIPPING_COST_MAX}\\)`),
+    );
+  });
+});
+
+describe("getShippingEstimatesForAdmin", () => {
+  /** El cliente de la sesión, solo con lo que usa la lectura: from().select().single(). */
+  const client = (result: { data: unknown; error: unknown }) =>
+    ({ from: () => ({ select: () => ({ single: async () => result }) }) }) as unknown as Parameters<
+      typeof getShippingEstimatesForAdmin
+    >[0];
+
+  it("devuelve los montos guardados", async () => {
+    const row = { estimate_to_branch: 7000, estimate_to_home: 9000, id: true, updated_at: "" };
+    await expect(getShippingEstimatesForAdmin(client({ data: row, error: null }))).resolves.toEqual({
+      toBranch: 7000,
+      toHome: 9000,
+    });
+  });
+
+  it("si la lectura falla, lanza (la página muestra error.tsx)", async () => {
+    await expect(
+      getShippingEstimatesForAdmin(client({ data: null, error: { message: "fetch failed" } })),
+    ).rejects.toThrow("No se pudieron leer los envíos estimados: fetch failed");
   });
 });

@@ -22,14 +22,16 @@ export function supabasePublicEnv() {
 export function supabaseUrl(value: string | undefined): string {
   const name = "NEXT_PUBLIC_SUPABASE_URL";
   const url = required(name, value);
-  let pathname: string;
+  let parsed: URL;
   try {
-    pathname = new URL(url).pathname;
+    parsed = new URL(url);
   } catch {
     throw new Error(`${name} no es una URL válida. Ejemplo: https://<ref>.supabase.co`);
   }
-  if (pathname !== "/") {
-    throw new Error(`${name} tiene que ser la URL base, sin path (sacá "${pathname}").`);
+  // Query y fragmento también rompen las URLs que arma el cliente.
+  const extra = `${parsed.pathname === "/" ? "" : parsed.pathname}${parsed.search}${parsed.hash}`;
+  if (extra) {
+    throw new Error(`${name} tiene que ser la URL base, sin path (sacá "${extra}").`);
   }
   return url;
 }

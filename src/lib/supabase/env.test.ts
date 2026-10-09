@@ -24,7 +24,12 @@ describe("supabaseUrl", () => {
 
   // Con /rest/v1 el build falla con "Invalid path specified in request URL":
   // el cliente de Supabase ya agrega el path de cada servicio.
-  it.each(["https://abc.supabase.co/rest/v1", "https://abc.supabase.co/rest/v1/"])(
+  it.each([
+    "https://abc.supabase.co/rest/v1",
+    "https://abc.supabase.co/rest/v1/",
+    "https://abc.supabase.co/?x=1",
+    "https://abc.supabase.co/#x",
+  ])(
     "rechaza %s nombrando la variable y pidiendo la URL sin path",
     (value) => {
       expect(() => supabaseUrl(value)).toThrow(/NEXT_PUBLIC_SUPABASE_URL.*sin path/);

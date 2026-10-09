@@ -3,8 +3,9 @@ import { cn } from "@/lib/cn";
 
 export type ButtonVariant = "primary" | "secondary";
 
+// min-h-11: el padding y la línea del label suman 42 px; el área táctil mínima es 44.
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-none px-6 py-3 " +
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-none px-6 py-3 " +
   "text-label uppercase transition-colors duration-150 " +
   "disabled:cursor-not-allowed disabled:opacity-50";
 

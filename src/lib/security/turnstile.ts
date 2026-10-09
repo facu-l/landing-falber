@@ -66,7 +66,7 @@ export async function verifyTurnstile(
   if (result.metadata?.result_with_testing_key === true) return true;
 
   const sameAction = result.action === action;
-  const knownHost = typeof result.hostname === "string" && hostnames.includes(result.hostname);
+  const knownHost = typeof result.hostname === "string" && hostnames.includes(result.hostname.toLowerCase());
   if (!sameAction || !knownHost) {
     console.warn("[turnstile] token de otra acción o dominio", {
       expected: action,
@@ -76,12 +76,4 @@ export async function verifyTurnstile(
     return false;
   }
   return true;
-}
-
-/** "falber.com.ar, falber.netlify.app" → ["falber.com.ar", "falber.netlify.app"]. */
-export function parseHostnames(value: string): string[] {
-  return value
-    .split(",")
-    .map((hostname) => hostname.trim().toLowerCase())
-    .filter(Boolean);
 }

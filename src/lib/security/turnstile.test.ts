@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-const { TURNSTILE_VERIFY_URL, parseHostnames, verifyTurnstile } = await import("./turnstile");
+const { TURNSTILE_VERIFY_URL, verifyTurnstile } = await import("./turnstile");
 
 const SECRET = "1x0000000000000000000000000000000AA";
 const BINDING = { action: "checkout", hostnames: ["falber.com.ar"] } as const;
@@ -92,15 +92,23 @@ describe("verifyTurnstile", () => {
       });
       await expect(verifyTurnstile("token", { secret: SECRET, ...BINDING, fetchImpl })).resolves.toBe(true);
     });
-  });
-});
 
-describe("parseHostnames", () => {
-  it("separa por comas y saca espacios y vacíos", () => {
-    expect(parseHostnames(" falber.com.ar, falber.netlify.app ,,")).toEqual(["falber.com.ar", "falber.netlify.app"]);
-  });
+    // El atajo solo puede aceptar lo que Cloudflare ya aprobó: si se mueve antes del
+    // chequeo de success o se afloja a "truthy", estos casos lo agarran.
+    it.each([
+      ["secreto de prueba que siempre falla", { success: false, metadata: { result_with_testing_key: true } }],
+      ["marca en false con otra acción", { ...REAL_OK, action: "encargo", metadata: { result_with_testing_key: false } }],
+      ["marca que no es booleana con otro dominio", { ...REAL_OK, hostname: "evil.example", metadata: { result_with_testing_key: "true" } }],
+    ])("el atajo del secreto de prueba no abre la puerta: %s", async (_, result) => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      await expect(verifyTurnstile("token", { secret: SECRET, ...BINDING, fetchImpl: fakeFetch(result) })).resolves.toBe(
+        false,
+      );
+    });
 
-  it("pasa a minúsculas (un hostname no distingue mayúsculas; el navegador lo manda en minúsculas)", () => {
-    expect(parseHostnames("Falber.com.ar")).toEqual(["falber.com.ar"]);
+    it("compara el dominio sin distinguir mayúsculas", async () => {
+      const fetchImpl = fakeFetch({ ...REAL_OK, hostname: "Falber.com.ar" });
+      await expect(verifyTurnstile("token", { secret: SECRET, ...BINDING, fetchImpl })).resolves.toBe(true);
+    });
   });
 });

@@ -8,8 +8,9 @@ import { cn } from "@/lib/cn";
 
 const container = "mx-auto w-full max-w-7xl px-4 md:px-8";
 const sectionTitle = "text-h1 text-text uppercase";
+// min-h-11: área táctil de 44 px, como "Volver al catálogo".
 const textLink =
-  "text-label text-text-secondary uppercase underline-offset-8 transition-colors duration-150 hover:text-text hover:underline";
+  "inline-flex min-h-11 items-center text-label text-text-secondary uppercase underline-offset-8 transition-colors duration-150 hover:text-text hover:underline";
 
 export default async function Home() {
   const catalog = await getCatalog();

@@ -16,7 +16,7 @@ export function CartLink({ className }: { className?: string }) {
   const label = count === 0 ? "Carrito" : `Carrito, ${count} ${count === 1 ? "unidad" : "unidades"}`;
 
   return (
-    <Link href="/carrito" aria-label={label} className={cn("relative flex min-w-11 justify-center gap-2 md:min-w-0", className)}>
+    <Link href="/carrito" aria-label={label} className={cn("relative flex min-h-11 min-w-11 items-center justify-center gap-2 md:min-w-0", className)}>
       <span className="hidden md:inline">Carrito</span>
       <svg
         aria-hidden

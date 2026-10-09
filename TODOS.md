@@ -98,7 +98,31 @@
 
 **Why:** Supabase otorga `ALL` por defecto en las tablas de `public`, y `0001` solo revoca `insert`, `update` y `delete`. `TRUNCATE` no pasa por RLS. No es explotable por la API (PostgREST no expone `TRUNCATE`), pero contradice "nadie borra el historial". En `shipping_rates` ya está revocado (decisión 81). Visto en el `/review` de los envíos estimados.
 
-**Context:** Antes del primer deploy se edita `0001` directo. Señal: antes de la parte B, si sobra tiempo; si no, con la primera migración nueva.
+**Context:** Ya hubo deploy: `0001` está congelada, así que va en una migración nueva (`0003_...`). Señal: con la primera migración nueva.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** —
+
+### robots.txt y sitemap.xml
+
+**What:** `src/app/robots.ts` (permitir la tienda, `disallow` de `/admin`, `/carrito`, `/checkout` y `/pedido`) y `src/app/sitemap.ts` con la home, el catálogo, encargos y cada producto activo (desde `getCatalog()`).
+
+**Why:** Hoy los dos responden 404 (visto en el `/qa` del 2026-10-09). No expone nada: las páginas privadas ya llevan `noindex`. Ayuda a que Google encuentre los productos nuevos sin esperar a recorrer los links.
+
+**Context:** Guías en `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/01-metadata/` (`robots.md`, `sitemap.md`). Señal: cuando el catálogo real esté cargado y se difunda el dominio.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** Catálogo real cargado.
+
+### Texto del catálogo vacío cuando no hay filtros
+
+**What:** Si el catálogo queda vacío solo por la presentación elegida desde el menú (ej. "Frascos" sin frascos cargados), decir "Todavía no hay frascos" en vez de "No encontramos perfumes con esos filtros".
+
+**Why:** Desde el menú no se eligió ningún filtro: el texto culpa al cliente de algo que no hizo (visto en el `/qa` del 2026-10-09, severidad baja).
+
+**Context:** Estado vacío de `src/app/(store)/catalogo/page.tsx`. Desaparece solo cuando haya frascos cargados.
 
 **Effort:** S
 **Priority:** P3

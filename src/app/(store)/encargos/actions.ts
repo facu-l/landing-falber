@@ -29,7 +29,7 @@ export async function createPerfumeRequest(_prev: RequestState, formData: FormDa
   const parsed = parseRequest(values);
   if (!parsed.success) return { status: "error", fieldErrors: parsed.fieldErrors, values };
 
-  const human = await verifyHumanRequest(formData);
+  const human = await verifyHumanRequest(formData, "encargo");
   if (!human.ok) return { status: "error", message: TURNSTILE_FAILED, values };
 
   try {

@@ -172,7 +172,7 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
             {state.message}
           </p>
         )}
-        <TurnstileField resetKey={serverErrors} />
+        <TurnstileField action="encargo" resetKey={serverErrors} />
         <Button type="submit" disabled={pending} className="w-full md:w-auto">
           {pending ? "Enviando encargo" : "Enviar encargo"}
         </Button>

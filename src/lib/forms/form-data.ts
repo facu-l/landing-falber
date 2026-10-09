@@ -9,6 +9,13 @@
 export const TURNSTILE_FIELD = "cf-turnstile-response";
 
 /**
+ * Acción que manda el widget de cada formulario. El servidor exige la misma: un
+ * token resuelto en un formulario no sirve en otro (decisión 87). La del login
+ * la verifica Supabase Auth, que no la mira: queda para las métricas de Cloudflare.
+ */
+export type TurnstileAction = "checkout" | "encargo" | "login";
+
+/**
  * Los campos de texto del formulario, para devolvérselos al cliente si algo falla:
  * React resetea el form después de la acción y sin esto se pierde lo escrito.
  * Deja afuera los campos internos de Next ($ACTION_...) y los de `omit` (ej. el token de Turnstile).

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { TURNSTILE_FIELD } from "@/lib/forms/form-data";
+import { TURNSTILE_FIELD, type TurnstileAction } from "@/lib/forms/form-data";
 import { Turnstile } from "./Turnstile";
 
 /*
@@ -9,14 +9,14 @@ import { Turnstile } from "./Turnstile";
  * propio input oculto (decisión 38). El formulario solo cambia resetKey después de
  * cada error del servidor: el token ya se usó y hace falta uno nuevo.
  */
-export function TurnstileField({ resetKey }: { resetKey: number }) {
+export function TurnstileField({ action, resetKey }: { action: TurnstileAction; resetKey: number }) {
   const [token, setToken] = useState<string | null>(null);
   const handleToken = useCallback((value: string | null) => setToken(value), []);
 
   return (
     <>
       <input type="hidden" name={TURNSTILE_FIELD} value={token ?? ""} />
-      <Turnstile onToken={handleToken} resetKey={resetKey} />
+      <Turnstile action={action} onToken={handleToken} resetKey={resetKey} />
     </>
   );
 }

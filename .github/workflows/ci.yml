@@ -77,6 +77,7 @@ jobs:
           echo "NEXT_PUBLIC_WHATSAPP_NUMBER=5492355481449" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000BB" >> "$GITHUB_ENV"
           echo "TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA" >> "$GITHUB_ENV"
+          echo "SITE_HOSTNAMES=localhost" >> "$GITHUB_ENV"
           echo "IP_HASH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       # Build en un paso propio: si falla (ej. Google Fonts), el error es claro
       # y no consume el timeout del webServer de Playwright.

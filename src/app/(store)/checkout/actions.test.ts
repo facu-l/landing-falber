@@ -13,7 +13,10 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: async () => mocks.headers }));
 vi.mock("next/cache", () => ({ updateTag: mocks.updateTag }));
 vi.mock("@/lib/supabase/service", () => ({ createServiceClient: () => ({ rpc: mocks.rpc }) }));
-vi.mock("@/lib/security/turnstile", () => ({ verifyTurnstile: mocks.verifyTurnstile }));
+vi.mock("@/lib/security/turnstile", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/security/turnstile")>()),
+  verifyTurnstile: mocks.verifyTurnstile,
+}));
 
 const { createOrder } = await import("./actions");
 
@@ -46,6 +49,7 @@ function form(overrides: Record<string, string> = {}) {
 beforeEach(() => {
   vi.stubEnv("TURNSTILE_SECRET_KEY", "1x0000000000000000000000000000000AA");
   vi.stubEnv("IP_HASH_SECRET", "s".repeat(64));
+  vi.stubEnv("SITE_HOSTNAMES", "falber.com.ar");
   mocks.verifyTurnstile.mockResolvedValue(true);
   mocks.rpc.mockResolvedValue({
     data: { order_id: ORDER_ID, order_number: "FAL-0042", duplicate: false },
@@ -81,10 +85,12 @@ describe("createOrder", () => {
     expect(mocks.updateTag).toHaveBeenCalledWith("catalog");
   });
 
-  it("verifica Turnstile con el token del widget y la IP del cliente", async () => {
+  it("verifica Turnstile con el token del widget, la acción del checkout y la IP del cliente", async () => {
     await createOrder({ status: "idle" }, form());
     expect(mocks.verifyTurnstile).toHaveBeenCalledWith("token-ok", {
       secret: "1x0000000000000000000000000000000AA",
+      action: "checkout",
+      hostnames: ["falber.com.ar"],
       remoteIp: "203.0.113.7",
     });
   });

@@ -50,7 +50,7 @@ export function LoginForm() {
           {state.message}
         </p>
       )}
-      <TurnstileField resetKey={serverErrors} />
+      <TurnstileField action="login" resetKey={serverErrors} />
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Ingresando" : "Ingresar"}
       </Button>

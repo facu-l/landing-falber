@@ -31,7 +31,7 @@ export default function ProductPage({ params }: PageProps<"/producto/[slug]">) {
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-10 md:px-8 md:py-16">
       <Link
         href="/catalogo"
-        className="self-start text-label text-text-secondary uppercase underline-offset-8 hover:text-text hover:underline"
+        className="inline-flex min-h-11 items-center self-start text-label text-text-secondary uppercase underline-offset-8 hover:text-text hover:underline"
       >
         Volver al catálogo
       </Link>

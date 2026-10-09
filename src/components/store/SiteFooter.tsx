@@ -1,6 +1,9 @@
 import Link from "next/link";
 
-const linkClasses = "text-body-sm text-text-secondary transition-colors duration-150 hover:text-text";
+// min-h-11: área táctil de 44 px; reemplaza el gap entre links. El -mt-3 de cada columna
+// compensa el aire de la caja para que el primer renglón siga alineado con FALBER.
+const linkClasses =
+  "inline-flex min-h-11 items-center text-body-sm text-text-secondary transition-colors duration-150 hover:text-text";
 
 export function SiteFooter() {
   return (
@@ -11,7 +14,7 @@ export function SiteFooter() {
           <p className="text-body-sm text-text-muted">Fragrance experience</p>
         </div>
 
-        <nav aria-label="Tienda" className="flex flex-col gap-3">
+        <nav aria-label="Tienda" className="-mt-3 flex flex-col">
           <Link href="/catalogo" className={linkClasses}>
             Catálogo
           </Link>
@@ -23,7 +26,7 @@ export function SiteFooter() {
           </Link>
         </nav>
 
-        <div className="flex flex-col gap-3">
+        <div className="-mt-3 flex flex-col">
           <a
             href="https://www.instagram.com/falber.parfum/"
             target="_blank"

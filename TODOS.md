@@ -80,18 +80,6 @@
 **Priority:** P2
 **Depends on:** —
 
-### Atar el token de Turnstile a la acción y al dominio
-
-**What:** Pasar `action` al widget (`checkout` / `encargo`) y, en `verifyTurnstile`, exigir `result.action` igual al esperado y `result.hostname` dentro de una lista (env `SITE_HOSTNAMES`).
-
-**Why:** Hoy solo se mira `success`: un token resuelto en `/checkout` sirve en `/encargos`, y uno de un deploy de preview sirve en producción. Es defensa en profundidad (los tokens son de un solo uso y hay límite por IP).
-
-**Context:** `src/lib/security/turnstile.ts` y `verify-request.ts` (decisión 46). Test con `fetch` inyectado: `success: true` con otra `action` → rechazado. Señal: antes del lanzamiento, junto con la configuración de dominios en Cloudflare.
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** El dominio en producción: `falber.com.ar` (Fase 6, parte B).
-
 ### Medir los largos igual que Postgres
 
 **What:** Que zod cuente caracteres como `length()` de Postgres (puntos de código, `[...value].length`) en vez de unidades UTF-16.

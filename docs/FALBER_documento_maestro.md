@@ -1,6 +1,6 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v6.2 · 2026-10-10
+Tienda online de decants y perfumes · Next.js + Supabase · v6.3 · 2026-10-10
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
@@ -11,6 +11,7 @@ Tienda online de decants y perfumes · Next.js + Supabase · v6.2 · 2026-10-10
 **v6.0:** Fase 6, parte A (código antes del lanzamiento) en `feat/launch-hardening`: sesión del admin endurecida (cookies `httpOnly`, fallos de Auth, `requireAdminAction`, `(select is_admin())`), CAPTCHA nativo de Supabase en el login, GitHub Action de keepalive y backup cifrado, largos de envío en la base, logs sin datos personales y foco al primer error. Decisiones 71 a 80 (sección 3.K), backups, lecciones, plan de tests y checklist.
 **v6.1:** envíos estimados en el checkout (`feat/shipping-estimates`): el checkout muestra el envío estimado a sucursal y a domicilio, que el admin edita en `/admin/envios`. Decisiones 81 a 86 (sección 3.L).
 **v6.2:** Fase 6, parte B (`feat/launch-deploy`, PR #10): la tienda en producción en `https://falber.com.ar` (Supabase, Netlify, dominio, backup). Token de Turnstile atado a la acción y al dominio, con `SITE_HOSTNAMES` validada en el build de producción (decisión 87), headers contra el embebido (decisión 88), arreglos de `/design-review` (áreas táctiles de 44 px, Destacados con dos productos) y resultados de `/qa`, `/cso` y `/review` (sección 3.M); lecciones y checklist.
+**v6.3:** cierre de la Fase 6, parte B (`docs/phase-6-part-b-closure`): deploy de producción y compra real `FAL-0003` verificados en `falber.com.ar`, y el catálogo vacío deja de hablar de filtros cuando se llega desde el menú (`emptyCatalogMessage()`).
 
 | Archivo | Para qué sirve |
 |---|---|

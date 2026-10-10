@@ -1,6 +1,6 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v6.2 · 2026-10-10
+Tienda online de decants y perfumes · Next.js + Supabase · v6.3 · 2026-10-10
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
@@ -11,6 +11,7 @@ Tienda online de decants y perfumes · Next.js + Supabase · v6.2 · 2026-10-10
 **v6.0:** Fase 6, parte A (código antes del lanzamiento) en `feat/launch-hardening`: sesión del admin endurecida (cookies `httpOnly`, fallos de Auth, `requireAdminAction`, `(select is_admin())`), CAPTCHA nativo de Supabase en el login, GitHub Action de keepalive y backup cifrado, largos de envío en la base, logs sin datos personales y foco al primer error. Decisiones 71 a 80 (sección 3.K), backups, lecciones, plan de tests y checklist.
 **v6.1:** envíos estimados en el checkout (`feat/shipping-estimates`): el checkout muestra el envío estimado a sucursal y a domicilio, que el admin edita en `/admin/envios`. Decisiones 81 a 86 (sección 3.L).
 **v6.2:** Fase 6, parte B (`feat/launch-deploy`, PR #10): la tienda en producción en `https://falber.com.ar` (Supabase, Netlify, dominio, backup). Token de Turnstile atado a la acción y al dominio, con `SITE_HOSTNAMES` validada en el build de producción (decisión 87), headers contra el embebido (decisión 88), arreglos de `/design-review` (áreas táctiles de 44 px, Destacados con dos productos) y resultados de `/qa`, `/cso` y `/review` (sección 3.M); lecciones y checklist.
+**v6.3:** cierre de la Fase 6, parte B (`docs/phase-6-part-b-closure`): deploy de producción y compra real `FAL-0003` verificados en `falber.com.ar`, y el catálogo vacío deja de hablar de filtros cuando se llega desde el menú (`emptyCatalogMessage()`).
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -695,7 +696,7 @@ El dump **no trae** los jobs de pg_cron ni el historial de migraciones (verifica
 
 **Auditorías de la parte B (2026-10-09):** `SITE_HOSTNAMES` cargada en Netlify (All scopes) y el Deploy Preview del PR #10 responde 401 sin login. `/design-review`: 6 hallazgos, 4 arreglados (B → A-); el hero placeholder ya estaba en TODOS. `/qa`: salud 99/100, compra y encargo completos contra la rama, 2 hallazgos bajos a TODOS (`robots.txt`/`sitemap.xml`, texto del catálogo vacío). `/cso` (estático, 10 min, parcial): sin hallazgos en precios, `get_order_summary`, grants de las RPC y workflows; quedaron sin cubrir secretos del historial, dependencias y headers (scanners solo en Linux/macOS). `/review`: 7 revisores más red team; arreglados la validación de `SITE_HOSTNAMES` con freno en el build, los headers (decisión 88), las mayúsculas del hostname, la URL de Supabase con query y la documentación de los previews.
 
-**Parte B — falta:** mergear, comprobar el deploy de producción y hacer una compra real en `falber.com.ar` (prueba Turnstile con el secreto real y la decisión 87), cancelándola desde el admin. Después, el catálogo real antes de difundir el dominio.
+**Parte B — cierre (2026-10-10):** PR #10 mergeado (`6069326`) y deploy de producción publicado: pasó el freno del build (decisión 87) y sirve los headers de la decisión 88 (`X-Frame-Options: DENY`, `frame-ancestors 'none'`, `Referrer-Policy`; HSTS y `nosniff` los agrega Netlify). Compra real `FAL-0003` en `falber.com.ar`: pasó Turnstile con el secreto real y el token atado a la acción y al dominio; cancelada desde el admin, el stock volvió (`sale -1`, `order_cancelled +1`). Falta solo el catálogo real (fotos y hero incluidos) antes de difundir el dominio.
 
 **Lecciones de la parte B:**
 - `NEXT_PUBLIC_SUPABASE_URL` es la URL base, sin path: con `/rest/v1` el build falla con "Invalid path specified in request URL", que no dice qué variable revisar. Ahora `supabaseUrl()` la valida y nombra la variable (`src/lib/supabase/env.test.ts`).

@@ -10,6 +10,7 @@ import {
   GENDER_LABELS,
   VARIANT_TYPE_LABELS,
   brandsOf,
+  emptyCatalogMessage,
   filterCatalog,
   hasActiveFilters,
   parseCatalogFilters,
@@ -65,7 +66,7 @@ async function CatalogResults({ searchParams }: Pick<PageProps<"/catalogo">, "se
           ))}
         </ul>
       ) : (
-        <EmptyState />
+        <EmptyState filters={filters} />
       )}
     </>
   );
@@ -131,17 +132,20 @@ function FilterForm({ filters, brands }: { filters: CatalogFilters; brands: stri
   );
 }
 
-function EmptyState() {
+function EmptyState({ filters }: { filters: CatalogFilters }) {
+  const { title, hint } = emptyCatalogMessage(filters);
+
   return (
     <div className="flex flex-col items-start gap-6 py-16">
-      <p className="text-h2 text-text">No encontramos perfumes con esos filtros.</p>
-      <p className="max-w-[48ch] text-body text-text-secondary">
-        Probá con otra marca o sacá algún filtro. Si buscás uno en particular, podés encargarlo.
-      </p>
+      <p className="text-h2 text-text">{title}</p>
+      <p className="max-w-[48ch] text-body text-text-secondary">{hint}</p>
       <div className="flex flex-wrap items-center gap-6">
-        <Link href="/catalogo" className={buttonClasses("secondary")}>
-          Ver todo
-        </Link>
+        {/* Sin filtros ya se está viendo todo: el link no llevaría a ningún lado. */}
+        {hasActiveFilters(filters) && (
+          <Link href="/catalogo" className={buttonClasses("secondary")}>
+            Ver todo
+          </Link>
+        )}
         <Link
           href="/encargos"
           className="text-label text-text-secondary uppercase underline-offset-8 hover:text-text hover:underline"

@@ -4,6 +4,7 @@ import {
   type CatalogProduct,
   type CatalogVariant,
   brandsOf,
+  emptyCatalogMessage,
   featuredProducts,
   filterCatalog,
   fromPrice,
@@ -162,4 +163,31 @@ describe("filtros de /catalogo", () => {
   it("sin coincidencias devuelve una lista vacía", () => {
     expect(filterCatalog(catalog, parseCatalogFilters({ q: "inexistente" }))).toEqual([]);
   });
+});
+
+describe("emptyCatalogMessage", () => {
+  it("con solo la presentación (link del menú) dice que todavía no hay, sin culpar al filtro", () => {
+    const message = emptyCatalogMessage(parseCatalogFilters({ tipo: "full_bottle" }));
+    expect(message.title).toBe("Todavía no hay frascos.");
+    expect(message.title).not.toMatch(/filtros/);
+  });
+
+  it("nombra la presentación elegida", () => {
+    expect(emptyCatalogMessage(parseCatalogFilters({ tipo: "decant" })).title).toBe(
+      "Todavía no hay decants.",
+    );
+  });
+
+  it("sin ningún filtro dice que el catálogo está vacío", () => {
+    expect(emptyCatalogMessage(parseCatalogFilters({})).title).toBe("Todavía no hay perfumes cargados.");
+  });
+
+  it.each([{ q: "inexistente" }, { marca: "Azzaro" }, { genero: "unisex" }, { tipo: "full_bottle", marca: "Azzaro" }])(
+    "con filtros elegidos (%j) habla de los filtros",
+    (params) => {
+      expect(emptyCatalogMessage(parseCatalogFilters(params)).title).toBe(
+        "No encontramos perfumes con esos filtros.",
+      );
+    },
+  );
 });

@@ -134,6 +134,36 @@ export function hasActiveFilters(filters: CatalogFilters): boolean {
   return Boolean(filters.q || filters.brand || filters.gender || filters.type);
 }
 
+export type EmptyCatalogMessage = {
+  title: string;
+  hint: string;
+};
+
+/**
+ * Texto del catálogo sin resultados según por qué está vacío. Los links del menú
+ * ("Decants", "Frascos") llegan con solo ?tipo=: ahí el cliente no eligió filtros
+ * y el texto no puede culparlo de algo que no hizo.
+ */
+export function emptyCatalogMessage(filters: CatalogFilters): EmptyCatalogMessage {
+  // Solo la presentación: el link del menú.
+  if (filters.type && !filters.q && !filters.brand && !filters.gender) {
+    return {
+      title: `Todavía no hay ${VARIANT_TYPE_LABELS[filters.type].toLowerCase()}.`,
+      hint: "Estamos sumando perfumes. Si buscás uno en particular, podés encargarlo.",
+    };
+  }
+  if (!hasActiveFilters(filters)) {
+    return {
+      title: "Todavía no hay perfumes cargados.",
+      hint: "Estamos sumando perfumes. Si buscás uno en particular, podés encargarlo.",
+    };
+  }
+  return {
+    title: "No encontramos perfumes con esos filtros.",
+    hint: "Probá con otra marca o sacá algún filtro. Si buscás uno en particular, podés encargarlo.",
+  };
+}
+
 /** Minúsculas y sin tildes: "Baccarát" encuentra "baccarat". */
 export function normalizeText(text: string): string {
   return text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();

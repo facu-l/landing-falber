@@ -22,8 +22,8 @@ const SOCIAL_LINKS = [
   },
   {
     network: "TikTok",
-    label: "@falber.perfume",
-    href: "https://www.tiktok.com/@falber.perfume",
+    label: "@falber.parfum",
+    href: "https://www.tiktok.com/@falber.parfum",
     icon: (
       <>
         <path d="M13.5 3.5v11.25a3.75 3.75 0 1 1-3.75-3.75" />

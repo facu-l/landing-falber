@@ -14,7 +14,7 @@ describe("SiteFooter", () => {
   // El nombre accesible incluye la red: un lector de pantalla no ve el logo.
   it.each([
     ["Instagram @falber.parfum", "https://www.instagram.com/falber.parfum/"],
-    ["TikTok @falber.perfume", "https://www.tiktok.com/@falber.perfume"],
+    ["TikTok @falber.parfum", "https://www.tiktok.com/@falber.parfum"],
     ["Facebook FALBER", "https://www.facebook.com/profile.php?id=61595043872733"],
   ])("enlaza %s en una pestaña nueva", (name, href) => {
     render(<SiteFooter />);

@@ -116,18 +116,6 @@
 **Priority:** P3
 **Depends on:** Catálogo real cargado.
 
-### Texto del catálogo vacío cuando no hay filtros
-
-**What:** Si el catálogo queda vacío solo por la presentación elegida desde el menú (ej. "Frascos" sin frascos cargados), decir "Todavía no hay frascos" en vez de "No encontramos perfumes con esos filtros".
-
-**Why:** Desde el menú no se eligió ningún filtro: el texto culpa al cliente de algo que no hizo (visto en el `/qa` del 2026-10-09, severidad baja).
-
-**Context:** Estado vacío de `src/app/(store)/catalogo/page.tsx`. Desaparece solo cuando haya frascos cargados.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** —
-
 ## Catálogo
 
 ### Reemplazar las fotos placeholder por fotos reales

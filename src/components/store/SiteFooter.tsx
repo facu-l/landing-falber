@@ -38,6 +38,14 @@ export function SiteFooter() {
           <p className="text-body-sm text-text-muted">Retiro en La Plata</p>
         </div>
       </div>
+
+      {/* Año fijo: es el de la primera publicación. Con Cache Components, new Date()
+          haría dinámica cada página por un número que cambia una vez por año. */}
+      <div className="border-t border-border">
+        <p className="mx-auto max-w-7xl px-4 py-6 text-caption text-text-muted md:px-8">
+          © 2026 FALBER. Todos los derechos reservados.
+        </p>
+      </div>
     </footer>
   );
 }

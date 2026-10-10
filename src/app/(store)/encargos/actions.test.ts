@@ -34,12 +34,16 @@ function form(overrides: Record<string, string> = {}) {
   return data;
 }
 
+const SHOP_NUMBER = "5492355481449";
+
 beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_WHATSAPP_NUMBER", SHOP_NUMBER);
   mocks.verifyHumanRequest.mockResolvedValue({ ok: true, clientKey: CLIENT_KEY });
   mocks.rpc.mockResolvedValue({ data: REQUEST_ID, error: null });
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
   vi.restoreAllMocks();
 });
@@ -49,6 +53,7 @@ describe("createPerfumeRequest", () => {
     await expect(createPerfumeRequest({ status: "idle" }, form())).resolves.toEqual({
       status: "success",
       perfumeName: "The Most Wanted",
+      whatsappUrl: expect.stringMatching(/^https:\/\/wa\.me\/5492355481449\?text=/),
     });
 
     expect(mocks.rpc).toHaveBeenCalledWith("create_perfume_request", {
@@ -61,6 +66,30 @@ describe("createPerfumeRequest", () => {
       p_note: "",
       p_variant_id: VARIANT,
     });
+  });
+
+  // La base no avisa a nadie: el mensaje de WhatsApp es el aviso del encargo.
+  it("devuelve el link de WhatsApp de la tienda con el encargo", async () => {
+    const state = await createPerfumeRequest({ status: "idle" }, form());
+    if (state.status !== "success") throw new Error(`esperaba success, llegó ${state.status}`);
+
+    const text = new URL(state.whatsappUrl).searchParams.get("text");
+    expect(text).toBe(
+      [
+        "Hola FALBER. Soy Ana Pérez y hice un encargo en la web.",
+        "",
+        "Perfume: The Most Wanted",
+        "Marca: Azzaro",
+        "Presentación: Frasco 100 ml",
+      ].join("\n"),
+    );
+  });
+
+  it("sin el número de la tienda falla antes de guardar el encargo", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WHATSAPP_NUMBER", "");
+
+    await expect(createPerfumeRequest({ status: "idle" }, form())).rejects.toThrow(/NEXT_PUBLIC_WHATSAPP_NUMBER/);
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
   it("un encargo libre no manda p_variant_id (la base usa null)", async () => {

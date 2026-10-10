@@ -7,7 +7,9 @@ import { GENERIC_REQUEST_ERROR, requestError } from "@/lib/requests/errors";
 import { parseRequest, type RequestData } from "@/lib/requests/schema";
 import type { RequestState } from "@/lib/requests/state";
 import { verifyHumanRequest } from "@/lib/security/verify-request";
+import { whatsAppNumber } from "@/lib/store-env";
 import { createServiceClient } from "@/lib/supabase/service";
+import { buildRequestWhatsAppMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
 
 const TURNSTILE_FAILED =
   "No pudimos verificar tu navegador. Esperá unos segundos y volvé a tocar Enviar encargo.";
@@ -22,8 +24,12 @@ const createdRequest = z.uuid();
  * 3. create_perfume_request con service_role
  *
  * Sin updateTag: un encargo no cambia stock ni productos.
+ * Devuelve el link de WhatsApp de la tienda: la confirmación lo ofrece como aviso.
  */
 export async function createPerfumeRequest(_prev: RequestState, formData: FormData): Promise<RequestState> {
+  // Antes de guardar: si falta el número, es un error de configuración y no puede
+  // quedar un encargo guardado con el cliente viendo un error (y reintentando).
+  const shopNumber = whatsAppNumber();
   const values = formValues(formData, [TURNSTILE_FIELD]);
 
   const parsed = parseRequest(values);
@@ -49,7 +55,11 @@ export async function createPerfumeRequest(_prev: RequestState, formData: FormDa
       return { status: "error", message: GENERIC_REQUEST_ERROR, values };
     }
 
-    return { status: "success", perfumeName: parsed.data.perfumeName };
+    return {
+      status: "success",
+      perfumeName: parsed.data.perfumeName,
+      whatsappUrl: buildWhatsAppUrl(shopNumber, buildRequestWhatsAppMessage(parsed.data)),
+    };
   } catch (error) {
     console.error("[encargos] no se pudo llamar a create_perfume_request", error);
     return { status: "error", message: GENERIC_REQUEST_ERROR, values };

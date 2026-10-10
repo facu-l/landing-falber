@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { OrderSummary } from "./orders/summary";
-import { buildWhatsAppMessage, buildWhatsAppUrl } from "./whatsapp";
+import { buildRequestWhatsAppMessage, buildWhatsAppMessage, buildWhatsAppUrl } from "./whatsapp";
 
 const order: OrderSummary = {
   orderNumber: "FAL-0042",
@@ -60,5 +60,44 @@ describe("buildWhatsAppUrl", () => {
 
   it("deja solo los dígitos del número", () => {
     expect(buildWhatsAppUrl("+54 9 2355 48-1449", "x")).toBe("https://wa.me/5492355481449?text=x");
+  });
+});
+
+describe("buildRequestWhatsAppMessage", () => {
+  const request = {
+    fullName: "Ana Pérez",
+    perfumeName: "Aventus",
+    brand: "Creed",
+    presentation: "Decant 10 ml",
+    note: "Si llega antes de fin de mes",
+  };
+
+  it("arma el mensaje con todos los datos del encargo", () => {
+    expect(buildRequestWhatsAppMessage(request)).toBe(
+      [
+        "Hola FALBER. Soy Ana Pérez y hice un encargo en la web.",
+        "",
+        "Perfume: Aventus",
+        "Marca: Creed",
+        "Presentación: Decant 10 ml",
+        "Nota: Si llega antes de fin de mes",
+      ].join("\n"),
+    );
+  });
+
+  it("omite los datos opcionales que no se completaron", () => {
+    const message = buildRequestWhatsAppMessage({
+      ...request,
+      brand: null,
+      presentation: null,
+      note: null,
+    });
+    expect(message).toBe("Hola FALBER. Soy Ana Pérez y hice un encargo en la web.\n\nPerfume: Aventus");
+  });
+
+  it("sobrevive al link: & y saltos de línea llegan intactos", () => {
+    const message = buildRequestWhatsAppMessage({ ...request, perfumeName: "Light Blue & Co" });
+    const url = new URL(buildWhatsAppUrl("5492355481449", message));
+    expect(url.searchParams.get("text")).toBe(message);
   });
 });

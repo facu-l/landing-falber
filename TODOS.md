@@ -2,9 +2,9 @@
 
 ## Admin
 
-### Admin de productos, stock y encargos
+### Admin de productos y stock
 
-**What:** Interfaz en `/admin` para crear y editar productos y variantes (con subida de fotos), cargar movimientos de stock y gestionar encargos con el ranking.
+**What:** Interfaz en `/admin` para crear y editar productos y variantes (con subida de fotos), cargar movimientos de stock y ver el ranking de encargos (`perfume_requests_ranking`). La lista de encargos con su estado ya existe (`/admin/encargos`, decisión 90).
 
 **Why:** En el MVP esto se opera desde Supabase Studio (decisión 10 de la revisión). Sirve para arrancar, pero cargar productos con fotos ahí es incómodo y lento.
 

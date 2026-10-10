@@ -53,6 +53,12 @@ export function buildRequestWhatsAppMessage(
   ].join("\n");
 }
 
+/** Primer mensaje del admin al cliente de un encargo (botón "Escribirle por WhatsApp"). */
+export function buildRequestReplyMessage(request: { customerName: string; perfumeName: string }): string {
+  const firstName = request.customerName.trim().split(/\s+/)[0];
+  return `Hola ${firstName}, te escribo de FALBER por tu encargo de ${request.perfumeName}.`;
+}
+
 /** wa.me exige el número solo con dígitos: 549 + área + número, sin "+", 0 ni 15. */
 export function buildWhatsAppUrl(phone: string, message: string): string {
   return `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;

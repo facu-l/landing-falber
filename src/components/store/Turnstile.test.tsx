@@ -21,14 +21,19 @@ afterEach(() => {
 });
 
 describe("Turnstile", () => {
+  it("manda la acción del formulario al widget (el servidor exige la misma)", () => {
+    render(<Turnstile action="encargo" onToken={onToken} resetKey={0} />);
+    expect(api.render).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: "encargo" }));
+  });
+
   it("un resetKey nuevo resetea el widget (el token anterior ya se usó)", () => {
-    const { rerender } = render(<Turnstile onToken={onToken} resetKey={0} />);
-    rerender(<Turnstile onToken={onToken} resetKey={1} />);
+    const { rerender } = render(<Turnstile action="checkout" onToken={onToken} resetKey={0} />);
+    rerender(<Turnstile action="checkout" onToken={onToken} resetKey={1} />);
     expect(api.reset).toHaveBeenCalledTimes(1);
   });
 
   it("un widget recién montado no se resetea aunque el resetKey sea mayor a 0", () => {
-    render(<Turnstile onToken={onToken} resetKey={2} />);
+    render(<Turnstile action="checkout" onToken={onToken} resetKey={2} />);
     expect(api.render).toHaveBeenCalledTimes(1);
     expect(api.reset).not.toHaveBeenCalled();
   });
@@ -36,7 +41,7 @@ describe("Turnstile", () => {
   it("si Next esconde y vuelve a mostrar la página (Activity), no pide otro challenge", () => {
     const tree = (mode: "visible" | "hidden") => (
       <Activity mode={mode}>
-        <Turnstile onToken={onToken} resetKey={1} />
+        <Turnstile action="checkout" onToken={onToken} resetKey={1} />
       </Activity>
     );
     const { rerender } = render(tree("visible"));

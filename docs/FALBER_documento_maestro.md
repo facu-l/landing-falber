@@ -1,6 +1,6 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v6.1 · 2026-10-08
+Tienda online de decants y perfumes · Next.js + Supabase · v6.2 · 2026-10-10
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
@@ -10,6 +10,7 @@ Tienda online de decants y perfumes · Next.js + Supabase · v6.1 · 2026-10-08
 **v5.0:** Fase 5 implementada en `feat/admin-orders`: login del admin, lista y detalle de pedidos, cambio de estado y costo de envío, tema Platinum y `src/proxy.ts`. Decisiones 55 a 70 (sección 3.J), entre ellas la regla del costo de envío en la base, el fix de `config.toml` que apagaba el login con email y, del `/review`, el compare-and-set del estado y la lista con todos los activos; lecciones, plan de tests y checklist.
 **v6.0:** Fase 6, parte A (código antes del lanzamiento) en `feat/launch-hardening`: sesión del admin endurecida (cookies `httpOnly`, fallos de Auth, `requireAdminAction`, `(select is_admin())`), CAPTCHA nativo de Supabase en el login, GitHub Action de keepalive y backup cifrado, largos de envío en la base, logs sin datos personales y foco al primer error. Decisiones 71 a 80 (sección 3.K), backups, lecciones, plan de tests y checklist.
 **v6.1:** envíos estimados en el checkout (`feat/shipping-estimates`): el checkout muestra el envío estimado a sucursal y a domicilio, que el admin edita en `/admin/envios`. Decisiones 81 a 86 (sección 3.L).
+**v6.2:** Fase 6, parte B (`feat/launch-deploy`, PR #10): la tienda en producción en `https://falber.com.ar` (Supabase, Netlify, dominio, backup). Token de Turnstile atado a la acción y al dominio, con `SITE_HOSTNAMES` validada en el build de producción (decisión 87), headers contra el embebido (decisión 88), arreglos de `/design-review` (áreas táctiles de 44 px, Destacados con dos productos) y resultados de `/qa`, `/cso` y `/review` (sección 3.M); lecciones y checklist.
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -182,7 +183,7 @@ Navegador ──► Server Action (src/app/(store)/checkout/actions.ts)
 | 17 | **Espaciado: escala de Tailwind, sin redefinirla.** Tabla de equivalencias en DESIGN.md (`space-5` = `6`, `space-12` = `24`) | Redefinirla rompería lo que se sabe de Tailwind; los nombres no coinciden a partir de `space-5` |
 | 18 | **Sin `tailwind-merge`:** `cn()` solo une clases; el `className` de un componente es para layout | `tailwind-merge` confunde `text-label` con un color y lo borra en silencio |
 | 19 | **Tres clientes de Supabase:** `client.ts` (navegador), `server.ts` (sesión por cookies, para el admin) y `service.ts` (`service_role`, solo para las 3 RPC). Los dos de servidor importan `server-only` | Si la clave de servicio se importa desde el cliente, la build falla |
-| 20 | **Variables de entorno:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (clave publishable nueva, no la anon), `SUPABASE_SERVICE_ROLE_KEY` (acepta la secret `sb_secret_...`), `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `IP_HASH_SECRET`. Plantilla en `.env.example` con las claves de prueba de Turnstile (`1x00000000000000000000BB`: invisible, siempre pasa) | Un solo lugar documenta qué necesita cada entorno |
+| 20 | **Variables de entorno:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (clave publishable nueva, no la anon), `SUPABASE_SERVICE_ROLE_KEY` (acepta la secret `sb_secret_...`), `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `IP_HASH_SECRET`, `SITE_HOSTNAMES` (decisión 87). Plantilla en `.env.example` con las claves de prueba de Turnstile (`1x00000000000000000000BB`: invisible, siempre pasa) | Un solo lugar documenta qué necesita cada entorno |
 | 21 | **Registro público de Auth desactivado** (en local por `config.toml`; en la nube a mano, en el checklist) | Solo existe el admin: cualquier cuenta nueva es superficie de ataque gratis |
 | 22 | **Storage en `0001`:** si faltan las tablas de Storage, la migración falla con `STORAGE_TABLES_MISSING`, salvo en local, donde existe el rol marcador `falber_local_dev` (`supabase/roles.sql`, que corre antes de las migraciones). Storage local no funciona con CLI 2.119 (TODOS.md) | En local `storage-api` crea sus tablas después de las migraciones; en la nube es mejor un deploy frenado que producción sin bucket ni policies |
 | 23 | **Node 24** fijado en `.nvmrc` (lo leen CI, nvm y Netlify) y `@types/node@^24` | Los tipos tienen que corresponder al runtime real |
@@ -281,6 +282,13 @@ Pedido del dueño: al elegir "Envío a domicilio", mostrar "Envío estimado a su
 | 84 | **El formulario reusa `parseShippingCost`** (acepta `9000`, `9.000` y `$ 9.000`, mismo tope), **pero vacío no vale. 0 sí: el checkout muestra "Envío a sucursal: gratis"** | Vacío es ambiguo (¿gratis o sin cargar?); 0 es una decisión explícita (una promo). Antes del `/review`, un 0 tipeado por error se publicaba como "$ 0"; el dueño eligió que signifique envío gratis |
 | 85 | **El E2E corre solo en el proyecto desktop (skip a nivel de archivo con `isMobile`), calienta el caché antes de cambiar los montos sin suponer con cuál arranca, y restaura los del seed** | Una sola fila para toda la tienda: con el skip dentro del test, el `afterEach` de mobile igual corría y pisaba la fila. Sin el caché caliente, sacar el `updateTag` igual pasaba (verificado con esa mutación). La restauración directa no invalida el caché: suponer "$ 9.000" al arrancar fallaba en un reintento (`/review`) |
 | 86 | **La navegación del panel marca la sección actual** (`AdminNavLink`: `aria-current="page"` y color de texto principal, también en subpáginas) | Con dos secciones no se veía dónde estaba el admin ni lo anunciaba el lector de pantalla. Las clases compartidas van en un módulo común: el layout es de servidor y no importa valores de un módulo cliente. Cada link va en un `<Suspense>` (fallback: el mismo link sin marcar): con Cache Components, `usePathname()` suspende al prerenderizar `/admin/pedidos/[id]` y la build fallaba, aunque `next dev` y los tests pasaban |
+
+### M. Decisiones de la Fase 6, parte B (nube y dominio, 2026-10-08)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 87 | **El token de Turnstile vale solo para su acción y su dominio.** El widget manda `action` (`checkout`, `encargo`, `login`) y `verifyTurnstile` exige la misma y un `hostname` de `SITE_HOSTNAMES` (coincidencia exacta; producción: `falber.com.ar,falber.netlify.app`). `SITE_HOSTNAMES` es obligatoria, se valida (vacía o mal escrita, con `https://` o barra, falla cerrado) y el build de producción de Netlify (`CONTEXT=production`) se frena si falta o si `TURNSTILE_SECRET_KEY` es una clave de prueba (`src/lib/security/env-checks.ts`, llamado desde `next.config.ts`). Excepción: si Cloudflare marca `metadata.result_with_testing_key`, no se exige nada | Antes solo se miraba `success`: un token resuelto en `/checkout` servía en `/encargos`, y uno resuelto en un Deploy Preview, en producción. Lo inverso no lo cubre: un token resuelto en `falber.com.ar` sirve en la Server Action de un preview, que usa la base real. A los previews los protege la visibilidad Private de Netlify (verificado: 401 sin login). El login acepta tokens de otros formularios porque Supabase Auth no mira la acción: riesgo aceptado, el token igual se gasta una sola vez. La excepción es la respuesta real del secreto de prueba (sin `action` y con `hostname: "example.com"`, verificado con una llamada a `siteverify`): sin ella, local, CI y E2E no pasarían, y no abre nada en producción porque la marca la pone el secreto, no el token. La acción del login la verifica Supabase Auth, que no la mira: queda para las métricas de Cloudflare. La validación al build salió del `/review`: un valor mal cargado rechazaba todos los pedidos sin error visible, porque CI y E2E usan las claves de prueba y nunca miran el dominio |
+| 88 | **Headers contra el embebido en `next.config.ts`:** `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'` y `Referrer-Policy: strict-origin-when-cross-origin` en todas las rutas. `Strict-Transport-Security` y `X-Content-Type-Options: nosniff` los agrega Netlify (verificado en producción), así que no se repiten. La CSP completa queda pendiente | Sin ellos, `/checkout` se podía meter en un iframe de otro sitio y engañar el click en "Realizar compra" (clickjacking). Salió del `/review` de la parte B. Una CSP completa necesita la allowlist de Turnstile (`challenges.cloudflare.com`) y de las fotos de Storage, y conviene probarla en modo report-only antes |
 
 ---
 
@@ -647,7 +655,15 @@ Dos cambios sobre lo pedido, acordados antes de codear: el CAPTCHA es el nativo 
 
 **Antes de la parte B: envíos estimados** (`feat/shipping-estimates`, decisiones 81 a 86). Toca la base, así que va antes del primer deploy.
 
-**Parte B — nube y deploy.** Proyecto de Supabase con `0001` y `0002` (pg_cron), Auth (sección 11), secretos y variable del backup, deploy en Netlify. Después, `/design-review` → `/qa` → `/cso` → `/review`.
+**Parte B — nube, deploy y dominio.** Proyecto de Supabase con `0001` y `0002` (pg_cron), Auth (sección 11), secretos y variables del workflow, deploy en Netlify. Después, `/design-review` → `/qa` → `/cso` → `/review`.
+
+**Dominio: `falber.com.ar`.** En este orden, porque cada paso depende del anterior:
+1. Deploy y pruebas en la URL de Netlify (`*.netlify.app`).
+2. Conectar `falber.com.ar` en Netlify (Domain management). En NIC Argentina, las delegaciones del dominio apuntan a los nameservers que da Netlify DNS. Netlify emite el certificado HTTPS solo. Canónico: `falber.com.ar`; `www` redirige con 301 (verificado). Si algún día se pasa a `www`, cambiar `SITE_HOSTNAMES` en el mismo momento: la comparación es exacta y, si no, se rechazan todos los pedidos y encargos.
+3. Con el dominio andando: Supabase → Authentication → URL Configuration → Site URL = `https://falber.com.ar`; en Cloudflare, el widget de Turnstile con `falber.com.ar` como hostname.
+4. Token de Turnstile atado a la acción y al dominio (decisión 87, hecho): `SITE_HOSTNAMES` = `falber.com.ar,falber.netlify.app`.
+
+El dominio no se difunde hasta tener el catálogo y las fotos reales cargados (TODOS.md → Catálogo).
 
 **Backups (decisión 76).** El workflow `.github/workflows/keepalive-backup.yml` corre todos los días a las 03:17 y a mano (Actions → Keepalive y backup → Run workflow). Para activarlo, en GitHub → Settings → Secrets and variables → Actions:
 - Secretos: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_DB_URL` (Supabase → Connect → **Session pooler**, puerto 5432) y `BACKUP_PASSPHRASE` (generada, guardada también en un gestor de contraseñas: sin ella el backup no sirve).
@@ -674,6 +690,21 @@ El dump **no trae** los jobs de pg_cron ni el historial de migraciones (verifica
 - `actionlint` valida el YAML, no que la action exista: `supabase/setup-cli@v1` pasaba el lint y no existe. Fijar las actions por SHA obliga a resolver el tag con `gh api repos/<owner>/<repo>/tags` y lo deja a la vista.
 - Un mock que devuelve siempre el mismo objeto no se comporta como una Server Action: cada respuesta real llega como un objeto nuevo. Un efecto que depende de esa identidad (el foco al primer error) solo se prueba con `mockImplementation(async () => ({ ... }))`.
 - Un test que crea pedidos tiene que usar un WhatsApp propio por caso: sin la regla, los primeros casos crearon pedidos y los siguientes fallaron por `TOO_MANY_PENDING_ORDERS`, no por lo que probaban.
+
+**Parte B — hecho (2026-10-08).** Supabase en São Paulo con `0001` y `0002` aplicadas con `supabase db push` y verificadas (RLS en todas las tablas, 2 jobs de pg_cron, bucket `product-images` con sus 3 policies); desde acá `0001` queda congelada y todo cambio de esquema va en una migración nueva. Auth con el registro público apagado, Email habilitado, CAPTCHA Turnstile con el secreto real y el admin con su fila en `profiles`. Widget de Turnstile invisible con los hostnames `falber.com.ar` y `falber.netlify.app`. Deploy de `main` en `falber.netlify.app` con 7 variables (sin `NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL`: en producción las fotos salen de Storage). Probado en producción: compra completa desde el celular (WhatsApp correcto, pedido pendiente en el admin), la cancelación devuelve el stock y la IP se hashea con la IP real (claves distintas desde dos redes). Dominio con Netlify DNS, delegado en NIC Argentina. Backup activo (2026-10-08): los 4 secretos y las 2 variables en GitHub, una corrida a mano con los dos jobs en verde y el artefacto descargado se descifró con la passphrase (lista `roles.sql`, `schema.sql` y `data.sql`). Dominio en producción (2026-10-08): certificado de Let's Encrypt para `falber.com.ar` y `*.falber.com.ar`, `www` y `http://` redirigen con 301 a `https://falber.com.ar`, Site URL de Supabase en `https://falber.com.ar` y login del admin probado en el dominio. Visibilidad del proyecto en Netlify: Private aplicado solo a los Deploy Previews (producción pública). Token de Turnstile atado a la acción y al dominio (decisión 87).
+
+**Auditorías de la parte B (2026-10-09):** `SITE_HOSTNAMES` cargada en Netlify (All scopes) y el Deploy Preview del PR #10 responde 401 sin login. `/design-review`: 6 hallazgos, 4 arreglados (B → A-); el hero placeholder ya estaba en TODOS. `/qa`: salud 99/100, compra y encargo completos contra la rama, 2 hallazgos bajos a TODOS (`robots.txt`/`sitemap.xml`, texto del catálogo vacío). `/cso` (estático, 10 min, parcial): sin hallazgos en precios, `get_order_summary`, grants de las RPC y workflows; quedaron sin cubrir secretos del historial, dependencias y headers (scanners solo en Linux/macOS). `/review`: 7 revisores más red team; arreglados la validación de `SITE_HOSTNAMES` con freno en el build, los headers (decisión 88), las mayúsculas del hostname, la URL de Supabase con query y la documentación de los previews.
+
+**Parte B — falta:** mergear, comprobar el deploy de producción y hacer una compra real en `falber.com.ar` (prueba Turnstile con el secreto real y la decisión 87), cancelándola desde el admin. Después, el catálogo real antes de difundir el dominio.
+
+**Lecciones de la parte B:**
+- `NEXT_PUBLIC_SUPABASE_URL` es la URL base, sin path: con `/rest/v1` el build falla con "Invalid path specified in request URL", que no dice qué variable revisar. Ahora `supabaseUrl()` la valida y nombra la variable (`src/lib/supabase/env.test.ts`).
+- El primer build con la base vacía dejó `/carrito` y `/checkout` prerenderizados sin productos hasta que se regeneraron. Cargar el catálogo antes del primer deploy, o redeployar después de cargarlo.
+- El widget de Turnstile valida el hostname: el de Netlify (`*.netlify.app`) tiene que estar en la lista además del dominio propio, o el login falla antes de conectar el dominio.
+- Después de cambiar algo en el dashboard de Supabase, recargar y verificar: el switch del registro público apareció prendido después de apagarlo.
+- Con CAPTCHA activo en Auth, un signup sin token devuelve `captcha_failed` antes de mirar si el registro está abierto: esa llamada no prueba que esté cerrado. El registro cerrado se verifica en el dashboard (recargando).
+- El equipo de Netlify tenía la visibilidad por defecto en privada: el sitio respondía 401 ("Login Redirect" a `app.netlify.com/edge-access`) a todos menos a quien estaba logueado en Netlify, y por eso las pruebas desde el celular pasaron. Probar siempre desde una sesión anónima (o con `fetch` desde fuera). Quedó Private + "Previews only": los previews usan las mismas variables que producción, o sea la base real, y abiertos dejarían crear pedidos con código sin revisar.
+- Netlify emite el certificado unos minutos después de que el DNS apunta al dominio. El navegador que entró antes reutiliza la conexión con el certificado anterior y sigue mostrando "No seguro" aunque el sitio ya esté bien (en InPrivate se ve el candado). Esperar a que Netlify muestre el certificado emitido (Domain management → HTTPS) y, si pasó, cerrar el navegador del todo (Edge sigue en segundo plano por el "Aumento de inicio").
 
 ### Flujo completo
 
@@ -714,24 +745,26 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 
 ## 11. Checklist antes de publicar
 
-- [ ] Todos los tests pasan: esquema, Vitest y Playwright.
-- [ ] Migraciones probadas una vez contra `supabase start`.
-- [ ] La `service_role key` no aparece en el cliente ni con `NEXT_PUBLIC_`.
-- [ ] Cada acción del admin empieza con `requireAdmin()`.
-- [ ] Turnstile activo en checkout y encargos, con claves reales (no las de prueba de `.env.example`), widget en modo invisible.
-- [ ] Variables de Netlify cargadas (lista en `.env.example`), entre ellas `NEXT_PUBLIC_WHATSAPP_NUMBER` (5492355481449) e `IP_HASH_SECRET` (generado, 32 caracteres o más). Sin la del WhatsApp, `/pedido/[id]` falla al cargar.
-- [ ] En Netlify llega `x-nf-client-connection-ip` (un pedido de prueba deja una fila en `rate_limit_events` con una clave distinta de la de `"unknown"`).
-- [ ] Supabase → Authentication → Sign In / Providers: "Allow new users to sign up" **apagado** y el proveedor **Email habilitado** (si se apaga Email, el admin no puede entrar; decisión 61). Admin creado a mano: Authentication → Add user + su fila en `profiles` (nota al final de `0001`).
-- [ ] Supabase → Authentication → Attack Protection: CAPTCHA con Turnstile y el **secreto real** (decisión 75). Sin esto el login funciona pero queda sin CAPTCHA; con el secreto de prueba, cualquier token pasa. En Cloudflare, el dominio de producción en el widget. Verificar con una llamada directa a `/auth/v1/token?grant_type=password` sin token: tiene que responder `captcha_failed`.
+- [x] Todos los tests pasan: esquema, Vitest y Playwright.
+- [x] Migraciones probadas una vez contra `supabase start`.
+- [x] La `service_role key` no aparece en el cliente ni con `NEXT_PUBLIC_`.
+- [x] Cada acción del admin empieza con `requireAdmin()`.
+- [x] Turnstile activo en checkout y encargos, con claves reales (no las de prueba de `.env.example`), widget en modo invisible.
+- [x] Variables de Netlify cargadas (lista en `.env.example`), entre ellas `NEXT_PUBLIC_WHATSAPP_NUMBER` (5492355481449) e `IP_HASH_SECRET` (generado, 32 caracteres o más). Sin la del WhatsApp, `/pedido/[id]` falla al cargar. `SITE_HOSTNAMES` = `falber.com.ar,falber.netlify.app` (decisión 87): sin ella, el checkout y los encargos fallan cerrado.
+- [x] En Netlify llega `x-nf-client-connection-ip` (un pedido de prueba deja una fila en `rate_limit_events` con una clave distinta de la de `"unknown"`).
+- [x] Supabase → Authentication → Sign In / Providers: "Allow new users to sign up" **apagado** y el proveedor **Email habilitado** (si se apaga Email, el admin no puede entrar; decisión 61). Admin creado a mano: Authentication → Add user + su fila en `profiles` (nota al final de `0001`).
+- [x] Supabase → Authentication → Attack Protection: CAPTCHA con Turnstile y el **secreto real** (decisión 75). Sin esto el login funciona pero queda sin CAPTCHA; con el secreto de prueba, cualquier token pasa. En Cloudflare, el dominio de producción en el widget. Verificar con una llamada directa a `/auth/v1/token?grant_type=password` sin token: tiene que responder `captcha_failed`.
 - [ ] **Nunca `supabase config push` contra producción:** subiría `supabase/config.toml`, que tiene el secreto de prueba del CAPTCHA (cualquier token pasaría) y la configuración local de Auth. La nube se configura solo desde el dashboard.
 - [ ] Login del admin en producción: entra a `/admin/pedidos`; otra cuenta sin perfil ve "sin acceso". En DevTools → Application → Cookies, las `sb-…` son `HttpOnly` y `Secure`.
-- [ ] Pedido de prueba completo en el celular: WhatsApp abre con el mensaje correcto.
+- [x] Pedido de prueba completo en el celular: WhatsApp abre con el mensaje correcto.
 - [ ] Doble click en "Realizar compra" crea un solo pedido.
-- [ ] Cancelar un pedido devuelve el stock y la tienda lo muestra.
-- [ ] pg_cron activo (`select * from cron.job`).
-- [ ] Bucket `product-images` y sus 3 policies creados (`select * from storage.buckets`; `select policyname from pg_policies where schemaname = 'storage'`). Si las tablas de Storage no existieran al migrar, `0001` falla con `STORAGE_TABLES_MISSING` (solo en local, con el rol `falber_local_dev` de `supabase/roles.sql`, se omite con un NOTICE).
-- [ ] GitHub Action de keepalive + backup corriendo: secretos, `KEEPALIVE_ENABLED` y `BACKUP_ENABLED` cargados (Fase 6 → Backups), una corrida a mano en verde, y el artefacto descargado se descifra con la passphrase.
-- [ ] Deploy en Netlify (no Vercel Hobby: prohíbe uso comercial).
+- [x] Cancelar un pedido devuelve el stock y la tienda lo muestra.
+- [x] pg_cron activo (`select * from cron.job`).
+- [x] Bucket `product-images` y sus 3 policies creados (`select * from storage.buckets`; `select policyname from pg_policies where schemaname = 'storage'`). Si las tablas de Storage no existieran al migrar, `0001` falla con `STORAGE_TABLES_MISSING` (solo en local, con el rol `falber_local_dev` de `supabase/roles.sql`, se omite con un NOTICE).
+- [x] GitHub Action de keepalive + backup corriendo: secretos, `KEEPALIVE_ENABLED` y `BACKUP_ENABLED` cargados (Fase 6 → Backups), una corrida a mano en verde, y el artefacto descargado se descifra con la passphrase.
+- [x] Deploy en Netlify (no Vercel Hobby: prohíbe uso comercial).
+- [x] `https://falber.com.ar` responde con HTTPS válido y la variante sin elegir (con o sin `www`) redirige a la canónica. Site URL de Supabase y hostname del widget de Turnstile con `falber.com.ar` (Fase 6 → Dominio).
+- [ ] Catálogo y fotos reales cargados antes de difundir el dominio (nada del seed de prueba en producción).
 - [ ] Prueba en iPhone y Android; aviso de datos personales en el checkout.
 
 ---

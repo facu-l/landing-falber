@@ -8,14 +8,15 @@ import { cn } from "@/lib/cn";
 /**
  * Link del header al carrito, con las unidades (en el servidor siempre 0: no hay
  * desajuste al hidratar). En mobile es un ícono: con la palabra "Carrito" el header
- * no entra en 375 px junto al wordmark y "Catálogo".
+ * no entra en 375 px junto al wordmark y "Catálogo". El ícono va centrado en una caja
+ * de 44 px (área táctil mínima), y el número dentro de esa caja.
  */
 export function CartLink({ className }: { className?: string }) {
   const count = cartCount(useCart());
   const label = count === 0 ? "Carrito" : `Carrito, ${count} ${count === 1 ? "unidad" : "unidades"}`;
 
   return (
-    <Link href="/carrito" aria-label={label} className={cn("relative flex items-center gap-2", className)}>
+    <Link href="/carrito" aria-label={label} className={cn("relative flex min-h-11 min-w-11 items-center justify-center gap-2 md:min-w-0", className)}>
       <span className="hidden md:inline">Carrito</span>
       <svg
         aria-hidden
@@ -29,7 +30,7 @@ export function CartLink({ className }: { className?: string }) {
         <path d="M9 8V6a3 3 0 0 1 6 0v2" />
       </svg>
       {count > 0 && (
-        <span className="absolute -top-2 -right-2.5 text-caption text-text tabular-nums md:static">{count}</span>
+        <span className="absolute top-1 right-0.5 text-caption text-text tabular-nums md:static">{count}</span>
       )}
     </Link>
   );

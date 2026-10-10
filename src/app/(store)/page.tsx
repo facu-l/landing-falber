@@ -8,8 +8,9 @@ import { cn } from "@/lib/cn";
 
 const container = "mx-auto w-full max-w-7xl px-4 md:px-8";
 const sectionTitle = "text-h1 text-text uppercase";
+// min-h-11: área táctil de 44 px, como "Volver al catálogo".
 const textLink =
-  "text-label text-text-secondary uppercase underline-offset-8 transition-colors duration-150 hover:text-text hover:underline";
+  "inline-flex min-h-11 items-center text-label text-text-secondary uppercase underline-offset-8 transition-colors duration-150 hover:text-text hover:underline";
 
 export default async function Home() {
   const catalog = await getCatalog();
@@ -61,22 +62,25 @@ function Hero() {
 }
 
 // Destacados: uno grande y el resto apilado al lado (nunca tres tarjetas iguales).
+// Con uno solo al lado, ese va como tarjeta vertical alineada abajo: en formato de
+// fila quedaba chico, con un hueco arriba (y a media columna en el celular).
 function Featured({ products }: { products: CatalogProduct[] }) {
   const [main, ...rest] = products;
+  const single = rest.length === 1;
 
   return (
     <section className={cn(container, "flex flex-col gap-10 py-16 md:py-24")}>
       <h2 className={sectionTitle}>Destacados</h2>
-      <div className={cn("grid gap-10 md:gap-12", rest.length > 0 && "md:grid-cols-[3fr_2fr]")}>
+      <div className={cn("grid gap-10 md:gap-12", rest.length > 0 && "md:grid-cols-[3fr_2fr]", single && "md:items-end")}>
         <ProductCard product={main} sizes="(min-width: 768px) 55vw, 100vw" />
         {rest.length > 0 && (
-          <div className="grid grid-cols-2 gap-6 md:grid-cols-1 md:gap-10">
+          <div className={cn("grid gap-6 md:grid-cols-1 md:gap-10", single ? "grid-cols-1" : "grid-cols-2")}>
             {rest.map((p) => (
               <ProductCard
                 key={p.id}
                 product={p}
-                sizes="(min-width: 768px) 35vw, 50vw"
-                className="md:grid md:grid-cols-[3fr_2fr] md:items-end md:gap-6"
+                sizes={single ? "(min-width: 768px) 35vw, 100vw" : "(min-width: 768px) 35vw, 50vw"}
+                className={single ? undefined : "md:grid md:grid-cols-[3fr_2fr] md:items-end md:gap-6"}
               />
             ))}
           </div>

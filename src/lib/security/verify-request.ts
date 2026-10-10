@@ -1,8 +1,9 @@
 import "server-only";
 import { headers } from "next/headers";
-import { stringField, TURNSTILE_FIELD } from "@/lib/forms/form-data";
+import { stringField, TURNSTILE_FIELD, type TurnstileAction } from "@/lib/forms/form-data";
 import { required } from "@/lib/supabase/env";
 import { clientIp, hashClientKey } from "./client-key";
+import { siteHostnames } from "./env-checks";
 import { verifyTurnstile } from "./turnstile";
 
 /*
@@ -15,10 +16,12 @@ import { verifyTurnstile } from "./turnstile";
 
 export type HumanCheck = { ok: true; clientKey: string } | { ok: false };
 
-export async function verifyHumanRequest(formData: FormData): Promise<HumanCheck> {
+export async function verifyHumanRequest(formData: FormData, action: TurnstileAction): Promise<HumanCheck> {
   const ip = clientIp(await headers());
   const human = await verifyTurnstile(stringField(formData, TURNSTILE_FIELD), {
     secret: required("TURNSTILE_SECRET_KEY", process.env.TURNSTILE_SECRET_KEY),
+    action,
+    hostnames: siteHostnames(process.env.SITE_HOSTNAMES),
     remoteIp: ip,
   });
   if (!human) return { ok: false };

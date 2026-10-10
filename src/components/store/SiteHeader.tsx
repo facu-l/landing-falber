@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { CartLink } from "./CartLink";
 
+// min-h-11: área táctil de 44 px aunque el texto mida 16 (el header mide 64).
 const linkClasses =
-  "text-label uppercase text-text-secondary transition-colors duration-150 hover:text-text";
+  "min-h-11 items-center text-label uppercase text-text-secondary transition-colors duration-150 hover:text-text";
 
 /** Header de la tienda: wordmark tipográfico (no hay logo vectorial, ver DESIGN.md → Logos). */
 export function SiteHeader() {
@@ -13,13 +14,13 @@ export function SiteHeader() {
           FALBER
         </Link>
         <nav aria-label="Principal" className="flex items-center gap-5 md:gap-10">
-          <Link href="/catalogo?tipo=decant" className={`${linkClasses} hidden md:inline`}>
+          <Link href="/catalogo?tipo=decant" className={`${linkClasses} hidden md:inline-flex`}>
             Decants
           </Link>
-          <Link href="/catalogo?tipo=full_bottle" className={`${linkClasses} hidden md:inline`}>
+          <Link href="/catalogo?tipo=full_bottle" className={`${linkClasses} hidden md:inline-flex`}>
             Frascos
           </Link>
-          <Link href="/catalogo" className={linkClasses}>
+          <Link href="/catalogo" className={`${linkClasses} inline-flex`}>
             Catálogo
           </Link>
           <CartLink className={linkClasses} />

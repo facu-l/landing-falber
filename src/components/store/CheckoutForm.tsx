@@ -237,7 +237,7 @@ export function CheckoutForm({
               {state.message}
             </p>
           )}
-          <TurnstileField resetKey={serverErrors} />
+          <TurnstileField action="checkout" resetKey={serverErrors} />
           <Button type="submit" disabled={pending} className="w-full md:w-auto">
             {pending ? "Enviando pedido" : "Realizar compra"}
           </Button>

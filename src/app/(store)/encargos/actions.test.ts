@@ -88,6 +88,12 @@ describe("createPerfumeRequest", () => {
     expect(state).not.toHaveProperty("values.cf-turnstile-response");
   });
 
+  it("pide un token resuelto en el formulario de encargos", async () => {
+    const data = form();
+    await createPerfumeRequest({ status: "idle" }, data);
+    expect(mocks.verifyHumanRequest).toHaveBeenCalledWith(data, "encargo");
+  });
+
   it("si Turnstile rechaza, no llama a la base", async () => {
     mocks.verifyHumanRequest.mockResolvedValue({ ok: false });
     const state = await createPerfumeRequest({ status: "idle" }, form());

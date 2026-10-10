@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
+import type { TurnstileAction } from "@/lib/forms/form-data";
 
 /*
  * Widget de Cloudflare Turnstile con render explícito: el formulario se monta en el
@@ -30,11 +31,13 @@ declare global {
 }
 
 type TurnstileProps = {
+  /** Va en el token: el servidor exige la misma acción (decisión 87). */
+  action: TurnstileAction;
   onToken: (token: string | null) => void;
   resetKey: number;
 };
 
-export function Turnstile({ onToken, resetKey }: TurnstileProps) {
+export function Turnstile({ action, onToken, resetKey }: TurnstileProps) {
   const container = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
   // Último resetKey aplicado. Un widget recién montado (o vuelto a mostrar por Activity)
@@ -48,6 +51,7 @@ export function Turnstile({ onToken, resetKey }: TurnstileProps) {
 
     const id = window.turnstile.render(container.current, {
       sitekey: siteKey,
+      action,
       "response-field": false,
       callback: (token: string) => onToken(token),
       "expired-callback": () => onToken(null),
@@ -59,7 +63,7 @@ export function Turnstile({ onToken, resetKey }: TurnstileProps) {
       window.turnstile?.remove(id);
       widgetId.current = null;
     };
-  }, [scriptReady, siteKey, onToken]);
+  }, [scriptReady, siteKey, action, onToken]);
 
   useEffect(() => {
     if (resetKey === appliedResetKey.current || !widgetId.current) return;

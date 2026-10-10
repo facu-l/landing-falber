@@ -17,13 +17,13 @@ const tokenInput = (container: HTMLElement) =>
 
 describe("TurnstileField", () => {
   it("manda el token del widget en su propio input oculto", () => {
-    const { container } = render(<TurnstileField resetKey={0} />);
+    const { container } = render(<TurnstileField action="checkout" resetKey={0} />);
     expect(tokenInput(container)?.value).toBe("token-0");
   });
 
   it("con un resetKey nuevo manda el token nuevo", () => {
-    const { container, rerender } = render(<TurnstileField resetKey={0} />);
-    rerender(<TurnstileField resetKey={1} />);
+    const { container, rerender } = render(<TurnstileField action="checkout" resetKey={0} />);
+    rerender(<TurnstileField action="checkout" resetKey={1} />);
     expect(tokenInput(container)?.value).toBe("token-1");
   });
 });

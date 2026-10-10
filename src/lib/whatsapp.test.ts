@@ -1,7 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { OrderSummary } from "./orders/summary";
-import { buildRequestWhatsAppMessage, buildWhatsAppMessage, buildWhatsAppUrl } from "./whatsapp";
+import {
+  buildRequestReplyMessage,
+  buildRequestWhatsAppMessage,
+  buildWhatsAppMessage,
+  buildWhatsAppUrl,
+} from "./whatsapp";
 
 const order: OrderSummary = {
   orderNumber: "FAL-0042",
@@ -99,5 +104,19 @@ describe("buildRequestWhatsAppMessage", () => {
     const message = buildRequestWhatsAppMessage({ ...request, perfumeName: "Light Blue & Co" });
     const url = new URL(buildWhatsAppUrl("5492355481449", message));
     expect(url.searchParams.get("text")).toBe(message);
+  });
+});
+
+describe("buildRequestReplyMessage", () => {
+  it("saluda al cliente por su nombre y nombra el perfume del encargo", () => {
+    expect(buildRequestReplyMessage({ customerName: "Ana Pérez", perfumeName: "Aventus" })).toBe(
+      "Hola Ana, te escribo de FALBER por tu encargo de Aventus.",
+    );
+  });
+
+  it("con espacios de más igual toma el primer nombre", () => {
+    expect(buildRequestReplyMessage({ customerName: "  Juan   Carlos ", perfumeName: "Sauvage" })).toBe(
+      "Hola Juan, te escribo de FALBER por tu encargo de Sauvage.",
+    );
   });
 });

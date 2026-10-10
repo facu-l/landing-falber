@@ -763,9 +763,9 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 - [x] Supabase → Authentication → Sign In / Providers: "Allow new users to sign up" **apagado** y el proveedor **Email habilitado** (si se apaga Email, el admin no puede entrar; decisión 61). Admin creado a mano: Authentication → Add user + su fila en `profiles` (nota al final de `0001`).
 - [x] Supabase → Authentication → Attack Protection: CAPTCHA con Turnstile y el **secreto real** (decisión 75). Sin esto el login funciona pero queda sin CAPTCHA; con el secreto de prueba, cualquier token pasa. En Cloudflare, el dominio de producción en el widget. Verificar con una llamada directa a `/auth/v1/token?grant_type=password` sin token: tiene que responder `captcha_failed`.
 - [ ] **Nunca `supabase config push` contra producción:** subiría `supabase/config.toml`, que tiene el secreto de prueba del CAPTCHA (cualquier token pasaría) y la configuración local de Auth. La nube se configura solo desde el dashboard.
-- [ ] Login del admin en producción: entra a `/admin/pedidos`; otra cuenta sin perfil ve "sin acceso". En DevTools → Application → Cookies, las `sb-…` son `HttpOnly` y `Secure`.
+- [x] Login del admin en producción: entra a `/admin/pedidos`; otra cuenta sin perfil ve "sin acceso". En DevTools → Application → Cookies, las `sb-…` son `HttpOnly` y `Secure`. Verificado 2026-10-10: la cookie de sesión es `HttpOnly`, `Secure` y `SameSite=Lax`; la cuenta de prueba sin perfil se borró. El error de CSP por `eval` que muestra DevTools viene del iframe de Turnstile (nuestra CSP es solo `frame-ancestors`).
 - [x] Pedido de prueba completo en el celular: WhatsApp abre con el mensaje correcto.
-- [ ] Doble click en "Realizar compra" crea un solo pedido.
+- [x] Doble click en "Realizar compra" crea un solo pedido. Verificado 2026-10-10 en producción (pedido cancelado después).
 - [x] Cancelar un pedido devuelve el stock y la tienda lo muestra.
 - [x] pg_cron activo (`select * from cron.job`).
 - [x] Bucket `product-images` y sus 3 policies creados (`select * from storage.buckets`; `select policyname from pg_policies where schemaname = 'storage'`). Si las tablas de Storage no existieran al migrar, `0001` falla con `STORAGE_TABLES_MISSING` (solo en local, con el rol `falber_local_dev` de `supabase/roles.sql`, se omite con un NOTICE).
@@ -773,7 +773,7 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 - [x] Deploy en Netlify (no Vercel Hobby: prohíbe uso comercial).
 - [x] `https://falber.com.ar` responde con HTTPS válido y la variante sin elegir (con o sin `www`) redirige a la canónica. Site URL de Supabase y hostname del widget de Turnstile con `falber.com.ar` (Fase 6 → Dominio).
 - [ ] Catálogo y fotos reales cargados antes de difundir el dominio (nada del seed de prueba en producción).
-- [ ] Prueba en iPhone y Android; aviso de datos personales en el checkout.
+- [x] Prueba en iPhone y Android; aviso de datos personales en el checkout. Verificado 2026-10-10: compra completa en los dos, con retiro y con envío; los pedidos de prueba se cancelaron.
 
 ---
 

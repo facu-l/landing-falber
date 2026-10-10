@@ -9,6 +9,7 @@ import { createDeliveryOrder, createTestUser, expectOnLogin, signInAdmin } from 
 /** Las páginas del panel (todas menos el login): cada una tiene que estar protegida. */
 const PANEL_PAGES = [
   { path: "/admin/pedidos", heading: "Pedidos" },
+  { path: "/admin/encargos", heading: "Encargos" },
   { path: "/admin/envios", heading: "Envíos" },
 ];
 

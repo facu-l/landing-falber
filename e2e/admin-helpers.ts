@@ -53,6 +53,23 @@ export async function createDeliveryOrder(): Promise<{ id: string; orderNumber: 
   return { id: order.order_id, orderNumber: order.order_number };
 }
 
+/**
+ * Encargo nuevo, creado con create_perfume_request (la misma RPC de /encargos) sin pasar
+ * por la tienda: el formulario ya lo cubre requests.spec.ts.
+ */
+export async function createPerfumeRequest(perfumeName: string): Promise<void> {
+  const { error } = await localAdminClient().rpc("create_perfume_request", {
+    p_client_key: `e2e-${randomUUID()}`,
+    p_full_name: "Prueba Admin",
+    p_whatsapp: `+549221${randomDigits(7)}`,
+    p_perfume_name: perfumeName,
+    p_brand: "Creed",
+    p_presentation: "Decant 10 ml",
+    p_note: "",
+  });
+  if (error) throw error;
+}
+
 export async function signInAdmin(page: Page, user: TestUser) {
   await page.goto("/admin/login");
   await page.getByLabel("Email", { exact: true }).fill(user.email);

@@ -296,6 +296,7 @@ Pedido del dueño: al elegir "Envío a domicilio", mostrar "Envío estimado a su
 | # | Decisión | Por qué |
 |---|---|---|
 | 89 | **La confirmación del encargo ofrece "Enviar por WhatsApp"** con el mensaje armado (`buildRequestWhatsAppMessage`: nombre, perfume y lo opcional que se completó, sin el WhatsApp del cliente). La Server Action devuelve el link (`whatsappUrl`) y lee el número de la tienda antes de guardar. Reemplaza el "te escribimos por WhatsApp" de la decisión 47 | La base guarda el encargo pero no avisa a nadie, y no hay pantalla del admin para encargos (decisión 10): uno de prueba en producción no le llegó a la tienda. Con los pedidos no pasaba porque el cliente termina en WhatsApp. Es el canal por el que ya se vende, sin servicios ni claves nuevas; si el cliente no toca el botón, el encargo igual queda en `perfume_requests`. Leer el número antes de guardar evita un encargo guardado con el cliente viendo un error y reintentando |
+| 90 | **Encargos en el panel: pestaña "Encargos" a la derecha de "Pedidos", con el número de pendientes** (`PendingRequestsCount`, en su propio `<Suspense>`; con 0 no se muestra). `/admin/encargos` lista abiertos sin tope y los últimos 100 cerrados, pendientes primero (el más viejo arriba), sin página de detalle: cada fila trae el encargo entero, "Escribirle por WhatsApp" (saludo armado al cliente) y el cambio de estado. Cualquier estado a cualquier otro, con compare-and-set sobre el estado que se ve. Sin migración: RLS y el permiso de columna (`update (status)`) ya existían. Achica la decisión 10: productos y stock siguen en Studio | El botón de la decisión 89 depende de que el cliente lo toque: sin registro en el panel, un encargo sin mensaje no se veía salvo entrando a Studio. El número en la navegación avisa sin abrir la pestaña. La base no limita las transiciones de un encargo (no tocan stock), así que se ofrece cualquier estado, para poder corregir un error; el compare-and-set evita que una pestaña vieja pise un cambio. Si el conteo falla devuelve 0: es un aviso y no puede tirar abajo el panel |
 
 ---
 
@@ -740,7 +741,7 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 
 | Funcionalidad | Señal para agregarla |
 |---|---|
-| Admin de productos, stock y encargos | Cargar productos en Studio te lleva más de 10 min por semana (TODOS.md) |
+| Admin de productos y stock (los encargos ya están, decisión 90) | Cargar productos en Studio te lleva más de 10 min por semana (TODOS.md) |
 | Stock calculado desde Decant Manager | Sobreventa o más de ~30 perfumes (TODOS.md) |
 | Logo vectorial | Cuando lo tenga diseño (TODOS.md) |
 | Mercado Pago | Muchos pedidos se caen en la transferencia |
@@ -788,7 +789,7 @@ npm run test:db
 
 ## NOT in scope (revisión de ingeniería)
 
-- **Admin de productos, stock y encargos:** se opera en Studio; las protecciones de la DB valen ahí (decisión 10).
+- **Admin de productos y stock:** se opera en Studio; las protecciones de la DB valen ahí (decisión 10). Los encargos tienen su pestaña en el panel (decisión 90).
 - **Sincronización con Decant Manager:** solo con más de ~30 perfumes o ante una sobreventa (decisión A).
 - **Pasarela de pago, cuentas de cliente, cupones:** el cierre es por WhatsApp.
 - **Logo vectorial:** trabajo de diseño, no de código.

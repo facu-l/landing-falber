@@ -1,12 +1,9 @@
-import { cn } from "@/lib/cn";
 import type { OrderStatus } from "@/lib/admin/order-transitions";
 import { ORDER_STATUS_LABELS } from "@/lib/orders/summary";
+import { StatusBadge, type StatusTone } from "./StatusBadge";
 
-/*
- * Estado del pedido. Los tonos varían en luminosidad, no solo en color (DESIGN.md →
- * Accesibilidad): pendiente = relleno oscuro (pide acción), en curso = borde, cerrado = apagado.
- */
-const TONES: Record<OrderStatus, "action" | "active" | "closed"> = {
+/* Pendiente pide acción; en curso, borde; cerrado, apagado (StatusBadge). */
+const TONES: Record<OrderStatus, StatusTone> = {
   pending: "action",
   confirmed: "active",
   paid: "active",
@@ -18,17 +15,5 @@ const TONES: Record<OrderStatus, "action" | "active" | "closed"> = {
 };
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  const tone = TONES[status];
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-sm border px-2 py-1 text-caption uppercase",
-        tone === "action" && "border-accent bg-accent text-on-accent",
-        tone === "active" && "border-border-strong text-text",
-        tone === "closed" && "border-border text-text-muted",
-      )}
-    >
-      {ORDER_STATUS_LABELS[status]}
-    </span>
-  );
+  return <StatusBadge tone={TONES[status]}>{ORDER_STATUS_LABELS[status]}</StatusBadge>;
 }

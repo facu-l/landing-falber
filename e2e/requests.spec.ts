@@ -44,7 +44,20 @@ test("encargo desde un producto agotado: llega con el perfume precargado", async
 
   const confirmation = page.getByRole("status").filter({ hasText: "Encargo recibido" });
   await expect(confirmation).toContainText("The Most Wanted");
-  await expect(confirmation).toContainText("Te escribimos por WhatsApp");
+
+  // La base no avisa a nadie: el encargo le llega a la tienda por este mensaje.
+  const whatsApp = confirmation.getByRole("link", { name: "Enviar por WhatsApp" });
+  const url = new URL((await whatsApp.getAttribute("href"))!);
+  expect(url.origin + url.pathname).toBe("https://wa.me/5492355481449");
+  expect(url.searchParams.get("text")).toBe(
+    [
+      "Hola FALBER. Soy Prueba E2E y hice un encargo en la web.",
+      "",
+      "Perfume: The Most Wanted",
+      "Marca: Azzaro",
+      "Presentación: Frasco 100 ml",
+    ].join("\n"),
+  );
 });
 
 test("un segundo encargo en la misma pestaña empieza con el formulario vacío", async ({ page }) => {

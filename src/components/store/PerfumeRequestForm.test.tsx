@@ -35,6 +35,13 @@ const sauvage: RequestPrefill = {
   ],
 };
 
+const WHATSAPP_URL = "https://wa.me/5492355481449?text=Hola%20FALBER";
+const success = (perfumeName: string): RequestState => ({
+  status: "success",
+  perfumeName,
+  whatsappUrl: WHATSAPP_URL,
+});
+
 const field = (label: string) => screen.getByLabelText(label, { exact: true }) as HTMLInputElement;
 const type = (label: string, value: string) => fireEvent.change(field(label), { target: { value } });
 
@@ -62,7 +69,7 @@ describe("PerfumeRequestForm sin producto (encargo libre)", () => {
   });
 
   it("manda lo escrito y el token de Turnstile, sin variante", async () => {
-    mocks.createPerfumeRequest.mockResolvedValue({ status: "success", perfumeName: "Oud Wood" });
+    mocks.createPerfumeRequest.mockResolvedValue(success("Oud Wood"));
     render(<PerfumeRequestForm prefill={null} />);
     type("Perfume", "Oud Wood");
     type("Marca", "Tom Ford");
@@ -92,7 +99,7 @@ describe("PerfumeRequestForm desde un producto (?producto=<slug>)", () => {
   });
 
   it("la presentación se elige entre las agotadas y manda su variante y su nombre", async () => {
-    mocks.createPerfumeRequest.mockResolvedValue({ status: "success", perfumeName: "Sauvage EDT" });
+    mocks.createPerfumeRequest.mockResolvedValue(success("Sauvage EDT"));
     render(<PerfumeRequestForm prefill={sauvage} />);
     const select = screen.getByLabelText("Presentación") as HTMLSelectElement;
     expect([...select.options].map((o) => o.text)).toEqual(["Decant 10 ml", "Frasco 100 ml"]);
@@ -132,24 +139,37 @@ describe("PerfumeRequestForm al enviar", () => {
     fireEvent.click(button);
     expect(mocks.createPerfumeRequest).toHaveBeenCalledTimes(1);
 
-    await act(async () => resolve({ status: "success", perfumeName: "Sauvage EDT" }));
+    await act(async () => resolve(success("Sauvage EDT")));
   });
 
   it("al terminar confirma en la misma página y dice el próximo paso", async () => {
-    mocks.createPerfumeRequest.mockResolvedValue({ status: "success", perfumeName: "Sauvage EDT" });
+    mocks.createPerfumeRequest.mockResolvedValue(success("Sauvage EDT"));
     render(<PerfumeRequestForm prefill={sauvage} />);
     fillCustomer();
     submit();
 
     const confirmation = await screen.findByRole("status");
     expect(confirmation.textContent).toMatch("Sauvage EDT");
-    expect(confirmation.textContent).toMatch(/te escribimos por WhatsApp/i);
+    expect(confirmation.textContent).toMatch(/por WhatsApp/i);
     expect(confirmation.textContent).not.toMatch(/[!¡]/);
     expect(screen.queryByRole("button", { name: "Enviar encargo" })).toBeNull();
   });
 
+  // La base no avisa a nadie: sin este botón, el encargo no le llega a la tienda.
+  it("la confirmación ofrece enviar el encargo por WhatsApp en una pestaña nueva", async () => {
+    mocks.createPerfumeRequest.mockResolvedValue(success("Sauvage EDT"));
+    render(<PerfumeRequestForm prefill={sauvage} />);
+    fillCustomer();
+    submit();
+
+    const link = await screen.findByRole("link", { name: "Enviar por WhatsApp" });
+    expect(link.getAttribute("href")).toBe(WHATSAPP_URL);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
   it("si Next esconde la página (Activity) después de un encargo, al volver muestra el formulario vacío", async () => {
-    mocks.createPerfumeRequest.mockResolvedValue({ status: "success", perfumeName: "Sauvage EDT" });
+    mocks.createPerfumeRequest.mockResolvedValue(success("Sauvage EDT"));
     const { rerender } = render(
       <Activity mode="visible">
         <PerfumeRequestForm prefill={null} />
@@ -177,7 +197,7 @@ describe("PerfumeRequestForm al enviar", () => {
   });
 
   it("en un encargo libre la confirmación se queda (no se resetea sola en el próximo render)", async () => {
-    mocks.createPerfumeRequest.mockResolvedValue({ status: "success", perfumeName: "Oud Wood" });
+    mocks.createPerfumeRequest.mockResolvedValue(success("Oud Wood"));
     render(<PerfumeRequestForm prefill={null} />);
     type("Perfume", "Oud Wood");
     fillCustomer();
@@ -256,7 +276,7 @@ describe("PerfumeRequestForm al enviar", () => {
     );
 
     expect((screen.getByLabelText("Presentación") as HTMLSelectElement).value).toBe(SAUVAGE_100);
-    mocks.createPerfumeRequest.mockResolvedValue({ status: "success", perfumeName: "Sauvage EDT" });
+    mocks.createPerfumeRequest.mockResolvedValue(success("Sauvage EDT"));
     submit();
     await waitFor(() => expect(mocks.createPerfumeRequest).toHaveBeenCalledTimes(2));
     expect(sentForm().get("variantId")).toBe(SAUVAGE_100);

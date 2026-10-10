@@ -64,7 +64,9 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
 
   useFocusFirstInvalid(form, state.status === "error" ? state.fieldErrors : undefined);
 
-  if (state.status === "success") return <Confirmation perfumeName={state.perfumeName} />;
+  if (state.status === "success") {
+    return <Confirmation perfumeName={state.perfumeName} whatsappUrl={state.whatsappUrl} />;
+  }
 
   const errors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
   const values = state.status === "error" ? state.values : {};
@@ -181,16 +183,32 @@ export function PerfumeRequestForm({ prefill }: { prefill: RequestPrefill | null
   );
 }
 
-function Confirmation({ perfumeName }: { perfumeName: string }) {
+// El encargo ya quedó guardado, pero la base no avisa a nadie: el mensaje de WhatsApp
+// es lo que le llega a la tienda. Mismo botón que "Completar pedido en WhatsApp".
+function Confirmation({ perfumeName, whatsappUrl }: { perfumeName: string; whatsappUrl: string }) {
   return (
     <div role="status" className="flex max-w-2xl flex-col items-start gap-6 border-t border-border pt-8">
       <h2 className="text-label text-text-secondary uppercase">Encargo recibido</h2>
       <p className="text-body text-text">
-        Registramos tu encargo de {perfumeName}. Te escribimos por WhatsApp para contarte disponibilidad y precio.
+        Registramos tu encargo de {perfumeName}. Mandanos el encargo por WhatsApp y te respondemos con
+        disponibilidad y precio: el mensaje ya va armado.
       </p>
-      <Link href="/catalogo" className={buttonClasses("secondary")}>
-        Volver al catálogo
-      </Link>
+      <div className="flex w-full flex-col items-start gap-6 md:w-auto md:flex-row md:items-center">
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonClasses("primary", "w-full md:w-auto")}
+        >
+          Enviar por WhatsApp
+        </a>
+        <Link
+          href="/catalogo"
+          className="inline-flex min-h-11 items-center text-label text-text-secondary uppercase underline-offset-8 hover:text-text hover:underline"
+        >
+          Volver al catálogo
+        </Link>
+      </div>
     </div>
   );
 }

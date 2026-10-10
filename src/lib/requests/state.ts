@@ -7,7 +7,12 @@ import type { RequestFieldErrors } from "./schema";
  */
 export type RequestState =
   | { status: "idle" }
-  | { status: "success"; perfumeName: string }
+  | {
+      status: "success";
+      perfumeName: string;
+      /** wa.me de la tienda con el encargo: el aviso, porque la base no notifica a nadie. */
+      whatsappUrl: string;
+    }
   | {
       status: "error";
       /** Error general (arriba del botón). */

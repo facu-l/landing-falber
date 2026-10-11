@@ -9,7 +9,7 @@ import {
   parseNewProduct,
   slugify,
   variantSummaries,
-} from "./products";
+} from "./product-list";
 
 // El check de products.slug en 0001: lo que slugify devuelva tiene que pasarlo.
 const SLUG_CHECK = /^[a-z0-9]+(-[a-z0-9]+)*$/;

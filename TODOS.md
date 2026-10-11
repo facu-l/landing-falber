@@ -8,7 +8,7 @@
 
 **Why:** En el MVP esto se opera desde Supabase Studio (decisión 10 de la revisión). Sirve para arrancar, pero cargar productos con fotos ahí es incómodo y lento.
 
-**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana. **En curso en la Fase 7** (`feat/admin-catalog`, decisiones 91 a 102): productos, fotos, presentaciones y stock. El ranking de encargos queda afuera: al mergear el PR 3, esta entrada se reduce a ese ranking.
+**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana. **En curso en la Fase 7** (decisiones 91 a 106): el PR 2 (`feat/admin-catalog-products`) trae la lista, el alta, la foto y los datos; faltan presentaciones, stock y publicar (PR 3). El ranking de encargos queda afuera: al mergear el PR 3, esta entrada se reduce a ese ranking.
 
 **Effort:** M
 **Priority:** P2
@@ -100,7 +100,7 @@
 
 **Why:** Las imágenes de `public/product-images/` y el hero son placeholders generados (un frasco genérico sobre carbón) para desarrollo y CI (`supabase start` las sube al bucket local). En producción las fotos salen del bucket de la nube.
 
-**Context:** Formato vertical 4:5, fondo oscuro o neutro (DESIGN.md → Fotos de producto). El nombre del archivo en el bucket es lo que va en `products.image_path`. El hero no es un producto: va en `public/brand/` (o en el bucket, si se prefiere editarlo sin deploy).
+**Context:** Formato vertical 4:5, fondo oscuro o neutro (DESIGN.md → Fotos de producto). Desde el PR 2 de la Fase 7 cada foto se sube en `/admin/productos/[id]` (se achica y se endereza sola, y reemplazar borra la anterior): no hace falta Studio. El hero no es un producto: va en `public/brand/` (o en el bucket, si se prefiere editarlo sin deploy).
 
 **Effort:** S
 **Priority:** P1 (antes del lanzamiento)

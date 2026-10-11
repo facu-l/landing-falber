@@ -84,3 +84,14 @@ test("un admin corrige los datos: el link queda fijo y se guarda el destacado", 
   await expect(reloaded.getByLabel("Nombre")).toBeFocused();
   await expect(reloaded.getByText("Escribí el nombre del perfume.")).toBeVisible();
 });
+
+test("un producto que no existe (o un id mal escrito) muestra su propio no encontrado", async ({ page }) => {
+  await signInAdmin(page, await createTestUser({ admin: true }));
+  await expect(page).toHaveURL("/admin/pedidos");
+
+  for (const id of ["00000000-0000-0000-0000-000000000000", "no-es-un-id"]) {
+    await page.goto(`/admin/productos/${id}`);
+    await expect(page.getByRole("heading", { level: 1, name: "No encontramos el producto" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Ver productos" })).toHaveAttribute("href", "/admin/productos");
+  }
+});

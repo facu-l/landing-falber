@@ -9,11 +9,20 @@ import {
   photoExtension,
   PRODUCT_IMAGES_BUCKET,
 } from "@/lib/admin/product-photo";
+import {
+  PRODUCT_DATA_NOT_SAVED,
+  PRODUCT_DATA_SAVE_ERROR,
+  type ProductDataState,
+  parseProductData,
+} from "@/lib/admin/product-data";
 import { CATALOG_TAG } from "@/lib/catalog/queries";
 import { loggableDbError } from "@/lib/db-errors";
+import { formValues } from "@/lib/forms/form-data";
 
 /*
- * Foto de un producto (decisión 96, D6). El archivo no pasa por acá (límite de 1 MB de
+ * Acciones de la ficha de un producto: la foto y los datos.
+ *
+ * Foto (decisión 96, D6). El archivo no pasa por acá (límite de 1 MB de
  * las Server Actions): esta acción elige la ruta y pide una URL firmada, el navegador
  * sube directo al bucket, y savePhoto valida y guarda la ruta. Las dos con la sesión
  * del admin: Storage y RLS deciden.
@@ -110,4 +119,40 @@ export async function savePhoto(productId: string, path: string): Promise<PhotoA
   updateTag(CATALOG_TAG);
   refresh();
   return { ok: true };
+}
+
+/**
+ * Sección Datos de la ficha. El slug no se toca (decisión 94): corregir el nombre no
+ * rompe los links compartidos. productId llega con bind desde el formulario.
+ */
+export async function updateProductData(
+  productId: string,
+  _prev: ProductDataState,
+  formData: FormData,
+): Promise<ProductDataState> {
+  const access = await requireAdminAction();
+
+  const values = formValues(formData);
+  if (!access.ok) return { status: "error", message: access.message, values };
+
+  const parsed = parseProductData(values);
+  if (!parsed.success) return { status: "error", fieldErrors: parsed.fieldErrors, values };
+
+  const { data, error } = await access.supabase
+    .from("products")
+    .update(parsed.data)
+    .eq("id", productId)
+    // select: sin él, 0 filas (RLS) "se actualiza" sin error.
+    .select("id");
+
+  if (error) {
+    console.error("[admin] guardar los datos del producto falló", loggableDbError(error));
+    return { status: "error", message: PRODUCT_DATA_SAVE_ERROR, values };
+  }
+  if (!data?.length) return { status: "error", message: PRODUCT_DATA_NOT_SAVED, values };
+
+  // Nombre, descripción o destacado pueden estar a la vista en la tienda.
+  updateTag(CATALOG_TAG);
+  refresh();
+  return { status: "success", message: "Datos guardados." };
 }

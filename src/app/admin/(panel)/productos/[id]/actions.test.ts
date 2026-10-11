@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PRODUCT_DATA_ERRORS, PRODUCT_DATA_NOT_SAVED, PRODUCT_DATA_SAVE_ERROR } from "@/lib/admin/product-data";
 import { PHOTO_ERRORS } from "@/lib/admin/product-photo";
 
 const mocks = vi.hoisted(() => ({
@@ -21,7 +22,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ updateTag: mocks.updateTag, refresh: mocks.refresh }));
 vi.mock("@/lib/admin/auth", () => ({ requireAdminAction: mocks.requireAdminAction }));
 
-const { requestPhotoUpload, savePhoto } = await import("./actions");
+const { requestPhotoUpload, savePhoto, updateProductData } = await import("./actions");
 
 const PRODUCT_ID = "11111111-1111-1111-1111-111111111111";
 const NEW_PATH = "dior-sauvage-0123456789ab.webp";
@@ -180,5 +181,68 @@ describe("savePhoto", () => {
 
     await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: true });
     expect(log).toHaveBeenCalledWith("[admin] borrar la foto anterior falló", "no se borró ningún objeto");
+  });
+});
+
+describe("updateProductData", () => {
+  const IDLE = { status: "idle" } as const;
+  const VALUES = { brand: "Dior", name: "Sauvage EDT", gender: "male", description: "Fresco.", featured: "on" };
+
+  function form(fields: Record<string, string>) {
+    const data = new FormData();
+    for (const [key, value] of Object.entries(fields)) data.set(key, value);
+    return data;
+  }
+
+  it("sin admin no escribe nada", async () => {
+    mocks.requireAdminAction.mockRejectedValue(new Error("NEXT_REDIRECT"));
+    await expect(updateProductData(PRODUCT_ID, IDLE, form(VALUES))).rejects.toThrow("NEXT_REDIRECT");
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("guarda los datos sin tocar el slug, vence el caché de la tienda y refresca", async () => {
+    await expect(updateProductData(PRODUCT_ID, IDLE, form({ ...VALUES, slug: "otro" }))).resolves.toEqual({
+      status: "success",
+      message: "Datos guardados.",
+    });
+    expect(mocks.update).toHaveBeenCalledWith({
+      brand: "Dior",
+      name: "Sauvage EDT",
+      gender: "male",
+      description: "Fresco.",
+      is_featured: true,
+    });
+    expect(mocks.updateTag).toHaveBeenCalledWith("catalog");
+    expect(mocks.refresh).toHaveBeenCalled();
+  });
+
+  it("datos inválidos no llegan a la base y vuelven con lo escrito", async () => {
+    await expect(updateProductData(PRODUCT_ID, IDLE, form({ ...VALUES, gender: "otro" }))).resolves.toEqual({
+      status: "error",
+      fieldErrors: { gender: PRODUCT_DATA_ERRORS.gender },
+      values: { ...VALUES, gender: "otro" },
+    });
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("si no tocó ninguna fila, avisa y no vence el caché", async () => {
+    mocks.updateResult.mockResolvedValue({ data: [], error: null });
+    await expect(updateProductData(PRODUCT_ID, IDLE, form(VALUES))).resolves.toMatchObject({
+      status: "error",
+      message: PRODUCT_DATA_NOT_SAVED,
+    });
+    expect(mocks.updateTag).not.toHaveBeenCalled();
+  });
+
+  it("un error de la base se loguea sin details, con mensaje genérico y lo escrito", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.updateResult.mockResolvedValue({ data: null, error: { code: "XX000", message: "fetch failed", details: "fila" } });
+
+    await expect(updateProductData(PRODUCT_ID, IDLE, form(VALUES))).resolves.toEqual({
+      status: "error",
+      message: PRODUCT_DATA_SAVE_ERROR,
+      values: VALUES,
+    });
+    expect(log).toHaveBeenCalledWith("[admin] guardar los datos del producto falló", { code: "XX000", message: "fetch failed" });
   });
 });

@@ -69,7 +69,7 @@ describe("createProduct", () => {
     // Un slug mandado desde el navegador se ignora: lo arma el servidor.
     await expect(
       createProduct(IDLE, form({ brand: " Dior ", name: "Sauvage EDT", slug: "otro-slug", status: "active" })),
-    ).rejects.toThrow("NEXT_REDIRECT /admin/productos/nuevo-id");
+    ).rejects.toThrow("NEXT_REDIRECT /admin/productos/nuevo-id?nuevo=1");
 
     expect(mocks.from).toHaveBeenCalledWith("products");
     expect(mocks.insert).toHaveBeenCalledWith({ brand: "Dior", name: "Sauvage EDT", slug: "dior-sauvage-edt" });

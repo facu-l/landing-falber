@@ -40,5 +40,5 @@ export async function createProduct(_prev: NewProductState, formData: FormData):
   }
 
   // Fuera de un try: redirect lanza para cortar la acción.
-  redirect(adminProductPath(data.id));
+  redirect(`${adminProductPath(data.id)}?nuevo=1`);
 }

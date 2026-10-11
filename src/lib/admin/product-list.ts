@@ -51,11 +51,8 @@ export type NewProductField = "brand" | "name";
 export type NewProductFieldErrors = Partial<Record<NewProductField, string>>;
 export type NewProduct = { brand: string; name: string; slug: string };
 
-export function parseNewProduct(
-  values: Record<string, string | undefined>,
-): { success: true; data: NewProduct } | { success: false; fieldErrors: NewProductFieldErrors } {
-  const brand = (values.brand ?? "").trim();
-  const name = (values.name ?? "").trim();
+/** Marca y nombre (ya recortados) contra los largos de la base. Lo comparten el alta y Datos. */
+export function brandAndNameErrors(brand: string, name: string): NewProductFieldErrors {
   const fieldErrors: NewProductFieldErrors = {};
 
   if (!brand) fieldErrors.brand = NEW_PRODUCT_ERRORS.brandRequired;
@@ -64,6 +61,16 @@ export function parseNewProduct(
   if (!name) fieldErrors.name = NEW_PRODUCT_ERRORS.nameRequired;
   else if (name.length < NAME_MIN || name.length > NAME_MAX) fieldErrors.name = NEW_PRODUCT_ERRORS.nameLength;
 
+  return fieldErrors;
+}
+
+export function parseNewProduct(
+  values: Record<string, string | undefined>,
+): { success: true; data: NewProduct } | { success: false; fieldErrors: NewProductFieldErrors } {
+  const brand = (values.brand ?? "").trim();
+  const name = (values.name ?? "").trim();
+
+  const fieldErrors = brandAndNameErrors(brand, name);
   if (Object.keys(fieldErrors).length > 0) return { success: false, fieldErrors };
 
   const slug = slugify(brand, name);

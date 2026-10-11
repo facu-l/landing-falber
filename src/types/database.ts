@@ -9,6 +9,7 @@ export type Database = {
                   Row: {
                     "created_at": string,"email": string | null,"full_name": string,"id": string,"updated_at": string,"whatsapp": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"email"?: string | null,"full_name": string,"id"?: string,"updated_at"?: string,"whatsapp": string
                   }
@@ -22,6 +23,7 @@ export type Database = {
                   Row: {
                     "id": string,"line_total": number | null,"order_id": string,"product_name": string,"quantity": number,"unit_price": number,"variant_id": string,"variant_label": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "id"?: string,"line_total"?: never,"order_id": string,"product_name": string,"quantity": number,"unit_price": number,"variant_id": string,"variant_label": string
                   }
@@ -47,6 +49,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"customer_email": string | null,"customer_id": string,"customer_name": string,"delivery_address": string | null,"delivery_city": string | null,"delivery_method": Database["public"]['Enums']["delivery_method"],"delivery_postal_code": string | null,"delivery_reference": string | null,"id": string,"order_note": string | null,"order_number": string,"payment_method": Database["public"]['Enums']["payment_method"],"request_id": string,"shipping_cost": number | null,"status": Database["public"]['Enums']["order_status"],"subtotal": number,"total": number | null,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"customer_email"?: string | null,"customer_id": string,"customer_name": string,"delivery_address"?: string | null,"delivery_city"?: string | null,"delivery_method": Database["public"]['Enums']["delivery_method"],"delivery_postal_code"?: string | null,"delivery_reference"?: string | null,"id"?: string,"order_note"?: string | null,"order_number"?: string,"payment_method": Database["public"]['Enums']["payment_method"],"request_id": string,"shipping_cost"?: number | null,"status"?: Database["public"]['Enums']["order_status"],"subtotal": number,"total"?: never,"updated_at"?: string
                   }
@@ -66,6 +69,7 @@ isOneToOne: false
                   Row: {
                     "brand": string | null,"created_at": string,"customer_id": string,"customer_name": string,"id": string,"note": string | null,"perfume_name": string,"presentation": string | null,"status": Database["public"]['Enums']["request_status"],"updated_at": string,"variant_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "brand"?: string | null,"created_at"?: string,"customer_id": string,"customer_name": string,"id"?: string,"note"?: string | null,"perfume_name": string,"presentation"?: string | null,"status"?: Database["public"]['Enums']["request_status"],"updated_at"?: string,"variant_id"?: string | null
                   }
@@ -91,6 +95,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"id": string,"is_available": boolean,"label": string | null,"price": number,"product_id": string,"size_ml": number,"stock": number,"updated_at": string,"variant_type": Database["public"]['Enums']["variant_type"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"id"?: string,"is_available"?: boolean,"label"?: never,"price": number,"product_id": string,"size_ml": number,"stock"?: number,"updated_at"?: string,"variant_type": Database["public"]['Enums']["variant_type"]
                   }
@@ -110,6 +115,7 @@ isOneToOne: false
                   Row: {
                     "brand": string,"created_at": string,"description": string | null,"gender": Database["public"]['Enums']["product_gender"] | null,"id": string,"image_path": string | null,"is_featured": boolean,"name": string,"slug": string,"status": Database["public"]['Enums']["product_status"],"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "brand": string,"created_at"?: string,"description"?: string | null,"gender"?: Database["public"]['Enums']["product_gender"] | null,"id"?: string,"image_path"?: string | null,"is_featured"?: boolean,"name": string,"slug": string,"status"?: Database["public"]['Enums']["product_status"],"updated_at"?: string
                   }
@@ -123,6 +129,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"display_name": string | null,"id": string,"role": Database["public"]['Enums']["admin_role"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"display_name"?: string | null,"id": string,"role"?: Database["public"]['Enums']["admin_role"]
                   }
@@ -136,6 +143,7 @@ isOneToOne: false
                   Row: {
                     "action": string,"client_key": string,"created_at": string,"id": number
                   }
+                  ComputedFields: never
                   Insert: {
                     "action": string,"client_key": string,"created_at"?: string,"id"?: never
                   }
@@ -149,6 +157,7 @@ isOneToOne: false
                   Row: {
                     "estimate_to_branch": number,"estimate_to_home": number,"id": boolean,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "estimate_to_branch": number,"estimate_to_home": number,"id"?: boolean,"updated_at"?: string
                   }
@@ -162,6 +171,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"created_by": string | null,"id": string,"movement_type": Database["public"]['Enums']["stock_movement_type"],"note": string | null,"quantity": number,"reference_id": string | null,"variant_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"created_by"?: string | null,"id"?: string,"movement_type": Database["public"]['Enums']["stock_movement_type"],"note"?: string | null,"quantity": number,"reference_id"?: string | null,"variant_id": string
                   }
@@ -190,6 +200,7 @@ isOneToOne: false
                   Row: {
                     "brand": string | null,"last_requested_at": string | null,"pending_requests": number | null,"perfume_key": string | null,"perfume_name": string | null,"total_requests": number | null
                   }
+                  ComputedFields: never
                   Relationships: [
                     
                   ]

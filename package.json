@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint --max-warnings 0",
     "db:start": "supabase start",
-    "db:start:lite": "supabase start -x storage-api,imgproxy,studio,postgres-meta,edge-runtime,logflare,vector,realtime,mailpit,supavisor",
+    "db:start:lite": "supabase start -x imgproxy,studio,postgres-meta,edge-runtime,logflare,vector,realtime,mailpit,supavisor",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "test:db": "node supabase/tests/schema.test.cjs",
@@ -41,7 +41,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "jsdom": "^29.1.1",
-    "supabase": "^2.119.0",
+    "supabase": "^2.120.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.3"

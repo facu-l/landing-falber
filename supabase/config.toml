@@ -118,14 +118,15 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Fotos de productos. En la nube el bucket lo crea la migración 0001.
-# Desactivado en local: con CLI 2.119 + storage-api 1.79.28 el servicio de Storage
-# no crea sus tablas y crear buckets acá rompe `supabase start` con
-# DatabaseSchemaMismatch (ver TODOS.md → "Storage local").
-# [storage.buckets.product-images]
-# public = true
-# file_size_limit = "5MiB"
-# allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/avif"]
+# Fotos de productos. En la nube el bucket lo crea la migración 0001 (límites: 0003).
+# En local lo crea `supabase start` (CLI 2.120+) con los mismos límites (decisión 97),
+# y sube las fotos del seed (`objects_path`): local y CI sirven las fotos desde
+# Storage, igual que producción. Las policies de escritura van en seed.sql.
+[storage.buckets.product-images]
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/webp", "image/jpeg"]
+objects_path = "../public/product-images"
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]

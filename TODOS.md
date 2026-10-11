@@ -8,7 +8,7 @@
 
 **Why:** En el MVP esto se opera desde Supabase Studio (decisión 10 de la revisión). Sirve para arrancar, pero cargar productos con fotos ahí es incómodo y lento.
 
-**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana.
+**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana. **En curso en la Fase 7** (`feat/admin-catalog`, decisiones 91 a 102): productos, fotos, presentaciones y stock. El ranking de encargos queda afuera: al mergear el PR 3, esta entrada se reduce a ese ranking.
 
 **Effort:** M
 **Priority:** P2
@@ -29,18 +29,6 @@
 **Depends on:** Catálogo cargado y en uso.
 
 ## Desarrollo local
-
-### Storage local
-
-**What:** Que `supabase start` levante Storage con sus tablas (`storage.buckets`, `storage.objects`) y el bucket `product-images`.
-
-**Why:** Con Supabase CLI 2.119.0 + storage-api 1.79.28, Storage registra sus 74 migraciones en `storage.migrations` pero no crea las tablas. Declarar el bucket en `config.toml` hace fallar `supabase start` con `DatabaseSchemaMismatch`. Se reproduce sin nuestras migraciones y desde volúmenes limpios: es un bug de la herramienta, no del esquema.
-
-**Context:** Mientras tanto, la sección de Storage de `0001` es condicional (`to_regclass('storage.objects')`): en la nube crea bucket y policies, en local emite un NOTICE y sigue. El bucket está comentado en `supabase/config.toml`. Para arreglarlo: actualizar el CLI (`npm i -D supabase@latest`), descomentar el bucket, `npx supabase stop --no-backup && npx supabase start`, y verificar `select * from storage.buckets`. **Ojo:** aunque el bucket aparezca, las 3 policies de escritura de `0001` NO se crean en local (la migración corre antes que Storage y queda registrada como aplicada). Hay que crearlas después del start, por ejemplo con un `supabase/seed.sql` que haga `drop policy if exists ...; create policy ...`; si no, las subidas del admin en local fallan por RLS sin error claro. Señal: antes de la Fase 2 si se quieren servir fotos desde el Storage local (alternativa: fotos de prueba en `public/`).
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** Una versión del CLI que lo corrija.
 
 ### Vulnerabilidades de `npm audit`
 
@@ -92,18 +80,6 @@
 **Priority:** P3
 **Depends on:** —
 
-### Revocar TRUNCATE en todas las tablas
-
-**What:** `revoke truncate on all tables in schema public from anon, authenticated` en `0001` (o en una migración nueva, si ya hubo deploy), con un test en `schema.test.cjs` que lo verifique con `has_table_privilege`.
-
-**Why:** Supabase otorga `ALL` por defecto en las tablas de `public`, y `0001` solo revoca `insert`, `update` y `delete`. `TRUNCATE` no pasa por RLS. No es explotable por la API (PostgREST no expone `TRUNCATE`), pero contradice "nadie borra el historial". En `shipping_rates` ya está revocado (decisión 81). Visto en el `/review` de los envíos estimados.
-
-**Context:** Ya hubo deploy: `0001` está congelada, así que va en una migración nueva (`0003_...`). Señal: con la primera migración nueva.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** —
-
 ### robots.txt y sitemap.xml
 
 **What:** `src/app/robots.ts` (permitir la tienda, `disallow` de `/admin`, `/carrito`, `/checkout` y `/pedido`) y `src/app/sitemap.ts` con la home, el catálogo, encargos y cada producto activo (desde `getCatalog()`).
@@ -122,13 +98,25 @@
 
 **What:** Subir las fotos reales de cada producto al bucket `product-images` y la del hero (hoy `public/brand/hero-placeholder.webp`).
 
-**Why:** Las imágenes de `public/product-images/` y el hero son placeholders generados (un frasco genérico sobre carbón) para desarrollo y CI. En producción `NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL` va vacía y las fotos salen de Storage.
+**Why:** Las imágenes de `public/product-images/` y el hero son placeholders generados (un frasco genérico sobre carbón) para desarrollo y CI (`supabase start` las sube al bucket local). En producción las fotos salen del bucket de la nube.
 
 **Context:** Formato vertical 4:5, fondo oscuro o neutro (DESIGN.md → Fotos de producto). El nombre del archivo en el bucket es lo que va en `products.image_path`. El hero no es un producto: va en `public/brand/` (o en el bucket, si se prefiere editarlo sin deploy).
 
 **Effort:** S
 **Priority:** P1 (antes del lanzamiento)
 **Depends on:** Fotos de la Fase 0.
+
+### Varias fotos por producto
+
+**What:** Más de una foto por producto (frasco, caja, otro ángulo): tabla `product_images` (`product_id`, `path`, `position`), una migración que pase `products.image_path` a la primera foto, subida y orden desde `/admin/productos/[id]` y galería en la ficha.
+
+**Why:** La Fase 7 deja una sola foto (decisión 96) porque la base tiene un solo `image_path` y alcanza para vender. Anotado para que no se resuelva con un `image_path_2` a mano.
+
+**Context:** La subida ya existe (URL firmada, achicado en el navegador, nombre único, validación de la ruta: decisiones 96 y 97); se reusa por foto. La regla de publicar (decisión 93) pasaría a "al menos una foto". Señal: el dueño pide mostrar más de una foto por producto.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** Fase 7 mergeada.
 
 ## Design system
 

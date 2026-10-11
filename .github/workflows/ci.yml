@@ -38,13 +38,12 @@ jobs:
         run: npm test
       # La build prerenderiza el catálogo: necesita una base con datos.
       # Supabase local con el seed fijo (supabase/seed.sql), no la nube: los tests no
-      # dependen de datos reales que cambian. Solo db, auth y API (sin Studio ni Storage).
+      # dependen de datos reales que cambian. Solo db, auth, API y Storage (sin Studio).
       - name: Supabase local
         run: npm run db:start:lite
       - name: Variables de Supabase local
         run: |
           npx supabase status -o env             --override-name api.url=NEXT_PUBLIC_SUPABASE_URL             --override-name auth.publishable_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY             | grep '^NEXT_PUBLIC_SUPABASE_' | sed 's/"//g' >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL=/product-images" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_WHATSAPP_NUMBER=5492355481449" >> "$GITHUB_ENV"
       - name: Build
         run: npm run build
@@ -64,7 +63,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       # La build prerenderiza el catálogo: necesita una base con datos.
       # Supabase local con el seed fijo (supabase/seed.sql), no la nube: los tests no
-      # dependen de datos reales que cambian. Solo db, auth y API (sin Studio ni Storage).
+      # dependen de datos reales que cambian. Solo db, auth, API y Storage (sin Studio).
       - name: Supabase local
         run: npm run db:start:lite
       # La compra completa crea pedidos de verdad: además de las públicas, hacen falta la
@@ -73,7 +72,6 @@ jobs:
       - name: Variables de Supabase local
         run: |
           npx supabase status -o env             --override-name api.url=NEXT_PUBLIC_SUPABASE_URL             --override-name auth.publishable_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY             --override-name auth.secret_key=SUPABASE_SERVICE_ROLE_KEY             | grep -E '^(NEXT_PUBLIC_SUPABASE_|SUPABASE_SERVICE_ROLE_KEY)' | sed 's/"//g' >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_PRODUCT_IMAGES_BASE_URL=/product-images" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_WHATSAPP_NUMBER=5492355481449" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000BB" >> "$GITHUB_ENV"
           echo "TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA" >> "$GITHUB_ENV"

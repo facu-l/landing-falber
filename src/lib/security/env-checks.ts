@@ -30,6 +30,22 @@ export function siteHostnames(value: string | undefined): string[] {
   return hostnames;
 }
 
+const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+/**
+ * true solo con el Supabase local de desarrollo y CI (`supabase start`). next.config.ts lo usa
+ * para habilitar las IPs locales en next/image: Next 16 las bloquea por defecto (SSRF) y en
+ * local el bucket de fotos está en 127.0.0.1. Una URL inválida o ausente no es local.
+ */
+export function isLocalSupabaseUrl(value: string | undefined): boolean {
+  if (!value) return false;
+  try {
+    return LOCAL_HOSTNAMES.has(new URL(value).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Solo en el build de producción de Netlify (CONTEXT=production; local, CI y previews no lo
  * definen así). El secreto se revisa si está: si Netlify no lo expone al build, en runtime
@@ -39,6 +55,11 @@ export function assertProductionEnv(env: Record<string, string | undefined>): vo
   if (env.CONTEXT !== "production") return;
 
   siteHostnames(env.SITE_HOSTNAMES);
+  if (isLocalSupabaseUrl(env.NEXT_PUBLIC_SUPABASE_URL)) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL de producción apunta a un Supabase local: next/image quedaría con las IPs locales habilitadas.",
+    );
+  }
   if (env.TURNSTILE_SECRET_KEY && TURNSTILE_TEST_SECRET.test(env.TURNSTILE_SECRET_KEY)) {
     throw new Error(
       "TURNSTILE_SECRET_KEY de producción es una clave de prueba de Cloudflare: con ella pasa cualquier token.",

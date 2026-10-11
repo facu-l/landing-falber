@@ -298,6 +298,25 @@ Pedido del dueño: al elegir "Envío a domicilio", mostrar "Envío estimado a su
 | 89 | **La confirmación del encargo ofrece "Enviar por WhatsApp"** con el mensaje armado (`buildRequestWhatsAppMessage`: nombre, perfume y lo opcional que se completó, sin el WhatsApp del cliente). La Server Action devuelve el link (`whatsappUrl`) y lee el número de la tienda antes de guardar. Reemplaza el "te escribimos por WhatsApp" de la decisión 47 | La base guarda el encargo pero no avisa a nadie, y no hay pantalla del admin para encargos (decisión 10): uno de prueba en producción no le llegó a la tienda. Con los pedidos no pasaba porque el cliente termina en WhatsApp. Es el canal por el que ya se vende, sin servicios ni claves nuevas; si el cliente no toca el botón, el encargo igual queda en `perfume_requests`. Leer el número antes de guardar evita un encargo guardado con el cliente viendo un error y reintentando |
 | 90 | **Encargos en el panel: pestaña "Encargos" a la derecha de "Pedidos", con el número de pendientes** (`PendingRequestsCount`, en su propio `<Suspense>`; con 0 no se muestra). `/admin/encargos` lista abiertos sin tope y los últimos 100 cerrados, pendientes primero (el más viejo arriba), sin página de detalle: cada fila trae el encargo entero, "Escribirle por WhatsApp" (saludo armado al cliente) y el cambio de estado. Cualquier estado a cualquier otro, con compare-and-set sobre el estado que se ve. Sin migración: RLS y el permiso de columna (`update (status)`) ya existían. Achica la decisión 10: productos y stock siguen en Studio | El botón de la decisión 89 depende de que el cliente lo toque: sin registro en el panel, un encargo sin mensaje no se veía salvo entrando a Studio. El número en la navegación avisa sin abrir la pestaña. La base no limita las transiciones de un encargo (no tocan stock), así que se ofrece cualquier estado, para poder corregir un error; el compare-and-set evita que una pestaña vieja pise un cambio. Si el conteo falla devuelve 0: es un aviso y no puede tirar abajo el panel |
 
+### O. Decisiones de la Fase 7 (admin de catálogo, plan del 2026-10-10)
+
+Plan acordado antes de codear, pendiente de `/plan-eng-review`. Reemplaza "productos y stock siguen en Studio" (decisiones 10 y 90).
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 91 | **Dos estados: "Publicado" (`active`) y "No publicado" (`inactive`).** El producto nace `inactive` y se publica a mano; ocultarlo es volver a `inactive`. Sin migración para el estado | El enum tiene dos valores. Un tercero ("borrador" vs. "oculto") solo ordena la lista del admin y costaba una migración sobre un enum en producción y un caso más en cada consulta. Para el cliente lo único que cambia es si el producto está o no en la tienda |
+| 92 | **Migración `0003` con las reglas nuevas del catálogo** (`0001` está congelada desde el deploy). Cada regla con su test en `schema.test.cjs` y su mensaje en castellano | Las reglas viven en la base: si quedan solo en la Server Action, Studio u otro código se las saltean. Es la primera migración posterior al deploy: se aplica en la nube con `supabase db push` después del merge |
+| 93 | **Publicar exige foto y al menos una presentación disponible** (`PRODUCT_NOT_PUBLISHABLE`, trigger en `products` al pasar a `active`). **No exige stock** | Cambia lo acordado ("precio y stock"): un perfume agotado publicado es un estado válido de la tienda, que lleva a "Encargar" (Fase 4). La regla mira solo la transición: sacar la última presentación de un producto publicado no lo despublica, la tienda ya muestra el caso sin opciones |
+| 94 | **El slug se arma de marca + nombre al crear el producto y no cambia nunca** (`SLUG_LOCKED`, trigger en update). La función (`slugify`, sin tildes, `n°5` → `n-5`) es pura y se testea contra el `check` del slug. El formulario de alta muestra el slug antes de guardar. Repetido (`23505` en `products_slug_key`): "Ya existe un producto con esa marca y nombre" | Los links compartidos y `/encargos?producto=<slug>` siguen andando aunque se corrija el nombre. Fijo desde la creación es más simple que "fijo desde que se publica": no hace falta saber si alguna vez estuvo publicado. Mostrarlo antes de guardar es la defensa contra un typo |
+| 95 | **Ocultar, nunca borrar:** `0003` revoca `delete` en `products` y `product_variants` a `authenticated`. Una presentación se retira con "No disponible" (`is_available = false`) | Pedidos e historial de stock los referencian. Hoy la policy `for all` deja borrar un producto sin historial y el `cascade` se lleva sus presentaciones: la regla queda en la base, no en la ausencia de un botón |
+| 96 | **Una foto por producto, subida desde el navegador con una URL firmada:** una Server Action (`requireAdminAction()`, sesión del admin) elige la ruta (`<slug>-<random>.webp`) y pide `createSignedUploadUrl` (Storage aplica la policy de insert del admin); el navegador sube con `uploadToSignedUrl`. Después otra acción guarda `image_path` y borra la foto anterior (si falla el borrado, se loguea; si falla el guardado, se intenta borrar la nueva) | Las cookies de sesión son `httpOnly` y no hay cliente de navegador (decisión 73): el navegador no puede subir con la sesión del admin. La URL firmada no expone la sesión y el archivo no pasa por la Server Action (límite de 1 MB) ni por Netlify (~6 MB). Nombre único por subida: con el mismo nombre, el navegador y `next/image` muestran la foto vieja |
+| 97 | **La foto se achica en el navegador antes de subir** (lado mayor 1600 px, WebP; si el navegador no codifica WebP, `blob.type` lo delata y se usa JPEG) y **el bucket limita tamaño y tipo** en `0003`: 5 MiB y `image/webp`, `image/jpeg` | Una foto de celular pesa 3 a 8 MB. El bucket de la nube no tiene límites propios (hereda 50 MiB y cualquier tipo): la validación del navegador se saltea, la del bucket no |
+| 98 | **Presentaciones: decant de 3, 5 o 10 ml** (`DECANT_SIZES` en TS, sumar un tamaño no pide migración) **o frasco con los ml a mano** (entero, 1 a 1000). La etiqueta la genera la base. **Tipo y ml quedan fijos al crearla** (`0003` revoca `update (variant_type, size_ml)`): se editan precio y disponible. Repetida (`23505`): "Ese producto ya tiene esa presentación" | Si "Decant 5 ml" pasara a ser "Decant 10 ml", su historial de stock y sus pedidos quedarían hablando de otra cosa. Para corregir un error se crea la correcta y se marca la otra "No disponible" |
+| 99 | **Precio en pesos enteros como se escriben** (mismo parser que el costo de envío, decisión 65) con su propio tope, más alto que el de envíos | Un frasco nicho puede pasar el $ 1.000.000 de los envíos. El tope frena un cero de más (la base solo pide `>= 0`) |
+| 100 | **Stock solo con movimientos desde el admin** (`initial_stock`, `restock`, `adjustment` sumar/restar, `damaged`; la cantidad se escribe positiva y el signo lo pone el tipo), con nota opcional e historial por presentación (también `sale` y `order_cancelled`). Stock inicial opcional al crear la presentación: dos inserts; si falla el segundo, la presentación queda con 0 y se avisa. Restar más de lo que hay lo rechaza la base (`stock >= 0`): "No hay tanto stock para descontar" | Es la regla del proyecto y lo que ya permite la policy "admin: add manual stock movements". Dos inserts en vez de una RPC: el caso que falla queda a la vista y se corrige con un movimiento |
+| 101 | **Rutas:** `/admin/productos` (lista sin tope: miniatura, marca y nombre, estado, presentaciones con stock, destacado), `/admin/productos/nuevo` y `/admin/productos/[id]` (datos, foto, publicar, presentaciones y stock en la misma página). Pestaña "Productos" en la navegación. "Destacado" se marca en el formulario | Son ~30 perfumes: sin paginación ni búsqueda. Una sola página por producto evita navegar para cargar uno completo |
+| 102 | **Cada guardado que cambia lo que ve la tienda hace `updateTag('catalog')`** (decisión 34) y `refresh()`. `requireAdminAction()` primero, sesión del admin (nunca `service_role`), zod repite los límites de la base, updates con `.select('id')` (decisión 64) y errores con `mapDbError` / `loggableDbError` | Mismas reglas que el resto del panel |
+
 ---
 
 ## 4. Arquitectura
@@ -714,11 +733,29 @@ El dump **no trae** los jobs de pg_cron ni el historial de migraciones (verifica
 - El equipo de Netlify tenía la visibilidad por defecto en privada: el sitio respondía 401 ("Login Redirect" a `app.netlify.com/edge-access`) a todos menos a quien estaba logueado en Netlify, y por eso las pruebas desde el celular pasaron. Probar siempre desde una sesión anónima (o con `fetch` desde fuera). Quedó Private + "Previews only": los previews usan las mismas variables que producción, o sea la base real, y abiertos dejarían crear pedidos con código sin revisar.
 - Netlify emite el certificado unos minutos después de que el DNS apunta al dominio. El navegador que entró antes reutiliza la conexión con el certificado anterior y sigue mostrando "No seguro" aunque el sitio ya esté bien (en InPrivate se ve el candado). Esperar a que Netlify muestre el certificado emitido (Domain management → HTTPS) y, si pasó, cerrar el navegador del todo (Edge sigue en segundo plano por el "Aumento de inicio").
 
+### Fase 7 — Admin de catálogo (plan en `feat/admin-catalog`, 2026-10-10)
+
+Cargar productos, fotos, presentaciones y stock desde el panel, sin Studio. Es lo último que falta para difundir el dominio (Fase 6, parte B). Decisiones en la sección 3.O (91 a 102). Tres PRs, el riesgo primero:
+
+**PR 1 — Storage local y migración `0003`.**
+1. Storage local (TODOS.md → "Storage local"): actualizar el CLI (`supabase@latest`; editar `package.json` y el lockfile a mano y validar con Docker), descomentar el bucket en `supabase/config.toml` con los límites de la decisión 97, `npx supabase stop --no-backup && npx supabase start` y verificar `select * from storage.buckets`. Las 3 policies de escritura de `0001` no se crean en local (la migración corre antes que Storage): crearlas desde `supabase/seed.sql` con `drop policy if exists` + `create policy`. **Si el bug sigue, se frena acá** y se decide la alternativa antes de escribir pantallas: sin Storage local, la subida solo se probaría con mocks.
+2. `0003`: `PRODUCT_NOT_PUBLISHABLE` (93), `SLUG_LOCKED` (94), `revoke delete` (95), `revoke update (variant_type, size_ml)` (98), límites del bucket (97, condicional como la sección de Storage de `0001`). El default de `products.status` pasa a `inactive`: el seed y los tests crean el producto, sus presentaciones y lo publican al final. Tests en `schema.test.cjs` y mensajes en castellano. A decidir en la revisión: sumar a `0003` el TODO "Revocar TRUNCATE en todas las tablas" (pide una migración nueva y esta es la primera).
+3. Después del merge: `supabase db push` en la nube y verificar triggers, permisos y bucket.
+
+**PR 2 — Productos.** Pestaña "Productos", lista, alta (con `slugify` y el slug a la vista), edición de datos y destacado, foto (URL firmada, achicado en el navegador, borrado de la anterior).
+
+**PR 3 — Presentaciones, stock y publicar.** Agregar presentación (decant 3/5/10 o frasco con ml, precio, stock inicial opcional), editar precio y disponible, movimientos de stock con nota e historial, publicar y ocultar (la regla de la 93 necesita presentaciones).
+
+**Tests.** Esquema: cada regla de `0003`, también desde el rol de Studio. Vitest: `slugify` contra el `check` del slug, parser de precio, signo por tipo de movimiento, nombre de la foto, cada acción (`requireAdminAction` primero, 0 filas, errores de la base, `updateTag`) y los formularios. E2E: un admin crea un producto, le sube la foto, le agrega una presentación con stock, lo publica y aparece en la tienda; ocultarlo lo saca; publicar sin foto muestra el mensaje.
+
+**Al cerrar:** el dueño carga el catálogo real, se revisa el Dior Sauvage activo en producción, se reemplaza el hero (`public/brand/hero-placeholder.webp`) y se tilda el último ítem de la sección 11.
+
 ### Flujo completo
 
 ```
 Fase 1 base + DS ─► Fase 2 tienda (taste-skill) ─► Fase 3 checkout (TDD) ─► Fase 4 encargos
        ─► Fase 5 admin pedidos ─► Fase 6 operación + /design-review /qa /cso /review ─► lanzamiento
+       ─► Fase 7 admin de catálogo ─► difusión del dominio
 ```
 
 ---
@@ -741,7 +778,6 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 
 | Funcionalidad | Señal para agregarla |
 |---|---|
-| Admin de productos y stock (los encargos ya están, decisión 90) | Cargar productos en Studio te lleva más de 10 min por semana (TODOS.md) |
 | Stock calculado desde Decant Manager | Sobreventa o más de ~30 perfumes (TODOS.md) |
 | Logo vectorial | Cuando lo tenga diseño (TODOS.md) |
 | Mercado Pago | Muchos pedidos se caen en la transferencia |

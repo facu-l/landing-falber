@@ -1,11 +1,13 @@
 -- Catálogo de PRUEBA para desarrollo local y CI. Lo aplica `supabase db reset`
 -- (y el primer `supabase start`) después de las migraciones. Nunca va a producción.
 --
--- Precios y stock son inventados. Las fotos son placeholders en
--- public/product-images/ (Storage local no funciona: decisión 22).
+-- Precios y stock son inventados. Las fotos son placeholders en public/product-images/:
+-- `supabase start` las sube al bucket local (objects_path en config.toml).
 --
 -- Reglas que respeta:
 --   * El stock entra SOLO por stock_movements (initial_stock); nunca se edita `stock`.
+--   * Los productos nacen sin publicar (0003) y se publican al final, con foto y
+--     presentaciones: el mismo orden que exige el admin (decisión 93).
 --   * Casos de borde a propósito: una variante sin stock (Santal 33, 10 ml),
 --     un producto completamente agotado (The Most Wanted) y uno inactivo (no se ve).
 
@@ -37,8 +39,6 @@ insert into public.products (name, brand, slug, description, image_path, gender,
   ('Producto oculto', 'FALBER', 'producto-oculto',
    'Inactivo: no debe aparecer en la tienda.',
    null, 'unisex', false);
-
-update public.products set status = 'inactive' where slug = 'producto-oculto';
 
 -- Variantes: (slug, tipo, ml, precio)
 insert into public.product_variants (product_id, variant_type, size_ml, price)
@@ -85,3 +85,7 @@ join public.product_variants pv
   on pv.product_id = p.id
  and pv.variant_type = s.variant_type::public.variant_type
  and pv.size_ml = s.size_ml;
+
+-- Publicar, ya con foto y presentaciones (0003 lo exige). "Producto oculto" queda sin
+-- publicar: no tiene foto y no debe aparecer en la tienda.
+update public.products set status = 'active' where slug <> 'producto-oculto';

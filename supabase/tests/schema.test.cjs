@@ -9,6 +9,8 @@ const fs = require('fs');
 const path = require('path');
 
 const MIGRATION = path.join(__dirname, '..', 'migrations', '0001_initial_schema.sql');
+// 0002 (pg_cron) no corre en PGlite: sus jobs llaman funciones de 0001 que ya se prueban acá.
+const MIGRATION_0003 = path.join(__dirname, '..', 'migrations', '0003_catalog_admin.sql');
 
 const SUPABASE_STUB = `
 create role anon nologin;
@@ -22,7 +24,7 @@ $$;
 grant usage on schema auth to anon, authenticated, service_role;
 grant execute on function auth.uid() to anon, authenticated, service_role;
 create schema storage;
-create table storage.buckets (id text primary key, name text, public boolean);
+create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
 create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
 alter table storage.objects enable row level security;
 grant usage on schema public to anon, authenticated, service_role;
@@ -82,6 +84,16 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   console.log('\n[1] Migración');
   try { await db.exec(fs.readFileSync(MIGRATION, 'utf8')); ok('la migración se aplica sin errores'); }
   catch (e) { bad('aplicar migración', e.message); process.exit(1); }
+  // Igual que en producción: todo lo que sigue corre con 0001 + 0003 aplicadas.
+  try { await db.exec(fs.readFileSync(MIGRATION_0003, 'utf8')); ok('la migración 0003 se aplica sin errores'); }
+  catch (e) { bad('aplicar migración 0003', e.message); process.exit(1); }
+  // Antes de los fixtures: sin este default, el trigger de publicar rechaza cualquier alta y todo se cae.
+  {
+    const def = (await one(db, `select column_default d from information_schema.columns
+      where table_schema = 'public' and table_name = 'products' and column_name = 'status'`)).d;
+    if (String(def).startsWith("'inactive'")) ok('0003: products.status nace inactive (decisión 91)');
+    else { bad('0003: products.status nace inactive (decisión 91)', def); process.exit(1); }
+  }
 
   // Storage condicional: con las tablas (nube) crea bucket y policies...
   eq('storage: crea el bucket product-images público',
@@ -97,6 +109,8 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
     await local.exec(fs.readFileSync(path.join(__dirname, '..', 'roles.sql'), 'utf8'));
     try { await local.exec(fs.readFileSync(MIGRATION, 'utf8')); ok('storage local: sin tablas la migración igual se aplica'); }
     catch (e) { bad('storage local: sin tablas la migración igual se aplica', e.message); }
+    try { await local.exec(fs.readFileSync(MIGRATION_0003, 'utf8')); ok('storage local: sin tablas la 0003 igual se aplica'); }
+    catch (e) { bad('storage local: sin tablas la 0003 igual se aplica', e.message); }
     eq('storage local: no deja policies a medias',
       (await one(local, `select count(*) n from pg_policies where schemaname = 'storage'`)).n, 0);
     eq('storage local: el resto del esquema queda completo (create_order existe)',
@@ -121,11 +135,10 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await db.exec(`
     insert into auth.users values ('${ADMIN}'), ('${RANDOM_USER}');
     insert into profiles (id, display_name) values ('${ADMIN}', 'Facundo');
-    insert into products (id, name, brand, slug, gender) values
-      ('${P1}', 'Sauvage EDT', 'Dior', 'dior-sauvage-edt', 'male'),
-      ('${P2}', 'The Most Wanted', 'Azzaro', 'azzaro-the-most-wanted', 'male'),
-      ('${P3}', 'Producto oculto', 'X', 'producto-oculto', 'unisex');
-    update products set status = 'inactive' where id = '${P3}';
+    insert into products (id, name, brand, slug, gender, image_path) values
+      ('${P1}', 'Sauvage EDT', 'Dior', 'dior-sauvage-edt', 'male', 'dior-sauvage-edt.webp'),
+      ('${P2}', 'The Most Wanted', 'Azzaro', 'azzaro-the-most-wanted', 'male', 'azzaro-the-most-wanted.webp'),
+      ('${P3}', 'Producto oculto', 'X', 'producto-oculto', 'unisex', null);
     insert into product_variants (id, product_id, variant_type, size_ml, price) values
       ('${V1}', '${P1}', 'decant', 5, 8000),
       ('${V2}', '${P2}', 'decant', 10, 14000),
@@ -136,6 +149,8 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
       ('${V2}', 'initial_stock', 5, 'Carga inicial'),
       ('${V3}', 'initial_stock', 5, 'Carga inicial'),
       ('${V4}', 'initial_stock', 1, 'Carga inicial');
+    -- 0003: los productos nacen sin publicar; se publican con foto y presentaciones (P3 queda oculto).
+    update products set status = 'active' where id in ('${P1}', '${P2}');
   `);
   const stockOf = async (v) => Number((await one(db, `select stock from product_variants where id='${v}'`)).stock);
 
@@ -523,6 +538,113 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
       (await one(db, `select has_table_privilege('${role}', 'public.shipping_rates', 'TRUNCATE') ok`)).ok, false);
   }
   eq('la fila de estimados sigue ahí', (await one(db, 'select count(*) n from shipping_rates')).n, 1);
+
+  console.log('\n[14] 0003: admin de catálogo (publicar, slug fijo, sin borrar, permisos)');
+  // Como el panel: el admin no elige ids (permisos de columna de 0001), los genera la base.
+  // Con default 'active', el trigger de publicar rechazaría el alta (sin foto): se reporta como FAIL, no como crash.
+  try {
+    await db.exec(`${asAdmin}
+      insert into products (name, brand, slug, gender) values ('Oud Wood', 'Tom Ford', 'tom-ford-oud-wood', 'unisex');`);
+  } catch (e) { bad('el admin da de alta un producto sin foto ni presentaciones', e.message); process.exit(1); }
+  finally { await reset(db); }
+  const C1 = (await one(db, `select id from products where slug = 'tom-ford-oud-wood'`)).id;
+  eq('un producto nuevo nace sin publicar (decisión 91)', (await one(db, `select status from products where id='${C1}'`)).status, 'inactive');
+
+  // Publicar exige foto y una presentación disponible (decisión 93), desde el admin y desde Studio.
+  await expectError(db, 'publicar sin presentación → PRODUCT_NOT_PUBLISHABLE',
+    `${asAdmin} update products set image_path = 'tom-ford-oud-wood.webp', status = 'active' where id='${C1}'`,
+    'PRODUCT_NOT_PUBLISHABLE', 'variant');
+  await db.exec(`${asAdmin}
+    insert into product_variants (product_id, variant_type, size_ml, price, is_available)
+      values ('${C1}', 'decant', 5, 9000, false);`);
+  await reset(db);
+  const CV1 = (await one(db, `select id from product_variants where product_id = '${C1}'`)).id;
+  await expectError(db, 'publicar sin foto → PRODUCT_NOT_PUBLISHABLE',
+    `${asAdmin} update products set status = 'active' where id='${C1}'`, 'PRODUCT_NOT_PUBLISHABLE', 'image');
+  await expectError(db, 'publicar con la única presentación no disponible → PRODUCT_NOT_PUBLISHABLE',
+    `${asAdmin} update products set image_path = 'tom-ford-oud-wood.webp', status = 'active' where id='${C1}'`,
+    'PRODUCT_NOT_PUBLISHABLE', 'variant');
+  await expectError(db, 'publicar con foto vacía cuenta como sin foto',
+    `update product_variants set is_available = true where id='${CV1}'; update products set image_path = '  ', status = 'active' where id='${C1}'`,
+    'PRODUCT_NOT_PUBLISHABLE', 'image');
+  await db.exec(`update product_variants set is_available = true where id='${CV1}'`);
+  await db.exec(`${asAdmin} update products set image_path = 'tom-ford-oud-wood.webp', status = 'active' where id='${C1}'`);
+  await reset(db);
+  eq('con foto y presentación disponible se publica, aunque esté sin stock (agotado = encargar)',
+    (await one(db, `select p.status, v.stock from products p join product_variants v on v.product_id = p.id where p.id='${C1}'`)).status, 'active');
+  await expectError(db, 'Studio (postgres) tampoco inserta un producto ya publicado sin presentaciones',
+    `insert into products (name, brand, slug, gender, image_path, status) values ('Nuevo', 'X', 'x-nuevo', 'male', 'x.webp', 'active')`,
+    'PRODUCT_NOT_PUBLISHABLE');
+
+  // La foto es un invariante de lo publicado (D7); las presentaciones se miran solo al publicar.
+  await expectError(db, 'Studio no deja un producto publicado sin foto',
+    `update products set image_path = null where id='${C1}'`, 'PRODUCT_NOT_PUBLISHABLE', 'image');
+  await db.exec(`${asAdmin} update product_variants set is_available = false where id='${CV1}'`);
+  await reset(db);
+  eq('sacar la última presentación de un publicado no lo despublica',
+    (await one(db, `select status from products where id='${C1}'`)).status, 'active');
+  await db.exec(`${asAdmin} update products set is_featured = true, name = 'Oud Wood EDP' where id='${C1}'`);
+  await reset(db);
+  eq('editar un publicado (nombre, destacado) sigue andando', (await one(db, `select is_featured from products where id='${C1}'`)).is_featured, true);
+  await db.exec(`${asAdmin} update products set status = 'inactive', image_path = null where id='${C1}'`);
+  await reset(db);
+  eq('ocultado, la foto se puede sacar', (await one(db, `select image_path is null ok from products where id='${C1}'`)).ok, true);
+
+  // El slug no cambia nunca (decisión 94): los links compartidos y /encargos?producto= siguen andando.
+  eq('cambiar el nombre no cambia el slug', (await one(db, `select slug from products where id='${C1}'`)).slug, 'tom-ford-oud-wood');
+  await expectError(db, 'admin no cambia el slug → SLUG_LOCKED',
+    `${asAdmin} update products set slug = 'otro-slug' where id='${C1}'`, 'SLUG_LOCKED', 'tom-ford-oud-wood');
+  await expectError(db, 'Studio (postgres) tampoco cambia el slug', `update products set slug = 'otro-slug' where id='${C1}'`, 'SLUG_LOCKED');
+  await db.exec(`update products set slug = slug where id='${C1}'`);
+  ok('reescribir el mismo slug no es un cambio');
+
+  // Ocultar, nunca borrar (decisión 95).
+  await expectError(db, 'admin no borra productos', `${asAdmin} delete from products where id='${C1}'`, 'permission denied');
+  await expectError(db, 'admin no borra presentaciones', `${asAdmin} delete from product_variants where id='${CV1}'`, 'permission denied');
+
+  // Tipo y ml quedan fijos al crear la presentación (decisión 98).
+  await expectError(db, 'admin no cambia los ml de una presentación', `${asAdmin} update product_variants set size_ml = 10 where id='${CV1}'`, 'permission denied');
+  await expectError(db, 'admin no cambia el tipo de una presentación', `${asAdmin} update product_variants set variant_type = 'full_bottle' where id='${CV1}'`, 'permission denied');
+  await db.exec(`${asAdmin} update product_variants set price = 9500, is_available = true where id='${CV1}'`);
+  await reset(db);
+  eq('admin sigue editando precio y disponible', (await one(db, `select price from product_variants where id='${CV1}'`)).price, 9500);
+  await expectError(db, 'una presentación repetida en el mismo producto se rechaza',
+    `${asAdmin} insert into product_variants (product_id, variant_type, size_ml, price) values ('${C1}', 'decant', 5, 1)`,
+    'product_variants_product_id_variant_type_size_ml_key');
+
+  // TRUNCATE no pasa por RLS: nadie desde la API vacía una tabla (TODOS.md, con la primera migración nueva).
+  for (const role of ['anon', 'authenticated']) {
+    eq(`${role} no tiene TRUNCATE en ninguna tabla de public`,
+      (await one(db, `select count(*) n from pg_class c join pg_namespace s on s.oid = c.relnamespace
+        where s.nspname = 'public' and c.relkind in ('r', 'p') and has_table_privilege('${role}', c.oid, 'TRUNCATE')`)).n, 0);
+  }
+  await db.exec('create table public.tabla_futura (id int)');
+  eq('una tabla nueva tampoco le da TRUNCATE a authenticated',
+    (await one(db, `select has_table_privilege('authenticated', 'public.tabla_futura', 'TRUNCATE') ok`)).ok, false);
+  await db.exec('drop table public.tabla_futura');
+
+  // Contrato de regresión (D8 del eng review): con 0003, el seed deja el mismo catálogo que
+  // usan los E2E: 8 publicados con foto y "Producto oculto" sin publicar.
+  {
+    const seeded = new PGlite();
+    await seeded.exec(SUPABASE_STUB);
+    await seeded.exec(fs.readFileSync(MIGRATION, 'utf8'));
+    await seeded.exec(fs.readFileSync(MIGRATION_0003, 'utf8'));
+    try { await seeded.exec(fs.readFileSync(path.join(__dirname, '..', 'seed.sql'), 'utf8')); ok('seed: se aplica sobre 0001 + 0003'); }
+    catch (e) { bad('seed: se aplica sobre 0001 + 0003', e.message); }
+    const counts = await one(seeded, `select count(*) filter (where status = 'active') activos,
+      count(*) filter (where status = 'active' and image_path is not null) con_foto,
+      bool_or(slug = 'producto-oculto' and status = 'inactive') oculto from products`);
+    eq('seed: 8 productos publicados', counts.activos, 8);
+    eq('seed: los 8 publicados tienen foto', counts.con_foto, 8);
+    eq('seed: "Producto oculto" queda sin publicar', counts.oculto, true);
+    await seeded.close();
+  }
+
+  // Límites del bucket de fotos (decisión 97): la validación del navegador se saltea, la del bucket no.
+  const bucket = await one(db, `select file_size_limit, allowed_mime_types::text mimes from storage.buckets where id = 'product-images'`);
+  eq('el bucket acepta hasta 5 MiB', bucket.file_size_limit, 5 * 1024 * 1024);
+  eq('el bucket acepta solo WebP y JPEG', bucket.mimes, '{image/webp,image/jpeg}');
 
   console.log(`\nRESULTADO: ${passed} pasaron, ${failed} fallaron`);
   process.exit(failed ? 1 : 0);

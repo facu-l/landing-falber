@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, useEffect, useId, useState } from "react";
+import { type ChangeEvent, useEffect, useId, useRef, useState } from "react";
 import { requestPhotoUpload, savePhoto } from "@/app/admin/(panel)/productos/[id]/actions";
 import { ProductImage } from "@/components/store/ProductImage";
 import { Button, buttonClasses } from "@/components/ui/Button";
@@ -12,7 +12,7 @@ type Step =
   | { kind: "idle" }
   | { kind: "preparing" }
   /** previewUrl: object URL de la foto preparada, para verla mientras sube. */
-  | { kind: "uploading"; blob: Blob; previewUrl: string }
+  | { kind: "uploading"; previewUrl: string }
   | { kind: "saved" }
   /** blob: la foto ya preparada, para Reintentar sin volver a elegirla. */
   | { kind: "error"; message: string; blob?: Blob };
@@ -26,6 +26,8 @@ type Props = { productId: string; imagePath: string | null; alt: string };
  */
 export function ProductPhotoField({ productId, imagePath, alt }: Props) {
   const inputId = useId();
+  // El contenedor Noir de la vista previa: de ahí sale el fondo de la foto en la tienda.
+  const noirRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState<Step>({ kind: "idle" });
   const busy = step.kind === "preparing" || step.kind === "uploading";
 
@@ -34,7 +36,7 @@ export function ProductPhotoField({ productId, imagePath, alt }: Props) {
   useEffect(() => (localUrl ? () => URL.revokeObjectURL(localUrl) : undefined), [localUrl]);
 
   async function upload(blob: Blob) {
-    setStep({ kind: "uploading", blob, previewUrl: URL.createObjectURL(blob) });
+    setStep({ kind: "uploading", previewUrl: URL.createObjectURL(blob) });
     const target = await requestPhotoUpload(productId, blob.type);
     if (!target.ok) return setStep({ kind: "error", message: target.message, blob });
 
@@ -54,14 +56,16 @@ export function ProductPhotoField({ productId, imagePath, alt }: Props) {
     if (!file) return;
 
     setStep({ kind: "preparing" });
-    const prepared = await preparePhoto(file);
+    // surface-raised de Noir: el fondo de ProductImage en la tienda (sin hex en el código).
+    const background = noirRef.current ? getComputedStyle(noirRef.current).getPropertyValue("--surface-raised").trim() : "";
+    const prepared = await preparePhoto(file, background);
     if (!prepared.ok) return setStep({ kind: "error", message: prepared.message });
     await upload(prepared.blob);
   }
 
   return (
     <div className="flex flex-col gap-6 md:flex-row md:items-start">
-      <div data-theme="dark" className="w-60 shrink-0 bg-surface p-3">
+      <div ref={noirRef} data-theme="dark" className="w-60 shrink-0 bg-surface p-3">
         {localUrl ? (
           <div className="relative aspect-[4/5] overflow-hidden rounded-md bg-surface-raised">
             {/* eslint-disable-next-line @next/next/no-img-element -- blob: local, next/image no lo optimiza */}
@@ -112,7 +116,7 @@ function StepMessage({ step, hasPhoto }: { step: Step; hasPhoto: boolean }) {
     case "preparing":
       return <p role="status" className="text-body text-text-secondary">Preparando foto</p>;
     case "uploading":
-      return <p role="status" className="text-body text-text-secondary">Subiendo</p>;
+      return <p role="status" className="text-body text-text-secondary">Subiendo foto</p>;
     case "saved":
       return <p role="status" className="text-body text-text-secondary">Foto guardada.</p>;
     case "error":

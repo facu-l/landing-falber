@@ -31,6 +31,14 @@ describe("parseProductData", () => {
     });
   });
 
+  it("la descripción llega hasta 1000 caracteres (check de 0005), contados después de recortar", () => {
+    expect(parseProductData({ brand: "Dior", name: "Sauvage", description: ` ${"d".repeat(1000)} ` }).success).toBe(true);
+    expect(parseProductData({ brand: "Dior", name: "Sauvage", description: "d".repeat(1001) })).toEqual({
+      success: false,
+      fieldErrors: { description: PRODUCT_DATA_ERRORS.descriptionLength },
+    });
+  });
+
   it("un género fuera de la lista se rechaza", () => {
     expect(parseProductData({ brand: "Dior", name: "Sauvage", gender: "otro" })).toEqual({
       success: false,

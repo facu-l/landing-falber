@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildPhotoPath, fitWithin, isPhotoPathFor, PHOTO_MAX_SIDE, photoExtension } from "./product-photo";
+import {
+  buildPhotoPath,
+  fitWithin,
+  isPhotoPathFor,
+  PHOTO_ERRORS,
+  PHOTO_MAX_BYTES,
+  PHOTO_MAX_SIDE,
+  photoExtension,
+} from "./product-photo";
 
 describe("photoExtension", () => {
   it("solo WebP y JPEG, como el bucket", () => {
@@ -48,6 +56,13 @@ describe("isPhotoPathFor (D6: no se confía en la ruta del navegador)", () => {
     ]) {
       expect(isPhotoPathFor(path, slug), path).toBe(false);
     }
+  });
+});
+
+describe("PHOTO_ERRORS.tooBig", () => {
+  it("nombra el límite del bucket: 5 MiB, como 0003 y config.toml", () => {
+    expect(PHOTO_MAX_BYTES).toBe(5 * 1024 * 1024);
+    expect(PHOTO_ERRORS.tooBig).toContain("5 MB");
   });
 });
 

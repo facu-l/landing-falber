@@ -1,4 +1,5 @@
 import { type Gender, GENDER_LABELS } from "@/lib/catalog/catalog";
+import { LIMITS } from "@/lib/forms/limits";
 import { brandAndNameErrors, type MissingForPublish, type NewProductFieldErrors } from "./product-list";
 
 /*
@@ -6,8 +7,7 @@ import { brandAndNameErrors, type MissingForPublish, type NewProductFieldErrors 
  * encabezado. Puras: se prueban sin base.
  */
 
-export type ProductDataField = "brand" | "name" | "gender" | "description" | "featured";
-export type ProductDataFieldErrors = NewProductFieldErrors & Partial<Record<"gender", string>>;
+export type ProductDataFieldErrors = NewProductFieldErrors & Partial<Record<"gender" | "description", string>>;
 
 export type ProductData = {
   brand: string;
@@ -19,6 +19,7 @@ export type ProductData = {
 
 export const PRODUCT_DATA_ERRORS = {
   gender: "Elegí un género de la lista.",
+  descriptionLength: `La descripción puede tener hasta ${LIMITS.description} caracteres.`,
 } as const;
 
 export const PRODUCT_DATA_SAVE_ERROR = "No pudimos guardar los datos. Probá de nuevo en unos segundos.";
@@ -45,6 +46,10 @@ export function parseProductData(
     else fieldErrors.gender = PRODUCT_DATA_ERRORS.gender;
   }
 
+  // Mismo límite que el check de 0005.
+  const description = (values.description ?? "").trim();
+  if (description.length > LIMITS.description) fieldErrors.description = PRODUCT_DATA_ERRORS.descriptionLength;
+
   if (Object.keys(fieldErrors).length > 0) return { success: false, fieldErrors };
   return {
     success: true,
@@ -52,7 +57,7 @@ export function parseProductData(
       brand,
       name,
       gender,
-      description: (values.description ?? "").trim() || null,
+      description: description || null,
       is_featured: values.featured === "on",
     },
   };

@@ -44,14 +44,14 @@ export function isPhotoPathFor(path: string, slug: string): boolean {
 }
 
 /** Tamaño final: el lado mayor a PHOTO_MAX_SIDE como máximo, sin agrandar. */
-export function fitWithin(width: number, height: number, maxSide = PHOTO_MAX_SIDE) {
-  const scale = Math.min(1, maxSide / Math.max(width, height));
+export function fitWithin(width: number, height: number) {
+  const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(width, height));
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 
 export const PHOTO_ERRORS = {
   unreadable: "No se pudo leer la foto. Probá con otra o sacala de nuevo.",
-  tooBig: "La foto sigue pesando más de 5 MB después de achicarla. Probá con otra.",
+  tooBig: `La foto sigue pesando más de ${PHOTO_MAX_BYTES / (1024 * 1024)} MB después de achicarla. Probá con otra.`,
   upload: "No se pudo subir la foto. Revisá la conexión y tocá Reintentar.",
   save: "La foto se subió pero no se pudo guardar en el producto. Tocá Reintentar.",
   invalidPath: "No pudimos guardar esa foto. Elegila de nuevo.",

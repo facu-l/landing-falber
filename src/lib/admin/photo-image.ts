@@ -14,7 +14,12 @@ function encode(canvas: HTMLCanvasElement, type: string): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, type, QUALITY));
 }
 
-export async function preparePhoto(file: File): Promise<PreparedPhoto> {
+/**
+ * background: color con el que se pinta el canvas antes de dibujar. Un PNG transparente
+ * quedaría transparente en WebP (Chrome) y negro en JPEG (Safari no codifica WebP): con
+ * el fondo de la foto en la tienda, sale igual en los dos.
+ */
+export async function preparePhoto(file: File, background: string): Promise<PreparedPhoto> {
   let bitmap: ImageBitmap;
   try {
     // from-image: aplica la orientación EXIF. Una foto de celular "acostada" queda derecha.
@@ -29,6 +34,8 @@ export async function preparePhoto(file: File): Promise<PreparedPhoto> {
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) return { ok: false, message: PHOTO_ERRORS.unreadable };
+  context.fillStyle = background;
+  context.fillRect(0, 0, width, height);
   context.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 

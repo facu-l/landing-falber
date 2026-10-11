@@ -77,8 +77,11 @@ export function hasVariantType(product: CatalogProduct, type: VariantType): bool
 // Selecciones de la home
 // ---------------------------------------------------------------------------
 
+/** Cuántos destacados muestra la home. El admin lo dice en el formulario de datos. */
+export const FEATURED_LIMIT = 3;
+
 /** Destacados con stock, como máximo `limit`. Un destacado agotado no se promociona. */
-export function featuredProducts(products: CatalogProduct[], limit = 3): CatalogProduct[] {
+export function featuredProducts(products: CatalogProduct[], limit = FEATURED_LIMIT): CatalogProduct[] {
   return products.filter((p) => p.isFeatured && !isSoldOut(p)).slice(0, limit);
 }
 

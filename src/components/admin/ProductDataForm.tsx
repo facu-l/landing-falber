@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 import { updateProductData } from "@/app/admin/(panel)/productos/[id]/actions";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import type { AdminProductRow } from "@/lib/admin/product-list";
-import { INITIAL_PRODUCT_DATA_STATE } from "@/lib/admin/product-data";
-import { GENDER_LABELS } from "@/lib/catalog/catalog";
+import { INITIAL_PRODUCT_DATA_STATE, type ProductDataState } from "@/lib/admin/product-data";
+import { FEATURED_LIMIT, GENDER_LABELS } from "@/lib/catalog/catalog";
 import { useFocusFirstInvalid } from "@/lib/forms/focus-first-invalid";
 import { LIMITS } from "@/lib/forms/limits";
 
@@ -23,6 +23,17 @@ export function ProductDataForm({ product }: Props) {
     updateProductData.bind(null, product.id),
     INITIAL_PRODUCT_DATA_STATE,
   );
+
+  // Cuenta las respuestas de la acción: es la key del select y del checkbox (decisión 48).
+  // Se cuenta en el mismo render que trae el estado nuevo (patrón de React "información de
+  // renders anteriores"). Contarla dentro de la acción, como OrderStatusForm, remontaba el
+  // select un render antes de que llegara state.values: quedaba con el valor guardado.
+  const [lastState, setLastState] = useState<ProductDataState>(state);
+  const [responses, setResponses] = useState(0);
+  if (state !== lastState) {
+    setLastState(state);
+    setResponses(responses + 1);
+  }
   const formRef = useRef<HTMLFormElement>(null);
   const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
   useFocusFirstInvalid(formRef, fieldErrors);
@@ -58,7 +69,18 @@ export function ProductDataForm({ product }: Props) {
         defaultValue={values.name}
         error={fieldErrors?.name}
       />
-      <Select label="Género" name="gender" defaultValue={values.gender} error={fieldErrors?.gender}>
+      {/*
+        key: React resetea el <form> después de la acción y el <select> y el checkbox
+        volverían a lo que tenían al montarse (decisión 48). Remontarlos en cada respuesta
+        los deja en lo escrito (o en lo guardado, si salió bien).
+      */}
+      <Select
+        key={`gender-${responses}`}
+        label="Género"
+        name="gender"
+        defaultValue={values.gender}
+        error={fieldErrors?.gender}
+      >
         <option value="">Sin género</option>
         {Object.entries(GENDER_LABELS).map(([value, label]) => (
           <option key={value} value={value}>
@@ -66,12 +88,19 @@ export function ProductDataForm({ product }: Props) {
           </option>
         ))}
       </Select>
-      <Textarea label="Descripción" name="description" defaultValue={values.description} />
+      <Textarea
+        label="Descripción"
+        name="description"
+        maxLength={LIMITS.description}
+        defaultValue={values.description}
+        error={fieldErrors?.description}
+      />
       <Checkbox
+        key={`featured-${responses}`}
         label="Destacado"
         name="featured"
         defaultChecked={values.featured === "on"}
-        hint="La home muestra hasta 3 destacados con stock."
+        hint={`La home muestra hasta ${FEATURED_LIMIT} destacados con stock.`}
       />
       {state.status === "error" && state.message && (
         <p role="alert" className="text-body-sm text-error">

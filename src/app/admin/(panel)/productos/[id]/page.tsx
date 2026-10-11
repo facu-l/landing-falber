@@ -53,7 +53,7 @@ async function Product({ params, searchParams }: Pick<Props, "params" | "searchP
     <>
       <header className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-4">
-          <h1 id="producto-titulo" tabIndex={-1} className="text-h1 text-text uppercase focus:outline-none">
+          <h1 id="producto-titulo" tabIndex={-1} className="text-h1 text-text uppercase">
             {title}
           </h1>
           <StatusBadge tone={published ? "active" : "action"}>{published ? "Publicado" : "No publicado"}</StatusBadge>

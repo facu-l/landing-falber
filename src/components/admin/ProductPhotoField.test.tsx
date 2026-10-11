@@ -63,7 +63,7 @@ describe("ProductPhotoField", () => {
     choose();
 
     expect(await screen.findByText("Foto guardada.")).toBeTruthy();
-    expect(mocks.preparePhoto).toHaveBeenCalledWith(file);
+    expect(mocks.preparePhoto).toHaveBeenCalledWith(file, expect.any(String));
     expect(mocks.requestPhotoUpload).toHaveBeenCalledWith("p", "image/webp");
     expect(mocks.uploadToSignedUrl).toHaveBeenCalledWith("http://storage/sign", blob);
     expect(mocks.savePhoto).toHaveBeenCalledWith("p", "p-0123456789ab.webp");
@@ -91,6 +91,17 @@ describe("ProductPhotoField", () => {
     expect(await screen.findByText("Foto guardada.")).toBeTruthy();
     expect(mocks.preparePhoto).toHaveBeenCalledTimes(1);
     expect(mocks.uploadToSignedUrl).toHaveBeenLastCalledWith("http://storage/sign", blob);
+  });
+
+  it("si no se puede pedir la URL, muestra el mensaje del servidor, no sube y deja reintentar", async () => {
+    mocks.requestPhotoUpload.mockResolvedValueOnce({ ok: false, message: PHOTO_ERRORS.notFound });
+    render(<ProductPhotoField productId="p" imagePath={null} alt="Dior · Sauvage" />);
+    choose();
+
+    expect((await screen.findByRole("alert")).textContent).toBe(PHOTO_ERRORS.notFound);
+    expect(mocks.uploadToSignedUrl).not.toHaveBeenCalled();
+    expect(mocks.savePhoto).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeTruthy();
   });
 
   it("si guardar falla, muestra el mensaje del servidor y deja reintentar", async () => {

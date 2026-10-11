@@ -68,6 +68,10 @@ test("un admin corrige los datos: el link queda fijo y se guarda el destacado", 
   await data.getByLabel("Destacado").check();
   await data.getByRole("button", { name: "Guardar datos" }).click();
   await expect(data.getByRole("status")).toHaveText("Datos guardados.");
+  // Sin recargar: React resetea el form y refresh() trae lo guardado; el select y el checkbox
+  // no pueden volver a lo que tenían al montarse (decisión 48).
+  await expect(data.getByLabel("Género")).toHaveValue("unisex");
+  await expect(data.getByLabel("Destacado")).toBeChecked();
 
   // Recargada, la ficha muestra lo guardado y el mismo link.
   await page.reload();

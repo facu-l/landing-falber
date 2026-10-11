@@ -63,7 +63,8 @@ function ProductRow({ product }: { product: AdminProductRow }) {
   return (
     <Link
       href={adminProductPath(product.id)}
-      className="flex min-h-11 items-center gap-4 py-4 transition-colors duration-150 hover:bg-surface-raised"
+      // -mx-3 px-3: el fondo del hover enmarca la fila sin desalinearla de los títulos.
+      className="-mx-3 flex min-h-11 items-center gap-4 px-3 py-4 transition-colors duration-150 hover:bg-surface-raised"
     >
       <Thumbnail imagePath={product.image_path} />
       <div className="flex flex-1 flex-col gap-1">

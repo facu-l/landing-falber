@@ -106,6 +106,16 @@
 **Priority:** P1 (antes del lanzamiento)
 **Depends on:** Fotos de la Fase 0.
 
+### Limpiar fotos huérfanas del bucket
+
+**What:** Un barrido que liste el bucket `product-images` y borre los objetos que ningún `products.image_path` referencia y que tengan más de un día (una acción del admin o un job programado).
+
+**Why:** Una subida que llega al bucket pero no se guarda en el producto deja la foto huérfana: el `PUT` sale bien y se pierde la respuesta, el admin cierra la pestaña entre subir y guardar, o se corta la red antes de `savePhoto`. Cambiar de foto ya borra la anterior (decisión 96) y dos pestañas no se pisan (compare-and-set, decisión 107), pero estos casos no tienen quién los limpie.
+
+**Context:** El admin ya puede listar y borrar en el bucket (`0004`). Borrar solo lo no referenciado y viejo, para no tocar una subida en curso. Hallazgo del Red Team en el `/ship` del PR 2 de la Fase 7. Señal: el bucket tiene notablemente más objetos que productos con foto.
+
+**Priority:** P3
+
 ### Varias fotos por producto
 
 **What:** Más de una foto por producto (frasco, caja, otro ángulo): tabla `product_images` (`product_id`, `path`, `position`), una migración que pase `products.image_path` a la primera foto, subida y orden desde `/admin/productos/[id]` y galería en la ficha.

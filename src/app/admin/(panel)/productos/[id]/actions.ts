@@ -98,11 +98,15 @@ export async function savePhoto(productId: string, path: string): Promise<PhotoA
   const { data: exists } = await bucket.exists(path);
   if (!exists) return { ok: false, message: PHOTO_ERRORS.invalidPath };
 
-  const { data, error } = await access.supabase
-    .from("products")
-    .update({ image_path: path })
-    .eq("id", productId)
-    // select: sin él, 0 filas (RLS) "se actualiza" sin error.
+  // Compare-and-set: guarda solo si la foto sigue siendo la que se leyó. Con dos pestañas
+  // guardando a la vez, la segunda no pisa a la primera (dejaría su foto huérfana): toca
+  // 0 filas, borra su foto nueva y el admin reintenta sobre lo que hay ahora.
+  const update = access.supabase.from("products").update({ image_path: path }).eq("id", productId);
+  const { data, error } = await (product.image_path === null
+    ? update.is("image_path", null)
+    : update.eq("image_path", product.image_path)
+  )
+    // select: sin él, 0 filas (RLS o compare-and-set) "se actualiza" sin error.
     .select("id");
 
   if (error || !data?.length) {

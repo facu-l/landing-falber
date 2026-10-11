@@ -12,6 +12,7 @@ const MIGRATION = path.join(__dirname, '..', 'migrations', '0001_initial_schema.
 // 0002 (pg_cron) no corre en PGlite: sus jobs llaman funciones de 0001 que ya se prueban acá.
 const MIGRATION_0003 = path.join(__dirname, '..', 'migrations', '0003_catalog_admin.sql');
 const MIGRATION_0004 = path.join(__dirname, '..', 'migrations', '0004_product_images_admin_reads.sql');
+const MIGRATION_0005 = path.join(__dirname, '..', 'migrations', '0005_product_description_limit.sql');
 
 const SUPABASE_STUB = `
 create role anon nologin;
@@ -90,6 +91,8 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   catch (e) { bad('aplicar migración 0003', e.message); process.exit(1); }
   try { await db.exec(fs.readFileSync(MIGRATION_0004, 'utf8')); ok('la migración 0004 se aplica sin errores'); }
   catch (e) { bad('aplicar migración 0004', e.message); process.exit(1); }
+  try { await db.exec(fs.readFileSync(MIGRATION_0005, 'utf8')); ok('la migración 0005 se aplica sin errores'); }
+  catch (e) { bad('aplicar migración 0005', e.message); process.exit(1); }
   // Antes de los fixtures: sin este default, el trigger de publicar rechaza cualquier alta y todo se cae.
   {
     const def = (await one(db, `select column_default d from information_schema.columns
@@ -163,6 +166,12 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await expectError(db, 'enum: un género inválido se rechaza',
     `insert into products (name, brand, slug, gender) values ('A', 'B', 'a-b', 'otro')`, 'invalid input value for enum');
   // Mismos límites que un encargo: un producto precargado en /encargos siempre se puede enviar.
+  // El panel reconoce el slug repetido por este nombre (isDuplicateSlugError en src/lib/admin/product-list.ts):
+  // lo genera Postgres desde el `unique` de 0001. Si cambia, el alta mostraría un error genérico.
+  await db.exec(`insert into products (name, brand, slug) values ('Slug uno', 'Dior', 'dior-slug-repetido')`);
+  await expectError(db, 'products: un slug repetido falla con el constraint products_slug_key',
+    `insert into products (name, brand, slug) values ('Slug dos', 'Dior', 'dior-slug-repetido')`, 'products_slug_key');
+  await db.exec(`delete from products where slug = 'dior-slug-repetido'`);
   await expectError(db, 'products: nombre de 1 carácter se rechaza',
     `insert into products (name, brand, slug, gender) values ('Z', 'Dior', 'z-uno', 'male')`, 'check constraint');
   await expectError(db, 'products: nombre de 121 caracteres se rechaza',
@@ -636,6 +645,7 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
     await seeded.exec(fs.readFileSync(MIGRATION, 'utf8'));
     await seeded.exec(fs.readFileSync(MIGRATION_0003, 'utf8'));
     await seeded.exec(fs.readFileSync(MIGRATION_0004, 'utf8'));
+    await seeded.exec(fs.readFileSync(MIGRATION_0005, 'utf8'));
     try { await seeded.exec(fs.readFileSync(path.join(__dirname, '..', 'seed.sql'), 'utf8')); ok('seed: se aplica sobre 0001 + 0003'); }
     catch (e) { bad('seed: se aplica sobre 0001 + 0003', e.message); }
     const counts = await one(seeded, `select count(*) filter (where status = 'active') activos,
@@ -665,7 +675,26 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   eq('el admin ve los objetos de product-images (y solo esos)', await visibleObjects(asAdmin), 1);
   eq('un usuario que no es admin no ve ninguno', await visibleObjects(asUser), 0);
   eq('anon no ve ninguno', await visibleObjects('set role anon;'), 0);
+  // Lo que arregla 0004: con delete y select, el borrado del admin borra de verdad (antes, 0 filas sin error).
+  await db.exec(`grant delete on storage.objects to authenticated`);
+  const deleted = async (as) => {
+    await db.exec(as);
+    const { rows } = await db.query(`delete from storage.objects where bucket_id = 'product-images' returning id`);
+    await reset(db);
+    return rows.length;
+  };
+  eq('un usuario que no es admin no borra la foto', await deleted(asUser), 0);
+  eq('el admin borra la foto (antes de 0004 borraba 0 filas)', await deleted(asAdmin), 1);
   await db.exec(`delete from storage.objects`);
+
+  console.log('\n[16] 0005: largo máximo de la descripción');
+  await db.exec(`insert into products (name, brand, slug, description) values ('Desc', 'Dior', 'dior-desc', repeat('d', 1000))`);
+  ok('products: una descripción de 1000 caracteres se acepta');
+  await expectError(db, 'products: una descripción de 1001 caracteres se rechaza',
+    `update products set description = repeat('d', 1001) where slug = 'dior-desc'`, 'products_description_length');
+  await db.exec(`update products set description = null where slug = 'dior-desc'`);
+  ok('products: sin descripción sigue valiendo');
+  await db.exec(`delete from products where slug = 'dior-desc'`);
 
   console.log(`\nRESULTADO: ${passed} pasaron, ${failed} fallaron`);
   process.exit(failed ? 1 : 0);

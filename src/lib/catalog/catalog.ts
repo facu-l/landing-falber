@@ -45,7 +45,7 @@ export const VARIANT_TYPE_LABELS: Record<VariantType, string> = {
 // ---------------------------------------------------------------------------
 
 /** Variantes ordenadas para mostrar: decants primero, después por tamaño. */
-export function sortVariants(variants: CatalogVariant[]): CatalogVariant[] {
+export function sortVariants<T extends Pick<CatalogVariant, "variantType" | "sizeMl">>(variants: readonly T[]): T[] {
   const typeOrder: Record<VariantType, number> = { decant: 0, full_bottle: 1 };
   return [...variants].sort(
     (a, b) => typeOrder[a.variantType] - typeOrder[b.variantType] || a.sizeMl - b.sizeMl,

@@ -6,6 +6,9 @@ export const ADMIN_LOGIN_PATH = "/admin/login";
 export const ADMIN_ORDERS_PATH = "/admin/pedidos";
 export const ADMIN_REQUESTS_PATH = "/admin/encargos";
 export const ADMIN_SHIPPING_PATH = "/admin/envios";
+export const ADMIN_PRODUCTS_PATH = "/admin/productos";
+
+export const adminProductPath = (id: string) => `${ADMIN_PRODUCTS_PATH}/${id}`;
 
 const isAdminPath = (pathname: string) => pathname === "/admin" || pathname.startsWith("/admin/");
 

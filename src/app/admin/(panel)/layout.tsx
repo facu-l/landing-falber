@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { AdminNavLink } from "@/components/admin/AdminNavLink";
 import { ADMIN_NAV_ITEM_CLASSES } from "@/components/admin/nav-classes";
 import { PendingRequestsCount } from "@/components/admin/PendingRequestsCount";
-import { ADMIN_ORDERS_PATH, ADMIN_REQUESTS_PATH, ADMIN_SHIPPING_PATH } from "@/lib/admin/paths";
+import { ADMIN_ORDERS_PATH, ADMIN_PRODUCTS_PATH, ADMIN_REQUESTS_PATH, ADMIN_SHIPPING_PATH } from "@/lib/admin/paths";
 
 /**
  * Páginas del panel (todo menos el login). La navegación es estática: cada página
@@ -26,6 +26,7 @@ export default function PanelLayout({ children }: LayoutProps<"/admin">) {
               <PendingRequestsCount />
             </Suspense>
           </AdminNavLink>
+          <AdminNavLink href={ADMIN_PRODUCTS_PATH}>Productos</AdminNavLink>
           <AdminNavLink href={ADMIN_SHIPPING_PATH}>Envíos</AdminNavLink>
         </div>
         <form action={signOut}>

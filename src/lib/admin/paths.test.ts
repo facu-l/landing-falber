@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { ADMIN_LOGIN_PATH, adminProxyRedirect } from "./paths";
+import { ADMIN_LOGIN_PATH, adminProductPath, adminProxyRedirect } from "./paths";
+
+describe("adminProductPath", () => {
+  it("es la ficha del producto dentro de /admin/productos", () => {
+    expect(adminProductPath("abc")).toBe("/admin/productos/abc");
+  });
+});
 
 describe("adminProxyRedirect", () => {
   it("sin sesión, cualquier página del admin manda al login", () => {

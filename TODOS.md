@@ -80,18 +80,6 @@
 **Priority:** P3
 **Depends on:** —
 
-### Revocar TRUNCATE en todas las tablas
-
-**What:** `revoke truncate on all tables in schema public from anon, authenticated` en `0001` (o en una migración nueva, si ya hubo deploy), con un test en `schema.test.cjs` que lo verifique con `has_table_privilege`.
-
-**Why:** Supabase otorga `ALL` por defecto en las tablas de `public`, y `0001` solo revoca `insert`, `update` y `delete`. `TRUNCATE` no pasa por RLS. No es explotable por la API (PostgREST no expone `TRUNCATE`), pero contradice "nadie borra el historial". En `shipping_rates` ya está revocado (decisión 81). Visto en el `/review` de los envíos estimados.
-
-**Context:** Ya hubo deploy: `0001` está congelada, así que va en una migración nueva (`0003_...`). Señal: con la primera migración nueva. **Planificado en la `0003` de la Fase 7 (PR 1):** borrar esta entrada cuando se mergee.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** —
-
 ### robots.txt y sitemap.xml
 
 **What:** `src/app/robots.ts` (permitir la tienda, `disallow` de `/admin`, `/carrito`, `/checkout` y `/pedido`) y `src/app/sitemap.ts` con la home, el catálogo, encargos y cada producto activo (desde `getCatalog()`).

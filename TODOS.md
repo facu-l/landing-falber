@@ -8,7 +8,7 @@
 
 **Why:** En el MVP esto se opera desde Supabase Studio (decisión 10 de la revisión). Sirve para arrancar, pero cargar productos con fotos ahí es incómodo y lento.
 
-**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana. **En curso en la Fase 7** (decisiones 91 a 106): el PR 2 (`feat/admin-catalog-products`) trae la lista, el alta, la foto y los datos; faltan presentaciones, stock y publicar (PR 3). El ranking de encargos queda afuera: al mergear el PR 3, esta entrada se reduce a ese ranking.
+**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana. **En curso en la Fase 7** (decisiones 91 a 110): el PR 2 (`feat/admin-catalog-products`) trae la lista, el alta, la foto y los datos; faltan presentaciones, stock y publicar (PR 3). El ranking de encargos queda afuera: al mergear el PR 3, esta entrada se reduce a ese ranking.
 
 **Effort:** M
 **Priority:** P2

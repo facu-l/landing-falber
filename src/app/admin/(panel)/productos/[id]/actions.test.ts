@@ -227,6 +227,15 @@ describe("savePhoto", () => {
     expect(mocks.updateTag).not.toHaveBeenCalled();
   });
 
+  it("la pestaña que pierde el compare-and-set borra solo su foto nueva: la publicada no se toca", async () => {
+    mocks.updateResult.mockResolvedValue({ data: [], error: null });
+
+    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.save });
+    expect(mocks.remove.mock.calls).toEqual([[[NEW_PATH]]]);
+    expect(mocks.updateTag).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
   it("si no tocó ninguna fila (RLS), también borra la nueva", async () => {
     mocks.updateResult.mockResolvedValue({ data: [], error: null });
 

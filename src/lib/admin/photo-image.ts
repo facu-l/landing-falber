@@ -34,8 +34,12 @@ export async function preparePhoto(file: File, background: string): Promise<Prep
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) return { ok: false, message: PHOTO_ERRORS.unreadable };
-  context.fillStyle = background;
-  context.fillRect(0, 0, width, height);
+  // Sin color (el token no se pudo leer) no se pinta: fillStyle = "" se ignora y el canvas
+  // quedaría negro, peor que transparente.
+  if (background) {
+    context.fillStyle = background;
+    context.fillRect(0, 0, width, height);
+  }
   context.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 

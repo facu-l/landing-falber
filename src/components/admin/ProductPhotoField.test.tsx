@@ -59,11 +59,13 @@ describe("ProductPhotoField", () => {
   });
 
   it("prepara, pide la URL con el tipo final, sube y guarda la ruta firmada", async () => {
-    render(<ProductPhotoField productId="p" imagePath={null} alt="Dior · Sauvage" />);
+    const { container } = render(<ProductPhotoField productId="p" imagePath={null} alt="Dior · Sauvage" />);
+    // El fondo sale del token de Noir del contenedor de la vista previa.
+    container.querySelector<HTMLElement>('[data-theme="dark"]')!.style.setProperty("--surface-raised", "#202226");
     choose();
 
     expect(await screen.findByText("Foto guardada.")).toBeTruthy();
-    expect(mocks.preparePhoto).toHaveBeenCalledWith(file, expect.any(String));
+    expect(mocks.preparePhoto).toHaveBeenCalledWith(file, "#202226");
     expect(mocks.requestPhotoUpload).toHaveBeenCalledWith("p", "image/webp");
     expect(mocks.uploadToSignedUrl).toHaveBeenCalledWith("http://storage/sign", blob);
     expect(mocks.savePhoto).toHaveBeenCalledWith("p", "p-0123456789ab.webp");

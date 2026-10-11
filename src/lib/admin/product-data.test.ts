@@ -39,6 +39,15 @@ describe("parseProductData", () => {
     });
   });
 
+  it("los saltos de línea del form (CRLF) cuentan como uno, igual que en el textarea", () => {
+    // 1000 caracteres para el textarea (el salto cuenta uno); 1001 code units si llegara como CRLF.
+    const description = "d".repeat(495) + "\r\n" + "d".repeat(504);
+    expect(parseProductData({ brand: "Dior", name: "Sauvage", description })).toMatchObject({
+      success: true,
+      data: { description: "d".repeat(495) + "\n" + "d".repeat(504) },
+    });
+  });
+
   it("un género fuera de la lista se rechaza", () => {
     expect(parseProductData({ brand: "Dior", name: "Sauvage", gender: "otro" })).toEqual({
       success: false,

@@ -46,8 +46,9 @@ export function parseProductData(
     else fieldErrors.gender = PRODUCT_DATA_ERRORS.gender;
   }
 
-  // Mismo límite que el check de 0005.
-  const description = (values.description ?? "").trim();
+  // Mismo límite que el check de 0005. El form manda los saltos de línea como CRLF y el
+  // textarea los cuenta como uno: se normalizan a LF para contar (y guardar) igual que el navegador.
+  const description = (values.description ?? "").replace(/\r\n?/g, "\n").trim();
   if (description.length > LIMITS.description) fieldErrors.description = PRODUCT_DATA_ERRORS.descriptionLength;
 
   if (Object.keys(fieldErrors).length > 0) return { success: false, fieldErrors };

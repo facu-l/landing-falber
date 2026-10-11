@@ -8,7 +8,7 @@
 
 **Why:** En el MVP esto se opera desde Supabase Studio (decisión 10 de la revisión). Sirve para arrancar, pero cargar productos con fotos ahí es incómodo y lento.
 
-**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana.
+**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana. **En curso en la Fase 7** (`feat/admin-catalog`, decisiones 91 a 102): productos, fotos, presentaciones y stock. El ranking de encargos queda afuera: al mergear el PR 3, esta entrada se reduce a ese ranking.
 
 **Effort:** M
 **Priority:** P2
@@ -98,7 +98,7 @@
 
 **Why:** Supabase otorga `ALL` por defecto en las tablas de `public`, y `0001` solo revoca `insert`, `update` y `delete`. `TRUNCATE` no pasa por RLS. No es explotable por la API (PostgREST no expone `TRUNCATE`), pero contradice "nadie borra el historial". En `shipping_rates` ya está revocado (decisión 81). Visto en el `/review` de los envíos estimados.
 
-**Context:** Ya hubo deploy: `0001` está congelada, así que va en una migración nueva (`0003_...`). Señal: con la primera migración nueva.
+**Context:** Ya hubo deploy: `0001` está congelada, así que va en una migración nueva (`0003_...`). Señal: con la primera migración nueva. **Planificado en la `0003` de la Fase 7 (PR 1):** borrar esta entrada cuando se mergee.
 
 **Effort:** S
 **Priority:** P3
@@ -129,6 +129,18 @@
 **Effort:** S
 **Priority:** P1 (antes del lanzamiento)
 **Depends on:** Fotos de la Fase 0.
+
+### Varias fotos por producto
+
+**What:** Más de una foto por producto (frasco, caja, otro ángulo): tabla `product_images` (`product_id`, `path`, `position`), una migración que pase `products.image_path` a la primera foto, subida y orden desde `/admin/productos/[id]` y galería en la ficha.
+
+**Why:** La Fase 7 deja una sola foto (decisión 96) porque la base tiene un solo `image_path` y alcanza para vender. Anotado para que no se resuelva con un `image_path_2` a mano.
+
+**Context:** La subida ya existe (URL firmada, achicado en el navegador, nombre único, validación de la ruta: decisiones 96 y 97); se reusa por foto. La regla de publicar (decisión 93) pasaría a "al menos una foto". Señal: el dueño pide mostrar más de una foto por producto.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** Fase 7 mergeada.
 
 ## Design system
 

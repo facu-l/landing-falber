@@ -11,6 +11,7 @@ const path = require('path');
 const MIGRATION = path.join(__dirname, '..', 'migrations', '0001_initial_schema.sql');
 // 0002 (pg_cron) no corre en PGlite: sus jobs llaman funciones de 0001 que ya se prueban acá.
 const MIGRATION_0003 = path.join(__dirname, '..', 'migrations', '0003_catalog_admin.sql');
+const MIGRATION_0004 = path.join(__dirname, '..', 'migrations', '0004_product_images_admin_reads.sql');
 
 const SUPABASE_STUB = `
 create role anon nologin;
@@ -87,6 +88,8 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   // Igual que en producción: todo lo que sigue corre con 0001 + 0003 aplicadas.
   try { await db.exec(fs.readFileSync(MIGRATION_0003, 'utf8')); ok('la migración 0003 se aplica sin errores'); }
   catch (e) { bad('aplicar migración 0003', e.message); process.exit(1); }
+  try { await db.exec(fs.readFileSync(MIGRATION_0004, 'utf8')); ok('la migración 0004 se aplica sin errores'); }
+  catch (e) { bad('aplicar migración 0004', e.message); process.exit(1); }
   // Antes de los fixtures: sin este default, el trigger de publicar rechaza cualquier alta y todo se cae.
   {
     const def = (await one(db, `select column_default d from information_schema.columns
@@ -98,8 +101,8 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   // Storage condicional: con las tablas (nube) crea bucket y policies...
   eq('storage: crea el bucket product-images público',
     (await one(db, `select public from storage.buckets where id = 'product-images'`))?.public, true);
-  eq('storage: crea las 3 policies de escritura del admin',
-    (await one(db, `select count(*) n from pg_policies where schemaname = 'storage' and policyname like 'product-images:%'`)).n, 3);
+  eq('storage: crea las policies del admin (3 de escritura en 0001 + lectura en 0004)',
+    (await one(db, `select count(*) n from pg_policies where schemaname = 'storage' and policyname like 'product-images:%'`)).n, 4);
 
   // ...sin ellas, en local (rol marcador de supabase/roles.sql) sigue con un NOTICE...
   const STUB_WITHOUT_STORAGE_TABLES = SUPABASE_STUB.replace(/^create table storage\..*$|^alter table storage\..*$/gm, '');
@@ -111,6 +114,8 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
     catch (e) { bad('storage local: sin tablas la migración igual se aplica', e.message); }
     try { await local.exec(fs.readFileSync(MIGRATION_0003, 'utf8')); ok('storage local: sin tablas la 0003 igual se aplica'); }
     catch (e) { bad('storage local: sin tablas la 0003 igual se aplica', e.message); }
+    try { await local.exec(fs.readFileSync(MIGRATION_0004, 'utf8')); ok('storage local: sin tablas la 0004 igual se aplica'); }
+    catch (e) { bad('storage local: sin tablas la 0004 igual se aplica', e.message); }
     eq('storage local: no deja policies a medias',
       (await one(local, `select count(*) n from pg_policies where schemaname = 'storage'`)).n, 0);
     eq('storage local: el resto del esquema queda completo (create_order existe)',
@@ -630,6 +635,7 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
     await seeded.exec(SUPABASE_STUB);
     await seeded.exec(fs.readFileSync(MIGRATION, 'utf8'));
     await seeded.exec(fs.readFileSync(MIGRATION_0003, 'utf8'));
+    await seeded.exec(fs.readFileSync(MIGRATION_0004, 'utf8'));
     try { await seeded.exec(fs.readFileSync(path.join(__dirname, '..', 'seed.sql'), 'utf8')); ok('seed: se aplica sobre 0001 + 0003'); }
     catch (e) { bad('seed: se aplica sobre 0001 + 0003', e.message); }
     const counts = await one(seeded, `select count(*) filter (where status = 'active') activos,
@@ -645,6 +651,21 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   const bucket = await one(db, `select file_size_limit, allowed_mime_types::text mimes from storage.buckets where id = 'product-images'`);
   eq('el bucket acepta hasta 5 MiB', bucket.file_size_limit, 5 * 1024 * 1024);
   eq('el bucket acepta solo WebP y JPEG', bucket.mimes, '{image/webp,image/jpeg}');
+
+  console.log('\n[15] 0004: el admin ve los objetos del bucket (sin eso, borrar una foto no borra nada)');
+  // Como en Supabase: los roles de la API tienen el permiso de tabla y RLS decide qué filas ven.
+  await db.exec(`grant usage on schema storage to anon, authenticated; grant select on storage.objects to anon, authenticated`);
+  await db.exec(`insert into storage.objects (bucket_id, name) values ('product-images', 'prueba-0123456789ab.webp'), ('otro-bucket', 'x.webp')`);
+  const visibleObjects = async (as) => {
+    await db.exec(as);
+    const { n } = await one(db, `select count(*) n from storage.objects`);
+    await reset(db);
+    return n;
+  };
+  eq('el admin ve los objetos de product-images (y solo esos)', await visibleObjects(asAdmin), 1);
+  eq('un usuario que no es admin no ve ninguno', await visibleObjects(asUser), 0);
+  eq('anon no ve ninguno', await visibleObjects('set role anon;'), 0);
+  await db.exec(`delete from storage.objects`);
 
   console.log(`\nRESULTADO: ${passed} pasaron, ${failed} fallaron`);
   process.exit(failed ? 1 : 0);

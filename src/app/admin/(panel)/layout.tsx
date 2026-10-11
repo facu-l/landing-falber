@@ -13,8 +13,12 @@ import { ADMIN_ORDERS_PATH, ADMIN_REQUESTS_PATH, ADMIN_SHIPPING_PATH } from "@/l
 export default function PanelLayout({ children }: LayoutProps<"/admin">) {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-10 px-4 py-10 md:px-8 md:py-12">
-      <nav aria-label="Panel" className="flex items-center justify-between gap-6 border-b border-border pb-4">
-        <div className="flex items-center gap-6">
+      {/* flex-wrap en los dos niveles: en un celular angosto las pestañas bajan de renglón en vez de desbordar. */}
+      <nav
+        aria-label="Panel"
+        className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border pb-4"
+      >
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <AdminNavLink href={ADMIN_ORDERS_PATH}>Pedidos</AdminNavLink>
           <AdminNavLink href={ADMIN_REQUESTS_PATH}>
             Encargos

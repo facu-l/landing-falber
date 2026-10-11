@@ -52,6 +52,27 @@ test("un admin con sesión que abre el login va directo a los pedidos", async ({
   await expect(page.getByRole("heading", { name: "Pedidos" })).toBeVisible();
 });
 
+test("en el celular más angosto la navegación del panel no desborda", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "El ancho se fuerza a mano: alcanza con un proyecto.");
+  // 320 px: el celular más angosto en uso. Si entra acá, entra en cualquiera.
+  await page.setViewportSize({ width: 320, height: 640 });
+  const admin = await createTestUser({ admin: true });
+  await signInAdmin(page, admin);
+  await expect(page).toHaveURL("/admin/pedidos");
+
+  const nav = page.getByRole("navigation", { name: "Panel" });
+  // Ni la página ni la navegación tienen scroll horizontal.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  expect(await nav.evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
+  // Cada ítem se ve entero dentro de la pantalla (también "Salir", que va último).
+  for (const item of await nav.locator("a, button").all()) {
+    const box = await item.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+  }
+});
+
 test("un admin confirma un pedido y le carga el costo de envío", async ({ page }) => {
   const [admin, order] = await Promise.all([createTestUser({ admin: true }), createDeliveryOrder()]);
 

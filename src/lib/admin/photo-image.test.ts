@@ -58,6 +58,17 @@ describe("preparePhoto", () => {
 
     await expect(preparePhoto(file, "#202226")).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.tooBig });
   });
+
+  // Value: protects=a file the browser can't decode (corrupt, HEIC on desktop) gets the friendly unreadable error, not a rejection;
+  // fails_when=the try/catch around createImageBitmap is removed; why_new=the component test mocks preparePhoto and the E2E
+  // only uploads valid fixtures; seam=none; no_claim=which formats each real browser decodes
+  it("si el navegador no puede decodificar el archivo, lo dice y no codifica nada", async () => {
+    vi.stubGlobal("createImageBitmap", vi.fn(async () => Promise.reject(new DOMException("bad image", "InvalidStateError"))));
+    const { toBlob } = stubCanvas((type) => new Blob(["x"], { type }));
+
+    await expect(preparePhoto(file, "#202226")).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.unreadable });
+    expect(toBlob).not.toHaveBeenCalled();
+  });
 });
 
 describe("uploadToSignedUrl", () => {

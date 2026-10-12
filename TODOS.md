@@ -116,6 +116,16 @@
 
 **Priority:** P3
 
+### Reintentar solo el guardado de la foto
+
+**What:** Cuando la foto ya está en el bucket y falla `savePhoto`, que Reintentar vuelva a llamar a `savePhoto` con la misma ruta en vez de pedir otra URL y subir de nuevo. Volver a subir solo si `savePhoto` responde que la ruta no existe (`invalidPath`).
+
+**Why:** Hoy cada Reintentar después de un error de guardado sube otra vez la foto (~300 KB por datos móviles) con otro nombre y deja la anterior huérfana.
+
+**Context:** `ProductPhotoField` guarda el blob en el estado de error; habría que guardar también `target.path`. Hallazgo de performance en el `/ship` del PR 2 de la Fase 7 (decisión del usuario: al PR 3, junto con la limpieza de huérfanas). Señal: hacerlo junto con "Limpiar fotos huérfanas del bucket".
+
+**Priority:** P3
+
 ### Varias fotos por producto
 
 **What:** Más de una foto por producto (frasco, caja, otro ángulo): tabla `product_images` (`product_id`, `path`, `position`), una migración que pase `products.image_path` a la primera foto, subida y orden desde `/admin/productos/[id]` y galería en la ficha.

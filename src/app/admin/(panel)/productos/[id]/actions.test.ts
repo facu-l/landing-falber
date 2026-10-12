@@ -264,6 +264,9 @@ describe("savePhoto", () => {
       code: "XX000",
       message: "fetch failed",
     });
+    // Pudo haberse guardado: la tienda y la ficha se vuelven a leer.
+    expect(mocks.updateTag).toHaveBeenCalledWith("catalog");
+    expect(mocks.refresh).toHaveBeenCalled();
   });
 
   it("la pestaña que pierde el compare-and-set borra solo su foto nueva: la publicada no se toca", async () => {

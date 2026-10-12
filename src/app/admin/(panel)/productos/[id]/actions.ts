@@ -78,8 +78,9 @@ export async function requestPhotoUpload(
 
 /**
  * Paso 2: guardar la foto subida en el producto. No confía en `path` (D6): tiene que ser
- * una ruta de ESTE producto y existir en el bucket. Si el guardado falla, borra la nueva
- * (no queda huérfana); si sale bien, borra la anterior (si eso falla, solo se loguea).
+ * una ruta de ESTE producto y existir en el bucket. Si el guardado falla y la fila confirma
+ * que no se guardó, borra la nueva (no queda huérfana); si no se puede saber (Storage o la
+ * base no responden), no borra nada. Si sale bien, borra la anterior (si falla, se loguea).
  */
 export async function savePhoto(productId: string, path: string): Promise<PhotoActionResult> {
   const access = await requireAdminAction();
@@ -126,6 +127,9 @@ export async function savePhoto(productId: string, path: string): Promise<PhotoA
     if (rereadError) {
       // Sin saber si se guardó, no se borra: una huérfana se limpia, una ficha sin foto no se ve.
       console.error("[admin] releer el producto tras el fallo falló", loggableDbError(rereadError));
+      // Si el guardado sí llegó, que la tienda y la ficha lo vean (invalidar de más no daña).
+      updateTag(CATALOG_TAG);
+      refresh();
       return { ok: false, message: PHOTO_ERRORS.save };
     }
     saved = current?.image_path === path;

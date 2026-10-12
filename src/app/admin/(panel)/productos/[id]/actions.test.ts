@@ -216,6 +216,17 @@ describe("savePhoto", () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
+  it("si Storage no responde al verificar (5xx, red), es un error de guardado: no explota ni toca la base", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    // storage-js solo devuelve data:false con 400/404; el resto lo lanza.
+    mocks.exists.mockRejectedValue(new Error("Internal Server Error"));
+
+    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.save });
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith("[admin] verificar la foto subida falló", "Internal Server Error");
+  });
+
   it("si la base no guarda, borra la foto nueva y conserva la anterior", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.updateResult.mockResolvedValue({ data: null, error: { code: "XX000", message: "fetch failed", details: "x" } });
@@ -238,6 +249,21 @@ describe("savePhoto", () => {
     await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: true });
     expect(mocks.remove.mock.calls).toEqual([[[OLD_PATH]]]);
     expect(mocks.updateTag).toHaveBeenCalledWith("catalog");
+  });
+
+  it("si el update y la relectura fallan, no borra ninguna foto: la nueva pudo haber quedado guardada", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.updateResult.mockResolvedValue({ data: null, error: { code: "XX000", message: "fetch failed" } });
+    mocks.readProduct
+      .mockResolvedValueOnce({ data: { slug: "dior-sauvage", image_path: OLD_PATH }, error: null })
+      .mockResolvedValueOnce({ data: null, error: { code: "XX000", message: "fetch failed" } });
+
+    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.save });
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith("[admin] releer el producto tras el fallo falló", {
+      code: "XX000",
+      message: "fetch failed",
+    });
   });
 
   it("la pestaña que pierde el compare-and-set borra solo su foto nueva: la publicada no se toca", async () => {

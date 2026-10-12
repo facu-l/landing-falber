@@ -94,8 +94,16 @@ export async function savePhoto(productId: string, path: string): Promise<PhotoA
   if (!product) return { ok: false, message: PHOTO_ERRORS.notFound };
   if (!isPhotoPathFor(path, product.slug)) return { ok: false, message: PHOTO_ERRORS.invalidPath };
 
-  // exists() da false (con error) si el objeto no está: la subida no llegó o la ruta es inventada.
-  const { data: exists } = await bucket.exists(path);
+  // exists() da false (con error) si el objeto no está (400/404): la subida no llegó o la ruta
+  // es inventada. Un 5xx o la red caída lanzan: eso no prueba que no esté, así que es un
+  // error de guardado (Reintentar) y no "elegila de nuevo".
+  let exists: boolean;
+  try {
+    ({ data: exists } = await bucket.exists(path));
+  } catch (error) {
+    console.error("[admin] verificar la foto subida falló", error instanceof Error ? error.message : error);
+    return { ok: false, message: PHOTO_ERRORS.save };
+  }
   if (!exists) return { ok: false, message: PHOTO_ERRORS.invalidPath };
 
   // Compare-and-set: guarda solo si la foto sigue siendo la que se leyó. Con dos pestañas
@@ -114,7 +122,12 @@ export async function savePhoto(productId: string, path: string): Promise<PhotoA
     console.error("[admin] guardar la foto del producto falló", loggableDbError(error));
     // Un error no prueba que no se guardó (la respuesta se pudo perder después del commit).
     // Antes de borrar la foto nueva se mira la fila: borrarla dejaría la ficha sin imagen.
-    const { data: current } = await readProduct(access.supabase, productId);
+    const { data: current, error: rereadError } = await readProduct(access.supabase, productId);
+    if (rereadError) {
+      // Sin saber si se guardó, no se borra: una huérfana se limpia, una ficha sin foto no se ve.
+      console.error("[admin] releer el producto tras el fallo falló", loggableDbError(rereadError));
+      return { ok: false, message: PHOTO_ERRORS.save };
+    }
     saved = current?.image_path === path;
   }
 

@@ -12,6 +12,15 @@ import {
   type VariantFormState,
   variantCreatedWithoutStock,
 } from "@/lib/admin/product-variants";
+import {
+  isNotEnoughStockError,
+  parseStockMove,
+  STOCK_MOVE_ERRORS,
+  STOCK_MOVE_NOT_FOUND,
+  STOCK_MOVE_SAVE_ERROR,
+  STOCK_MOVED,
+  type StockMoveState,
+} from "@/lib/admin/stock-movements";
 import { CATALOG_TAG } from "@/lib/catalog/queries";
 import { loggableDbError } from "@/lib/db-errors";
 import { formValues } from "@/lib/forms/form-data";
@@ -115,4 +124,51 @@ export async function updateVariant(
   updateTag(CATALOG_TAG);
   refresh();
   return { status: "success", message: "Presentación guardada." };
+}
+
+/**
+ * Mover stock: un movimiento manual (reposición, ajuste, dañado). Nunca se edita
+ * product_variants.stock: el trigger del ledger lo recalcula, y su check frena el que lo
+ * dejaría negativo aunque el stock haya cambiado desde que se leyó.
+ */
+export async function moveStock(variantId: string, _prev: StockMoveState, formData: FormData): Promise<StockMoveState> {
+  const access = await requireAdminAction();
+
+  const values = formValues(formData);
+  if (!access.ok) return { status: "error", message: access.message, values };
+
+  // El de la base: el que vio el navegador pudo cambiar (una venta, otra pestaña).
+  const { data: variant, error: readError } = await access.supabase
+    .from("product_variants")
+    .select("stock")
+    .eq("id", variantId)
+    .maybeSingle();
+  if (readError) {
+    console.error("[admin] leer el stock falló", loggableDbError(readError));
+    return { status: "error", message: STOCK_MOVE_SAVE_ERROR, values };
+  }
+  if (!variant) return { status: "error", message: STOCK_MOVE_NOT_FOUND, values };
+
+  const parsed = parseStockMove(values, variant.stock);
+  if (!parsed.success) return { status: "error", fieldErrors: parsed.fieldErrors, values };
+
+  const { error } = await access.supabase.from("stock_movements").insert({
+    variant_id: variantId,
+    movement_type: parsed.data.movementType,
+    quantity: parsed.data.quantity,
+    note: parsed.data.note,
+  });
+
+  if (error) {
+    if (isNotEnoughStockError(error)) {
+      return { status: "error", fieldErrors: { quantity: STOCK_MOVE_ERRORS.notEnoughStock }, values };
+    }
+    console.error("[admin] mover el stock falló", loggableDbError(error));
+    return { status: "error", message: STOCK_MOVE_SAVE_ERROR, values };
+  }
+
+  // Con stock 0 la tienda muestra "Encargar": que vea el cambio ya.
+  updateTag(CATALOG_TAG);
+  refresh();
+  return { status: "success", message: STOCK_MOVED };
 }

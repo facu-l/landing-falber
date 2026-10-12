@@ -120,6 +120,26 @@ export function formatSignedQuantity(quantity: number): string {
   return quantity > 0 ? `+${quantity}` : `−${Math.abs(quantity)}`;
 }
 
+export const STOCK_MOVE_SAVE_ERROR = "No pudimos mover el stock. Probá de nuevo en unos segundos.";
+export const STOCK_MOVE_NOT_FOUND = "Esa presentación ya no está. Recargá la página.";
+
+/** Estado de Mover stock (useActionState). Fuera de las acciones: un archivo "use server" solo exporta funciones async. */
+export type StockMoveState =
+  | { status: "idle" }
+  | { status: "success"; message: string }
+  | {
+      status: "error";
+      message?: string;
+      fieldErrors?: StockMoveFieldErrors;
+      /** Lo escrito: React resetea el form después de la acción. */
+      values: Record<string, string>;
+    };
+
+export const INITIAL_STOCK_MOVE_STATE: StockMoveState = { status: "idle" };
+
+/** El stock nuevo lo muestra la fila después del refresh: es el que calculó la base. */
+export const STOCK_MOVED = "Stock actualizado.";
+
 /**
  * El check de product_variants.stock, que dispara el trigger del ledger cuando un
  * movimiento lo dejaría negativo. No es un código nuestro: se reconoce por código y

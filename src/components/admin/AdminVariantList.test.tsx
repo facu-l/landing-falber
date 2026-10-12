@@ -54,8 +54,10 @@ describe("AdminVariantList", () => {
     const edit5 = screen.getByRole("button", { name: "Editar Decant 5 ml" });
     expect(edit5.getAttribute("aria-expanded")).toBe("false");
 
+    expect(edit5.getAttribute("aria-controls")).toBeNull();
     fireEvent.click(edit5);
     expect(edit5.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById(edit5.getAttribute("aria-controls")!)).toBeTruthy();
     expect((screen.getByLabelText("Precio") as HTMLInputElement).value).toBe("12000");
     expect((screen.getByLabelText("Disponible") as HTMLInputElement).checked).toBe(true);
 

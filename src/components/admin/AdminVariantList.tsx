@@ -59,7 +59,8 @@ export function AdminVariantList({ variants, histories }: Props) {
                     // El nombre dice cuál: hay uno por fila. Empieza con el texto visible (label in name).
                     aria-label={`${PANEL_LABELS[kind]} ${variant.label}`}
                     aria-expanded={panel === kind}
-                    aria-controls={panelId}
+                    // Solo con el panel abierto: apuntar a un id que no existe es un ARIA inválido.
+                    aria-controls={panel === kind ? panelId : undefined}
                     onClick={() => setOpen(panel === kind ? null : { id: variant.id, panel: kind })}
                     className={toggleClasses}
                   >

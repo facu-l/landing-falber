@@ -134,3 +134,24 @@ export function isDuplicateVariantError(error: DbError): boolean {
 export function variantCreatedWithoutStock(label: string): string {
   return `Se creó ${label} pero no se cargó el stock inicial. Cargalo con Mover stock.`;
 }
+
+export const VARIANT_SAVE_ERROR = "No pudimos guardar la presentación. Probá de nuevo en unos segundos.";
+export const VARIANT_NOT_SAVED = "No pudimos guardar la presentación. Recargá la página y probá de nuevo.";
+
+/**
+ * Estado de Agregar y Editar (useActionState). Fuera de las acciones: un archivo "use server"
+ * solo exporta funciones async. "partial": la presentación se creó y el stock inicial no.
+ */
+export type VariantFormState =
+  | { status: "idle" }
+  | { status: "success"; message: string }
+  | { status: "partial"; message: string }
+  | {
+      status: "error";
+      message?: string;
+      fieldErrors?: NewVariantFieldErrors;
+      /** Lo escrito: React resetea el form después de la acción. */
+      values: Record<string, string>;
+    };
+
+export const INITIAL_VARIANT_FORM_STATE: VariantFormState = { status: "idle" };

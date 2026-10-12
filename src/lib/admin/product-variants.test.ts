@@ -5,12 +5,14 @@ import {
   decantOptions,
   isDuplicateVariantError,
   nextFreeDecantSize,
+  orderVariantsForAdmin,
   parseNewVariant,
   parseVariantEdit,
   parseVariantPrice,
   VARIANT_ERRORS,
   VARIANT_PRICE_MAX,
   variantCreatedWithoutStock,
+  variantStockText,
 } from "./product-variants";
 import { STOCK_QUANTITY_MAX } from "./stock-movements";
 
@@ -141,6 +143,39 @@ describe("isDuplicateVariantError", () => {
   it("no confunde otros uniques ni otros códigos", () => {
     expect(isDuplicateVariantError({ code: "23505", message: 'unique constraint "products_slug_key"' })).toBe(false);
     expect(isDuplicateVariantError({ code: "23514", message: "product_variants_product_id_variant_type_size_ml_key" })).toBe(false);
+  });
+});
+
+describe("orderVariantsForAdmin", () => {
+  it("disponibles en el orden de la tienda; las no disponibles al final", () => {
+    const rows = [
+      { ...bottle(100), is_available: true },
+      { ...decant(10), is_available: false },
+      { ...decant(5), is_available: true },
+      { ...decant(3), is_available: false },
+      { ...decant(3), variant_type: "full_bottle" as const, size_ml: 50, is_available: true },
+    ];
+    expect(orderVariantsForAdmin(rows).map((v) => `${v.variant_type}-${v.size_ml}-${v.is_available}`)).toEqual([
+      "decant-5-true",
+      "full_bottle-50-true",
+      "full_bottle-100-true",
+      "decant-3-false",
+      "decant-10-false",
+    ]);
+  });
+
+  it("no cambia el arreglo que recibe", () => {
+    const rows = [{ ...bottle(100), is_available: true }, { ...decant(5), is_available: true }];
+    orderVariantsForAdmin(rows);
+    expect(rows[0].size_ml).toBe(100);
+  });
+});
+
+describe("variantStockText", () => {
+  it("unidades o Agotado", () => {
+    expect(variantStockText(8)).toBe("8 u.");
+    expect(variantStockText(1)).toBe("1 u.");
+    expect(variantStockText(0)).toBe("Agotado");
   });
 });
 

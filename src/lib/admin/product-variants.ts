@@ -37,6 +37,23 @@ function variantExists(existing: readonly ExistingVariant[], type: VariantType, 
   return existing.some((v) => v.variant_type === type && v.size_ml === sizeMl);
 }
 
+const TYPE_ORDER: Record<VariantType, number> = { decant: 0, full_bottle: 1 };
+
+/** Disponibles primero, en el orden de la tienda (decants y después por ml); las no disponibles al final. */
+export function orderVariantsForAdmin<T extends ExistingVariant & { is_available: boolean }>(variants: readonly T[]): T[] {
+  return [...variants].sort(
+    (a, b) =>
+      Number(b.is_available) - Number(a.is_available) ||
+      TYPE_ORDER[a.variant_type] - TYPE_ORDER[b.variant_type] ||
+      a.size_ml - b.size_ml,
+  );
+}
+
+/** "8 u." o "Agotado": el stock grande de cada fila. */
+export function variantStockText(stock: number): string {
+  return stock > 0 ? `${stock} u.` : "Agotado";
+}
+
 /** Opciones del select de decant: los que ya están van deshabilitados. */
 export function decantOptions(existing: readonly ExistingVariant[]): { sizeMl: number; label: string; disabled: boolean }[] {
   return DECANT_SIZES_ML.map((sizeMl) => {

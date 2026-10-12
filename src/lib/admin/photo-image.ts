@@ -3,12 +3,15 @@ import { fitWithin, PHOTO_ERRORS, PHOTO_MAX_BYTES } from "./product-photo";
 /*
  * Lado del navegador de la foto (decisión 97, D15): decodificar, enderezar, achicar,
  * codificar y subir a la URL firmada. Usa APIs del navegador (createImageBitmap, canvas):
- * se prueba con el E2E (fixture con EXIF de orientación 6), no con Vitest.
+ * el decodificado real y el EXIF los prueba el E2E (fixture con orientación 6); el pase a
+ * JPEG, el límite de tamaño y el PUT, photo-image.test.ts con el canvas simulado.
  */
 
 export type PreparedPhoto = { ok: true; blob: Blob } | { ok: false; message: string };
 
 const QUALITY = 0.85;
+
+export const PHOTO_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
 function encode(canvas: HTMLCanvasElement, type: string): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, type, QUALITY));
@@ -60,7 +63,9 @@ export async function uploadToSignedUrl(signedUrl: string, blob: Blob): Promise<
   try {
     const response = await fetch(signedUrl, {
       method: "PUT",
-      headers: { "content-type": blob.type, "cache-control": "max-age=3600", "x-upsert": "false" },
+      // Cada subida tiene nombre único y no se pisa (x-upsert false): el contenido de una
+      // URL no cambia nunca, así que next/image y la CDN la pueden guardar el año entero.
+      headers: { "content-type": blob.type, "cache-control": PHOTO_CACHE_CONTROL, "x-upsert": "false" },
       body: blob,
     });
     return response.ok;

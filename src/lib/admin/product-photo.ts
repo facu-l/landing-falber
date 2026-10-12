@@ -54,6 +54,7 @@ export const PHOTO_ERRORS = {
   tooBig: `La foto sigue pesando más de ${PHOTO_MAX_BYTES / (1024 * 1024)} MB después de achicarla. Probá con otra.`,
   upload: "No se pudo subir la foto. Revisá la conexión y tocá Reintentar.",
   save: "La foto se subió pero no se pudo guardar en el producto. Tocá Reintentar.",
+  unconfirmed: "No pudimos confirmar si la foto se guardó. Recargá la página para ver cuál quedó.",
   invalidPath: "No pudimos guardar esa foto. Elegila de nuevo.",
   notFound: "Este producto ya no existe. Recargá la página.",
 } as const;

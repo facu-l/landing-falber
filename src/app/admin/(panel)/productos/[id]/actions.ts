@@ -127,10 +127,10 @@ export async function savePhoto(productId: string, path: string): Promise<PhotoA
     if (rereadError) {
       // Sin saber si se guardó, no se borra: una huérfana se limpia, una ficha sin foto no se ve.
       console.error("[admin] releer el producto tras el fallo falló", loggableDbError(rereadError));
-      // Si el guardado sí llegó, que la tienda y la ficha lo vean (invalidar de más no daña).
+      // Si el guardado sí llegó, que la tienda lo vea (invalidar de más no daña). Sin refresh():
+      // con la base caída, re-renderizar la ficha lanza y error.tsx se lleva el campo y Reintentar.
       updateTag(CATALOG_TAG);
-      refresh();
-      return { ok: false, message: PHOTO_ERRORS.save };
+      return { ok: false, message: PHOTO_ERRORS.unconfirmed };
     }
     saved = current?.image_path === path;
   }

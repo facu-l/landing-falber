@@ -258,15 +258,16 @@ describe("savePhoto", () => {
       .mockResolvedValueOnce({ data: { slug: "dior-sauvage", image_path: OLD_PATH }, error: null })
       .mockResolvedValueOnce({ data: null, error: { code: "XX000", message: "fetch failed" } });
 
-    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.save });
+    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.unconfirmed });
     expect(mocks.remove).not.toHaveBeenCalled();
     expect(log).toHaveBeenCalledWith("[admin] releer el producto tras el fallo falló", {
       code: "XX000",
       message: "fetch failed",
     });
-    // Pudo haberse guardado: la tienda y la ficha se vuelven a leer.
+    // Pudo haberse guardado: la tienda se vuelve a leer. La ficha no: con la base caída,
+    // re-renderizarla lanzaría y el admin perdería el campo de la foto.
     expect(mocks.updateTag).toHaveBeenCalledWith("catalog");
-    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
   it("la pestaña que pierde el compare-and-set borra solo su foto nueva: la publicada no se toca", async () => {

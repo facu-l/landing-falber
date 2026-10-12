@@ -13,6 +13,7 @@ const MIGRATION = path.join(__dirname, '..', 'migrations', '0001_initial_schema.
 const MIGRATION_0003 = path.join(__dirname, '..', 'migrations', '0003_catalog_admin.sql');
 const MIGRATION_0004 = path.join(__dirname, '..', 'migrations', '0004_product_images_admin_reads.sql');
 const MIGRATION_0005 = path.join(__dirname, '..', 'migrations', '0005_product_description_limit.sql');
+const MIGRATION_0006 = path.join(__dirname, '..', 'migrations', '0006_stock_movement_note_limit.sql');
 
 const SUPABASE_STUB = `
 create role anon nologin;
@@ -93,6 +94,8 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   catch (e) { bad('aplicar migración 0004', e.message); process.exit(1); }
   try { await db.exec(fs.readFileSync(MIGRATION_0005, 'utf8')); ok('la migración 0005 se aplica sin errores'); }
   catch (e) { bad('aplicar migración 0005', e.message); process.exit(1); }
+  try { await db.exec(fs.readFileSync(MIGRATION_0006, 'utf8')); ok('la migración 0006 se aplica sin errores'); }
+  catch (e) { bad('aplicar migración 0006', e.message); process.exit(1); }
   // Antes de los fixtures: sin este default, el trigger de publicar rechaza cualquier alta y todo se cae.
   {
     const def = (await one(db, `select column_default d from information_schema.columns
@@ -646,6 +649,7 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
     await seeded.exec(fs.readFileSync(MIGRATION_0003, 'utf8'));
     await seeded.exec(fs.readFileSync(MIGRATION_0004, 'utf8'));
     await seeded.exec(fs.readFileSync(MIGRATION_0005, 'utf8'));
+    await seeded.exec(fs.readFileSync(MIGRATION_0006, 'utf8'));
     try { await seeded.exec(fs.readFileSync(path.join(__dirname, '..', 'seed.sql'), 'utf8')); ok('seed: se aplica sobre 0001 + 0003'); }
     catch (e) { bad('seed: se aplica sobre 0001 + 0003', e.message); }
     const counts = await one(seeded, `select count(*) filter (where status = 'active') activos,
@@ -695,6 +699,16 @@ const item = (variant, quantity) => `{"variant_id":"${variant}","quantity":${qua
   await db.exec(`update products set description = null where slug = 'dior-desc'`);
   ok('products: sin descripción sigue valiendo');
   await db.exec(`delete from products where slug = 'dior-desc'`);
+
+  console.log('\n[17] 0006: largo máximo de la nota de un movimiento de stock');
+  const noteMove = (note) => `insert into stock_movements (variant_id, movement_type, quantity, note)
+    values ('${V1}', 'restock', 1, ${note})`;
+  await db.exec(noteMove(`repeat('n', 200)`));
+  ok('stock_movements: una nota de 200 caracteres se acepta');
+  await expectError(db, 'stock_movements: una nota de 201 caracteres se rechaza',
+    noteMove(`repeat('n', 201)`), 'stock_movements_note_length');
+  await db.exec(noteMove('null'));
+  ok('stock_movements: sin nota sigue valiendo');
 
   console.log(`\nRESULTADO: ${passed} pasaron, ${failed} fallaron`);
   process.exit(failed ? 1 : 0);

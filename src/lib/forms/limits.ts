@@ -22,4 +22,6 @@ export const LIMITS = {
   presentation: 60,
   // Admin de catálogo (0005)
   description: 1000,
+  // Admin de catálogo (0006)
+  stockNote: 200,
 } as const;

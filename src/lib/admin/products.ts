@@ -1,5 +1,6 @@
 import type { createClient } from "@/lib/supabase/server";
 import { ADMIN_PRODUCT_SELECT, type AdminProductRow } from "./product-list";
+import { STOCK_HISTORY_LIMIT, STOCK_HISTORY_SELECT, type StockHistoryEntry } from "./stock-movements";
 
 /*
  * Lecturas de productos del admin. Mismo contrato que requests.ts: reciben el cliente de
@@ -36,4 +37,29 @@ export async function getAdminProduct(supabase: SessionClient, id: string): Prom
   if (error?.code === "22P02") return null;
   if (error) throw new Error(`No se pudo leer el producto: ${error.message}`);
   return data;
+}
+
+/**
+ * Los últimos movimientos de cada presentación, por id. Una consulta por presentación con
+ * su límite: cada venta suma una fila, y traer todo el historial del producto crece sin tope.
+ */
+export async function getStockHistories(
+  supabase: SessionClient,
+  variantIds: readonly string[],
+): Promise<Record<string, StockHistoryEntry[]>> {
+  const histories = await Promise.all(
+    variantIds.map(async (variantId) => {
+      const { data, error } = await supabase
+        .from("stock_movements")
+        .select(STOCK_HISTORY_SELECT)
+        .eq("variant_id", variantId)
+        .order("created_at", { ascending: false })
+        .limit(STOCK_HISTORY_LIMIT)
+        .overrideTypes<StockHistoryEntry[], { merge: false }>();
+
+      if (error) throw new Error(`No se pudo leer el historial de stock: ${error.message}`);
+      return [variantId, data] as const;
+    }),
+  );
+  return Object.fromEntries(histories);
 }

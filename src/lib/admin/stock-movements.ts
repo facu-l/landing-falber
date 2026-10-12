@@ -120,6 +120,21 @@ export function formatSignedQuantity(quantity: number): string {
   return quantity > 0 ? `+${quantity}` : `−${Math.abs(quantity)}`;
 }
 
+/** Historial de cada presentación en la ficha (D8): los últimos movimientos. */
+export const STOCK_HISTORY_LIMIT = 5;
+
+export const STOCK_HISTORY_SELECT = "id, movement_type, quantity, note, created_at, orders ( id, order_number )";
+
+/** Un movimiento del historial. orders: el pedido de una venta o una cancelación (si no, null). */
+export type StockHistoryEntry = {
+  id: string;
+  movement_type: StockMovementType;
+  quantity: number;
+  note: string | null;
+  created_at: string;
+  orders: { id: string; order_number: string } | null;
+};
+
 export const STOCK_MOVE_SAVE_ERROR = "No pudimos mover el stock. Probá de nuevo en unos segundos.";
 export const STOCK_MOVE_NOT_FOUND = "Esa presentación ya no está. Recargá la página.";
 

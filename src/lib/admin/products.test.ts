@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { getAdminProduct, listAdminProducts } from "./products";
+import { getAdminProduct, getStockHistories, listAdminProducts } from "./products";
+import { STOCK_HISTORY_LIMIT } from "./stock-movements";
 
 /** Cliente falso como el de requests.test.ts: la consulta encadenada resuelve con `result`. */
 function fakeClient(result: { data: unknown; error: unknown }) {
@@ -42,5 +43,54 @@ describe("listAdminProducts", () => {
     await expect(
       listAdminProducts(fakeClient({ data: null, error: { code: "57014", message: "canceling statement" } })),
     ).rejects.toThrow("No se pudieron leer los productos: canceling statement");
+  });
+});
+
+describe("getStockHistories", () => {
+  /** Registra cada consulta: la tabla, los filtros, el orden y el límite. */
+  function recordingClient(resultFor: (variantId: string) => { data: unknown; error: unknown }) {
+    const calls: { table: string; eq: [string, unknown][]; order: unknown[]; limit: number | null }[] = [];
+    const client = {
+      from: (table: string) => {
+        const call = { table, eq: [] as [string, unknown][], order: [] as unknown[], limit: null as number | null };
+        calls.push(call);
+        const builder: Record<string, unknown> = {
+          select: () => builder,
+          eq: (column: string, value: unknown) => (call.eq.push([column, value]), builder),
+          order: (...args: unknown[]) => (call.order.push(args), builder),
+          limit: (n: number) => ((call.limit = n), builder),
+          overrideTypes: () => builder,
+          then: (resolve: (value: unknown) => unknown) => resolve(resultFor(String(call.eq[0]?.[1]))),
+        };
+        return builder;
+      },
+    };
+    return { client: client as never, calls };
+  }
+
+  it("trae los últimos 5 de cada presentación, del más nuevo al más viejo", async () => {
+    const { client, calls } = recordingClient((id) => ({ data: [{ id: `m-${id}` }], error: null }));
+    await expect(getStockHistories(client, ["v1", "v2"])).resolves.toEqual({
+      v1: [{ id: "m-v1" }],
+      v2: [{ id: "m-v2" }],
+    });
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      expect(call.table).toBe("stock_movements");
+      expect(call.limit).toBe(STOCK_HISTORY_LIMIT);
+      expect(call.order).toEqual([["created_at", { ascending: false }]]);
+    }
+    expect(calls.map((call) => call.eq)).toEqual([[["variant_id", "v1"]], [["variant_id", "v2"]]]);
+  });
+
+  it("sin presentaciones no consulta nada", async () => {
+    const { client, calls } = recordingClient(() => ({ data: [], error: null }));
+    await expect(getStockHistories(client, [])).resolves.toEqual({});
+    expect(calls).toHaveLength(0);
+  });
+
+  it("un error de la base se lanza, no se muestra como historial vacío", async () => {
+    const { client } = recordingClient(() => ({ data: null, error: { code: "57014", message: "canceling statement" } }));
+    await expect(getStockHistories(client, ["v1"])).rejects.toThrow("No se pudo leer el historial de stock: canceling statement");
   });
 });

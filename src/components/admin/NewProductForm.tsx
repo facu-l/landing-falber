@@ -26,7 +26,13 @@ export function NewProductForm({ defaultOpen = false }: { defaultOpen?: boolean 
 
   return (
     <details open={defaultOpen || undefined} className="group flex flex-col">
-      <summary className={buttonClasses("secondary", "cursor-pointer self-start list-none [&::-webkit-details-marker]:hidden")}>
+      {/* Abierto se ve como el hover: avisa que el mismo botón lo cierra (sin marcador nativo). */}
+      <summary
+        className={buttonClasses(
+          "secondary",
+          "cursor-pointer self-start list-none group-open:border-accent group-open:text-accent-strong [&::-webkit-details-marker]:hidden",
+        )}
+      >
         Nuevo producto
       </summary>
       <form ref={formRef} action={formAction} noValidate className="mt-6 flex max-w-xl flex-col gap-6">

@@ -100,6 +100,8 @@ Se **reimplementan en `src/components/ui/`** con los tokens. El bundle del artif
 | `Button` | Acción principal: label en MAYÚSCULAS con tracking amplio, caja de esquinas rectas. Variantes: primario (fondo `accent`, texto `on-accent`) y secundario (borde `border-strong`) |
 | `Input` | Label en MAYÚSCULAS arriba, campo, hint opcional abajo. Borde `border-strong`, foco visible. Con error: borde y mensaje en `error` (también con foco). Solo lectura (un dato precargado): fondo `surface-raised`, borde `border` y texto `text-secondary`, para que no parezca un campo para escribir |
 | `Select` | Mismo contrato que `Input` (label arriba, error abajo con `aria-invalid`). `<select>` nativo |
+| `Textarea` | Mismo contrato que `Input` (label arriba, hint o error abajo, borde `error` también con foco). 4 filas por defecto, crece solo en vertical |
+| `Checkbox` | Contrato de `Input` (label obligatorio en MAYÚSCULAS, hint o error abajo con `aria-invalid`), con el label al costado de la casilla. Casilla nativa pintada con `accent`; todo el renglón es el `<label>` (44 px táctiles). Sin borde de error: el error se lee en el mensaje |
 | `Card` | Panel en `surface-raised` con borde fino `border` y esquinas rectas |
 
 ## Logos

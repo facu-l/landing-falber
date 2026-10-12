@@ -45,7 +45,7 @@ export const VARIANT_TYPE_LABELS: Record<VariantType, string> = {
 // ---------------------------------------------------------------------------
 
 /** Variantes ordenadas para mostrar: decants primero, después por tamaño. */
-export function sortVariants(variants: CatalogVariant[]): CatalogVariant[] {
+export function sortVariants<T extends Pick<CatalogVariant, "variantType" | "sizeMl">>(variants: readonly T[]): T[] {
   const typeOrder: Record<VariantType, number> = { decant: 0, full_bottle: 1 };
   return [...variants].sort(
     (a, b) => typeOrder[a.variantType] - typeOrder[b.variantType] || a.sizeMl - b.sizeMl,
@@ -77,8 +77,11 @@ export function hasVariantType(product: CatalogProduct, type: VariantType): bool
 // Selecciones de la home
 // ---------------------------------------------------------------------------
 
+/** Cuántos destacados muestra la home. El admin lo dice en el formulario de datos. */
+export const FEATURED_LIMIT = 3;
+
 /** Destacados con stock, como máximo `limit`. Un destacado agotado no se promociona. */
-export function featuredProducts(products: CatalogProduct[], limit = 3): CatalogProduct[] {
+export function featuredProducts(products: CatalogProduct[], limit = FEATURED_LIMIT): CatalogProduct[] {
   return products.filter((p) => p.isFeatured && !isSoldOut(p)).slice(0, limit);
 }
 

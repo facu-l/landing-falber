@@ -8,7 +8,7 @@
 
 **Why:** En el MVP esto se opera desde Supabase Studio (decisión 10 de la revisión). Sirve para arrancar, pero cargar productos con fotos ahí es incómodo y lento.
 
-**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana. **En curso en la Fase 7** (`feat/admin-catalog`, decisiones 91 a 102): productos, fotos, presentaciones y stock. El ranking de encargos queda afuera: al mergear el PR 3, esta entrada se reduce a ese ranking.
+**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana. **En curso en la Fase 7** (decisiones 91 a 110): el PR 2 (`feat/admin-catalog-products`) trae la lista, el alta, la foto y los datos; faltan presentaciones, stock y publicar (PR 3). El ranking de encargos queda afuera: al mergear el PR 3, esta entrada se reduce a ese ranking.
 
 **Effort:** M
 **Priority:** P2
@@ -100,11 +100,31 @@
 
 **Why:** Las imágenes de `public/product-images/` y el hero son placeholders generados (un frasco genérico sobre carbón) para desarrollo y CI (`supabase start` las sube al bucket local). En producción las fotos salen del bucket de la nube.
 
-**Context:** Formato vertical 4:5, fondo oscuro o neutro (DESIGN.md → Fotos de producto). El nombre del archivo en el bucket es lo que va en `products.image_path`. El hero no es un producto: va en `public/brand/` (o en el bucket, si se prefiere editarlo sin deploy).
+**Context:** Formato vertical 4:5, fondo oscuro o neutro (DESIGN.md → Fotos de producto). Desde el PR 2 de la Fase 7 cada foto se sube en `/admin/productos/[id]` (se achica y se endereza sola, y reemplazar borra la anterior): no hace falta Studio. El hero no es un producto: va en `public/brand/` (o en el bucket, si se prefiere editarlo sin deploy).
 
 **Effort:** S
 **Priority:** P1 (antes del lanzamiento)
 **Depends on:** Fotos de la Fase 0.
+
+### Limpiar fotos huérfanas del bucket
+
+**What:** Un barrido que liste el bucket `product-images` y borre los objetos que ningún `products.image_path` referencia y que tengan más de un día (una acción del admin o un job programado).
+
+**Why:** Una subida que llega al bucket pero no se guarda en el producto deja la foto huérfana: el `PUT` sale bien y se pierde la respuesta, el admin cierra la pestaña entre subir y guardar, o se corta la red antes de `savePhoto`. Cambiar de foto ya borra la anterior (decisión 96) y dos pestañas no se pisan (compare-and-set, decisión 107), pero estos casos no tienen quién los limpie.
+
+**Context:** El admin ya puede listar y borrar en el bucket (`0004`). Borrar solo lo no referenciado y viejo, para no tocar una subida en curso. Hallazgo del Red Team en el `/ship` del PR 2 de la Fase 7. Señal: el bucket tiene notablemente más objetos que productos con foto.
+
+**Priority:** P3
+
+### Reintentar solo el guardado de la foto
+
+**What:** Cuando la foto ya está en el bucket y falla `savePhoto`, que Reintentar vuelva a llamar a `savePhoto` con la misma ruta en vez de pedir otra URL y subir de nuevo. Volver a subir solo si `savePhoto` responde que la ruta no existe (`invalidPath`).
+
+**Why:** Hoy cada Reintentar después de un error de guardado sube otra vez la foto (~300 KB por datos móviles) con otro nombre y deja la anterior huérfana.
+
+**Context:** `ProductPhotoField` guarda el blob en el estado de error; habría que guardar también `target.path`. Hallazgo de performance en el `/ship` del PR 2 de la Fase 7 (decisión del usuario: al PR 3, junto con la limpieza de huérfanas). Señal: hacerlo junto con "Limpiar fotos huérfanas del bucket".
+
+**Priority:** P3
 
 ### Varias fotos por producto
 

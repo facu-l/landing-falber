@@ -54,6 +54,22 @@ export async function createDeliveryOrder(): Promise<{ id: string; orderNumber: 
 }
 
 /**
+ * Producto nuevo sin publicar, directo en la base: el alta por la UI ya la cubre
+ * admin-products.spec.ts. Queda en la base (no se borra, decisión 95); db:reset lo limpia.
+ */
+export async function createUnpublishedProduct(): Promise<{ id: string; slug: string; title: string }> {
+  const name = `Foto ${randomDigits(6)}`;
+  const slug = `falber-test-${name.toLowerCase().replace(" ", "-")}`;
+  const { data, error } = await localAdminClient()
+    .from("products")
+    .insert({ brand: "FALBER Test", name, slug })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return { id: data.id, slug, title: `FALBER Test · ${name}` };
+}
+
+/**
  * Encargo nuevo, creado con create_perfume_request (la misma RPC de /encargos) sin pasar
  * por la tienda: el formulario ya lo cubre requests.spec.ts.
  */

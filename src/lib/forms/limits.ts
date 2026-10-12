@@ -20,4 +20,6 @@ export const LIMITS = {
   perfumeName: 120,
   brand: 60,
   presentation: 60,
+  // Admin de catálogo (0005)
+  description: 1000,
 } as const;

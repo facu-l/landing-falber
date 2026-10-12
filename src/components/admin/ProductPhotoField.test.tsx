@@ -156,4 +156,17 @@ describe("ProductPhotoField", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:local");
     expect(mocks.requestPhotoUpload).toHaveBeenCalledTimes(1);
   });
+
+  // Value: protects=the progress line is one live region that exists before the first step, so screen readers announce "Subiendo foto";
+  // fails_when=the idle message loses role="status" (the region appears together with its first text and is often not announced);
+  // why_new=other tests find the text, not the region it lives in; seam=none; no_claim=what each screen reader actually speaks
+  it("el estado de la foto es una sola región viva desde el principio: los pasos cambian su texto", async () => {
+    render(<ProductPhotoField productId="p" imagePath={null} alt="Dior · Sauvage" />);
+    const region = screen.getByRole("status");
+    expect(region.textContent).toBe("Sin foto.");
+
+    choose();
+
+    expect(await screen.findByText("Foto guardada.")).toBe(region);
+  });
 });

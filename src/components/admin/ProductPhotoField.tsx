@@ -137,6 +137,12 @@ function StepMessage({ step, hasPhoto }: { step: Step; hasPhoto: boolean }) {
         </p>
       );
     default:
-      return <p className="text-body text-text-secondary">{hasPhoto ? "Esta es la foto de la tienda." : "Sin foto."}</p>;
+      // role="status" desde el arranque: React reusa este mismo <p> en cada paso, así que
+      // "Preparando foto" llega como cambio dentro de una región viva que ya existía (se anuncia).
+      return (
+        <p role="status" className="text-body text-text-secondary">
+          {hasPhoto ? "Esta es la foto de la tienda." : "Sin foto."}
+        </p>
+      );
   }
 }

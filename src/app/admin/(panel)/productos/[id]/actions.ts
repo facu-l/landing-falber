@@ -15,12 +15,13 @@ import {
   type ProductDataState,
   parseProductData,
 } from "@/lib/admin/product-data";
+import { parseTargetStatus, PUBLISH_ERRORS, type PublishState, publishErrorMessage } from "@/lib/admin/product-publish";
 import { CATALOG_TAG } from "@/lib/catalog/queries";
 import { loggableDbError } from "@/lib/db-errors";
-import { formValues } from "@/lib/forms/form-data";
+import { formValues, stringField } from "@/lib/forms/form-data";
 
 /*
- * Acciones de la ficha de un producto: la foto y los datos.
+ * Acciones de la ficha de un producto: la foto, los datos y publicar u ocultar.
  *
  * Foto (decisión 96, D6). El archivo no pasa por acá (límite de 1 MB de
  * las Server Actions): esta acción elige la ruta y pide una URL firmada, el navegador
@@ -184,4 +185,40 @@ export async function updateProductData(
   updateTag(CATALOG_TAG);
   refresh();
   return { status: "success", message: "Datos guardados." };
+}
+
+/**
+ * Publicar u Ocultar (D9). La base decide si se puede publicar (guard_product_publish en
+ * 0003) y dice qué falta. El estado llega en el campo "status" del formulario.
+ */
+export async function updateProductStatus(
+  productId: string,
+  _prev: PublishState,
+  formData: FormData,
+): Promise<PublishState> {
+  const access = await requireAdminAction();
+  if (!access.ok) return { status: "error", message: access.message };
+
+  const target = parseTargetStatus(stringField(formData, "status") ?? undefined);
+  if (!target) return { status: "error", message: PUBLISH_ERRORS.save };
+
+  const { data, error } = await access.supabase
+    .from("products")
+    .update({ status: target })
+    .eq("id", productId)
+    // select: sin él, 0 filas (RLS) "se actualiza" sin error.
+    .select("id");
+
+  if (error) {
+    const mapped = publishErrorMessage(error);
+    if (!mapped.known) console.error("[admin] cambiar la publicación falló", loggableDbError(error));
+    return { status: "error", message: mapped.message };
+  }
+  if (!data?.length) return { status: "error", message: PUBLISH_ERRORS.notSaved };
+
+  // La tienda lo muestra (o lo saca) ya, sin esperar a que venza el caché.
+  updateTag(CATALOG_TAG);
+  refresh();
+  const published = target === "active";
+  return { status: "success", published, message: published ? "Publicado." : "Oculto. Ya no aparece en la tienda." };
 }

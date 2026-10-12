@@ -37,16 +37,22 @@ export function ProductPhotoField({ productId, imagePath, alt }: Props) {
 
   async function upload(blob: Blob) {
     setStep({ kind: "uploading", previewUrl: URL.createObjectURL(blob) });
-    const target = await requestPhotoUpload(productId, blob.type);
-    if (!target.ok) return setStep({ kind: "error", message: target.message, blob });
+    try {
+      const target = await requestPhotoUpload(productId, blob.type);
+      if (!target.ok) return setStep({ kind: "error", message: target.message, blob });
 
-    if (!(await uploadToSignedUrl(target.signedUrl, blob))) {
-      return setStep({ kind: "error", message: PHOTO_ERRORS.upload, blob });
+      if (!(await uploadToSignedUrl(target.signedUrl, blob))) {
+        return setStep({ kind: "error", message: PHOTO_ERRORS.upload, blob });
+      }
+
+      const saved = await savePhoto(productId, target.path);
+      // savePhoto refresca la página: imagePath llega con la foto nueva.
+      setStep(saved.ok ? { kind: "saved" } : { kind: "error", message: saved.message, blob });
+    } catch {
+      // Una Server Action que no llega (red caída, deploy en curso) rechaza la promesa: sin
+      // esto, el campo quedaba en "Subiendo foto" sin error ni Reintentar.
+      setStep({ kind: "error", message: PHOTO_ERRORS.upload, blob });
     }
-
-    const saved = await savePhoto(productId, target.path);
-    // savePhoto refresca la página: imagePath llega con la foto nueva.
-    setStep(saved.ok ? { kind: "saved" } : { kind: "error", message: saved.message, blob });
   }
 
   async function onChange(event: ChangeEvent<HTMLInputElement>) {
@@ -58,7 +64,12 @@ export function ProductPhotoField({ productId, imagePath, alt }: Props) {
     setStep({ kind: "preparing" });
     // surface-raised de Noir: el fondo de ProductImage en la tienda (sin hex en el código).
     const background = noirRef.current ? getComputedStyle(noirRef.current).getPropertyValue("--surface-raised").trim() : "";
-    const prepared = await preparePhoto(file, background);
+    let prepared: Awaited<ReturnType<typeof preparePhoto>>;
+    try {
+      prepared = await preparePhoto(file, background);
+    } catch {
+      prepared = { ok: false, message: PHOTO_ERRORS.unreadable };
+    }
     if (!prepared.ok) return setStep({ kind: "error", message: prepared.message });
     await upload(prepared.blob);
   }

@@ -109,8 +109,16 @@ export async function savePhoto(productId: string, path: string): Promise<PhotoA
     // select: sin él, 0 filas (RLS o compare-and-set) "se actualiza" sin error.
     .select("id");
 
-  if (error || !data?.length) {
-    if (error) console.error("[admin] guardar la foto del producto falló", loggableDbError(error));
+  let saved = Boolean(data?.length);
+  if (error) {
+    console.error("[admin] guardar la foto del producto falló", loggableDbError(error));
+    // Un error no prueba que no se guardó (la respuesta se pudo perder después del commit).
+    // Antes de borrar la foto nueva se mira la fila: borrarla dejaría la ficha sin imagen.
+    const { data: current } = await readProduct(access.supabase, productId);
+    saved = current?.image_path === path;
+  }
+
+  if (!saved) {
     await removeOrLog(bucket, path, "[admin] borrar la foto nueva tras el fallo falló");
     return { ok: false, message: PHOTO_ERRORS.save };
   }

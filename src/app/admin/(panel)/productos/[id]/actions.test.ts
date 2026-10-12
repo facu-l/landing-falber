@@ -227,6 +227,19 @@ describe("savePhoto", () => {
     expect(mocks.updateTag).not.toHaveBeenCalled();
   });
 
+  it("si el update da error pero la foto nueva sí quedó guardada, no la borra: sigue como éxito", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.updateResult.mockResolvedValue({ data: null, error: { code: "XX000", message: "fetch failed" } });
+    // Primera lectura: la foto anterior. Después del error: la fila ya apunta a la nueva.
+    mocks.readProduct
+      .mockResolvedValueOnce({ data: { slug: "dior-sauvage", image_path: OLD_PATH }, error: null })
+      .mockResolvedValueOnce({ data: { slug: "dior-sauvage", image_path: NEW_PATH }, error: null });
+
+    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: true });
+    expect(mocks.remove.mock.calls).toEqual([[[OLD_PATH]]]);
+    expect(mocks.updateTag).toHaveBeenCalledWith("catalog");
+  });
+
   it("la pestaña que pierde el compare-and-set borra solo su foto nueva: la publicada no se toca", async () => {
     mocks.updateResult.mockResolvedValue({ data: [], error: null });
 

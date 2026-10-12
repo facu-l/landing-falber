@@ -95,6 +95,25 @@ describe("ProductPhotoField", () => {
     expect(mocks.uploadToSignedUrl).toHaveBeenLastCalledWith("http://storage/sign", blob);
   });
 
+  it("si la red se corta en una Server Action, muestra el error y deja reintentar (no queda trabado)", async () => {
+    mocks.requestPhotoUpload.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<ProductPhotoField productId="p" imagePath={null} alt="Dior · Sauvage" />);
+    choose();
+
+    expect((await screen.findByRole("alert")).textContent).toBe(PHOTO_ERRORS.upload);
+    expect((screen.getByLabelText(/foto$/i) as HTMLInputElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    expect(await screen.findByText("Foto guardada.")).toBeTruthy();
+  });
+
+  it("si preparar la foto lanza, lo dice como foto ilegible", async () => {
+    mocks.preparePhoto.mockRejectedValueOnce(new Error("canvas"));
+    render(<ProductPhotoField productId="p" imagePath={null} alt="Dior · Sauvage" />);
+    choose();
+
+    expect((await screen.findByRole("alert")).textContent).toBe(PHOTO_ERRORS.unreadable);
+  });
+
   it("si no se puede pedir la URL, muestra el mensaje del servidor, no sube y deja reintentar", async () => {
     mocks.requestPhotoUpload.mockResolvedValueOnce({ ok: false, message: PHOTO_ERRORS.notFound });
     render(<ProductPhotoField productId="p" imagePath={null} alt="Dior · Sauvage" />);

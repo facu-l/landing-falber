@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRODUCT_DATA_ERRORS, PRODUCT_DATA_NOT_SAVED, PRODUCT_DATA_SAVE_ERROR } from "@/lib/admin/product-data";
 import { PHOTO_ERRORS } from "@/lib/admin/product-photo";
+import { PUBLISH_ERRORS } from "@/lib/admin/product-publish";
 
 const mocks = vi.hoisted(() => ({
   requireAdminAction: vi.fn(),
@@ -24,7 +25,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ updateTag: mocks.updateTag, refresh: mocks.refresh }));
 vi.mock("@/lib/admin/auth", () => ({ requireAdminAction: mocks.requireAdminAction }));
 
-const { requestPhotoUpload, savePhoto, updateProductData } = await import("./actions");
+const { requestPhotoUpload, savePhoto, updateProductData, updateProductStatus } = await import("./actions");
 
 const PRODUCT_ID = "11111111-1111-1111-1111-111111111111";
 const NEW_PATH = "dior-sauvage-0123456789ab.webp";
@@ -203,7 +204,12 @@ describe("savePhoto", () => {
     ["de otro producto", "creed-aventus-0123456789ab.webp"],
     ["de un slug que empieza igual", "dior-sauvage-edt-0123456789ab.webp"],
   ])("rechaza una ruta %s sin tocar la base ni el bucket (D6)", async (_case, path) => {
-    await expect(savePhoto(PRODUCT_ID, path)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.invalidPath });
+    // uploadAgain: reintentar con esta ruta no sirve; el campo vuelve a pedir una URL y sube.
+    await expect(savePhoto(PRODUCT_ID, path)).resolves.toEqual({
+      ok: false,
+      message: PHOTO_ERRORS.invalidPath,
+      uploadAgain: true,
+    });
     expect(mocks.exists).not.toHaveBeenCalled();
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.remove).not.toHaveBeenCalled();
@@ -212,7 +218,11 @@ describe("savePhoto", () => {
   it("rechaza una ruta que no está en el bucket (subida cortada o inventada)", async () => {
     mocks.exists.mockResolvedValue({ data: false, error: { message: "Object not found" } });
 
-    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.invalidPath });
+    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({
+      ok: false,
+      message: PHOTO_ERRORS.invalidPath,
+      uploadAgain: true,
+    });
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
@@ -270,20 +280,15 @@ describe("savePhoto", () => {
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
-  it("la pestaña que pierde el compare-and-set borra solo su foto nueva: la publicada no se toca", async () => {
+  // 0 filas: otra pestaña ganó el compare-and-set, o RLS no dejó escribir. En los dos casos
+  // la foto nueva no quedó en ningún producto: se borra, y la publicada no se toca.
+  it("si no tocó ninguna fila (compare-and-set perdido o RLS), borra solo su foto nueva", async () => {
     mocks.updateResult.mockResolvedValue({ data: [], error: null });
 
     await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.save });
     expect(mocks.remove.mock.calls).toEqual([[[NEW_PATH]]]);
     expect(mocks.updateTag).not.toHaveBeenCalled();
     expect(mocks.refresh).not.toHaveBeenCalled();
-  });
-
-  it("si no tocó ninguna fila (RLS), también borra la nueva", async () => {
-    mocks.updateResult.mockResolvedValue({ data: [], error: null });
-
-    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.save });
-    expect(mocks.remove).toHaveBeenCalledWith([NEW_PATH]);
   });
 
   it("si borrar la anterior falla, la foto nueva igual queda guardada (solo se loguea)", async () => {
@@ -396,5 +401,85 @@ describe("acceso sin verificar (requireAdminAction no redirige: Auth o la base n
       values,
     });
     expect(mocks.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateProductStatus", () => {
+  const IDLE = { status: "idle" } as const;
+  const status = (value: string) => {
+    const data = new FormData();
+    data.set("status", value);
+    return data;
+  };
+
+  it("sin admin no escribe nada", async () => {
+    mocks.requireAdminAction.mockRejectedValue(new Error("NEXT_REDIRECT"));
+    await expect(updateProductStatus(PRODUCT_ID, IDLE, status("active"))).rejects.toThrow("NEXT_REDIRECT");
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("si no se pudo verificar el acceso, avisa sin escribir", async () => {
+    mocks.requireAdminAction.mockResolvedValue({ ok: false, message: "Sin acceso" });
+    expect(await updateProductStatus(PRODUCT_ID, IDLE, status("active"))).toEqual({ status: "error", message: "Sin acceso" });
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("publica, vence el caché de la tienda y refresca", async () => {
+    expect(await updateProductStatus(PRODUCT_ID, IDLE, status("active"))).toEqual({
+      status: "success",
+      published: true,
+      message: "Publicado.",
+    });
+    expect(mocks.update).toHaveBeenCalledWith({ status: "active" });
+    expect(mocks.filter).toHaveBeenCalledWith("eq", "id", PRODUCT_ID);
+    expect(mocks.updateTag).toHaveBeenCalledWith("catalog");
+    expect(mocks.refresh).toHaveBeenCalled();
+  });
+
+  it("oculta y lo dice", async () => {
+    expect(await updateProductStatus(PRODUCT_ID, IDLE, status("inactive"))).toEqual({
+      status: "success",
+      published: false,
+      message: "Oculto. Ya no aparece en la tienda.",
+    });
+    expect(mocks.update).toHaveBeenCalledWith({ status: "inactive" });
+  });
+
+  it("un estado que no es publicar ni ocultar no escribe", async () => {
+    expect(await updateProductStatus(PRODUCT_ID, IDLE, status("archived"))).toEqual({
+      status: "error",
+      message: PUBLISH_ERRORS.save,
+    });
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("si la base dice que falta algo, lo nombra y no lo loguea (es nuestro)", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.updateResult.mockResolvedValue({ data: null, error: { message: "PRODUCT_NOT_PUBLISHABLE", details: "image" } });
+    expect(await updateProductStatus(PRODUCT_ID, IDLE, status("active"))).toEqual({
+      status: "error",
+      message: PUBLISH_ERRORS.image,
+    });
+    expect(log).not.toHaveBeenCalled();
+    expect(mocks.updateTag).not.toHaveBeenCalled();
+  });
+
+  it("otro error se loguea sin details y pide reintentar", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.updateResult.mockResolvedValue({
+      data: null,
+      error: { code: "08006", message: "connection", details: "Failing row contains (...)" },
+    });
+    expect(await updateProductStatus(PRODUCT_ID, IDLE, status("active"))).toEqual({ status: "error", message: PUBLISH_ERRORS.save });
+    expect(log).toHaveBeenCalledWith(expect.any(String), { code: "08006", message: "connection" });
+  });
+
+  it("0 filas (RLS o id inexistente) no se da por guardado", async () => {
+    mocks.updateResult.mockResolvedValue({ data: [], error: null });
+    expect(await updateProductStatus(PRODUCT_ID, IDLE, status("inactive"))).toEqual({
+      status: "error",
+      message: PUBLISH_ERRORS.notSaved,
+    });
+    expect(mocks.updateTag).not.toHaveBeenCalled();
   });
 });

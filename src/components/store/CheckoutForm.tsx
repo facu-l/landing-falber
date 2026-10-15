@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { createOrder } from "@/app/(store)/checkout/actions";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { RadioGroup, RadioOption } from "@/components/ui/Radio";
 import { serializeCart } from "@/lib/cart/cart";
 import { clearCart, useCart } from "@/lib/cart/cart-store";
 import { type ResolvedCart, resolveCart, type VariantIndex } from "@/lib/cart/resolve";
 import { type CheckoutState, INITIAL_CHECKOUT_STATE } from "@/lib/checkout/state";
-import { cn } from "@/lib/cn";
 import { useFocusFirstInvalid } from "@/lib/forms/focus-first-invalid";
 import { LIMITS } from "@/lib/forms/limits";
 import { formatARS } from "@/lib/format";
@@ -246,52 +246,6 @@ export function CheckoutForm({
 
       <OrderSummary resolved={resolved} problemVariantId={problemVariantId} />
     </div>
-  );
-}
-
-function RadioGroup({ legend, error, children }: { legend: string; error?: string; children: ReactNode }) {
-  return (
-    <fieldset aria-invalid={error ? true : undefined} className="flex flex-col border-t border-border">
-      <legend className="sr-only">{legend}</legend>
-      {children}
-      {error && <p className="pt-3 text-body-sm text-error">{error}</p>}
-    </fieldset>
-  );
-}
-
-type RadioOptionProps = {
-  name: string;
-  value: string;
-  checked: boolean;
-  onChange: () => void;
-  label: string;
-  detail: ReactNode;
-  disabled?: boolean;
-};
-
-function RadioOption({ name, value, checked, onChange, label, detail, disabled = false }: RadioOptionProps) {
-  return (
-    <label
-      className={cn(
-        "flex flex-col gap-1 border-b border-border border-l-2 border-l-transparent py-4 pr-2 pl-4",
-        "transition-colors duration-150 has-focus-visible:outline-2 has-focus-visible:outline-accent",
-        disabled
-          ? "cursor-not-allowed opacity-50"
-          : "cursor-pointer hover:bg-surface-raised has-checked:border-l-accent has-checked:bg-surface-raised",
-      )}
-    >
-      <input
-        type="radio"
-        name={name}
-        value={value}
-        checked={checked}
-        onChange={onChange}
-        disabled={disabled}
-        className="sr-only"
-      />
-      <span className="text-body text-text">{label}</span>
-      <span className="text-body-sm text-text-secondary">{detail}</span>
-    </label>
   );
 }
 

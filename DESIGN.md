@@ -102,6 +102,7 @@ Se **reimplementan en `src/components/ui/`** con los tokens. El bundle del artif
 | `Select` | Mismo contrato que `Input` (label arriba, error abajo con `aria-invalid`). `<select>` nativo |
 | `Textarea` | Mismo contrato que `Input` (label arriba, hint o error abajo, borde `error` también con foco). 4 filas por defecto, crece solo en vertical |
 | `Checkbox` | Contrato de `Input` (label obligatorio en MAYÚSCULAS, hint o error abajo con `aria-invalid`), con el label al costado de la casilla. Casilla nativa pintada con `accent`; todo el renglón es el `<label>` (44 px táctiles). Sin borde de error: el error se lee en el mensaje |
+| `RadioGroup` / `RadioOption` | Opciones excluyentes como filas con divisor: label y detalle en `text-secondary`, la elegida con borde izquierdo `accent` y `surface-raised`. Radio nativo oculto (`sr-only`) que recibe el foco; el anillo va en la fila. `legend` solo para lectores de pantalla. Error debajo del grupo con `aria-invalid` en el `fieldset`. Los usan el checkout y el alta de presentaciones |
 | `Card` | Panel en `surface-raised` con borde fino `border` y esquinas rectas |
 
 ## Logos

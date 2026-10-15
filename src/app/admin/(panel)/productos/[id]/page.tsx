@@ -2,24 +2,26 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { type ReactNode, Suspense } from "react";
+import { AddVariantForm } from "@/components/admin/AddVariantForm";
+import { AdminVariantList } from "@/components/admin/AdminVariantList";
 import { FocusOnArrival } from "@/components/admin/FocusOnArrival";
 import { ProductDataForm } from "@/components/admin/ProductDataForm";
 import { ProductPhotoField } from "@/components/admin/ProductPhotoField";
+import { ProductPublishControl } from "@/components/admin/ProductPublishControl";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { requireAdmin } from "@/lib/admin/auth";
 import { missingForPublishText } from "@/lib/admin/product-data";
 import { missingForPublish } from "@/lib/admin/product-list";
 import { ADMIN_PRODUCTS_PATH } from "@/lib/admin/paths";
-import { getAdminProduct } from "@/lib/admin/products";
+import { getAdminProduct, getStockHistories } from "@/lib/admin/products";
 
 export const metadata: Metadata = { title: "Producto" };
 
 type Props = PageProps<"/admin/productos/[id]">;
 
 /**
- * Ficha de un producto (D3, D16): encabezado con lo que falta para publicar, después
- * Foto y Datos, una columna. Presentaciones y stock, y Publicar u Ocultar, llegan con
- * el PR 3 de la Fase 7 (documento maestro → Interfaz).
+ * Ficha de un producto (D3, D16): encabezado con lo que falta para publicar y Publicar u
+ * Ocultar, después Foto, Presentaciones y stock, y Datos, una columna.
  */
 export default function AdminProductPage({ params, searchParams }: Props) {
   return (
@@ -42,6 +44,10 @@ async function Product({ params, searchParams }: Pick<Props, "params" | "searchP
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const product = await getAdminProduct(supabase, id);
   if (!product) notFound();
+  const histories = await getStockHistories(
+    supabase,
+    product.product_variants.map((variant) => variant.id),
+  );
 
   // ?nuevo=1: lo agrega createProduct al terminar el alta.
   const justCreated = query.nuevo === "1";
@@ -68,10 +74,18 @@ async function Product({ params, searchParams }: Pick<Props, "params" | "searchP
             {missing}
           </p>
         )}
+        <ProductPublishControl product={product} missing={missing} missingId="producto-faltantes" />
         {justCreated && <FocusOnArrival targetId="producto-titulo" />}
       </header>
       <ProductSection id="foto" title="Foto">
         <ProductPhotoField productId={product.id} imagePath={product.image_path} alt={title} />
+      </ProductSection>
+      <ProductSection id="presentaciones" title="Presentaciones y stock">
+        <AdminVariantList variants={product.product_variants} histories={histories} />
+        <div className="flex flex-col gap-6">
+          <h3 className="text-label text-text-secondary uppercase">Agregar presentación</h3>
+          <AddVariantForm productId={product.id} existing={product.product_variants} />
+        </div>
       </ProductSection>
       <ProductSection id="datos" title="Datos">
         <ProductDataForm product={product} />

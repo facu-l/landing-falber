@@ -11,6 +11,8 @@ if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 // Si en el 3000 hubiera OTRA app, el smoke test falla en rojo (verifica el título FALBER).
 const PORT = 3000;
 const isCI = !!process.env.CI;
+// Tests que publican productos (cambian lo que ve toda la tienda).
+const CATALOG_WRITES = /\.catalog-writes\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -24,9 +26,17 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   // Escritorio y celular: la compra termina en WhatsApp, el flujo clave es mobile.
+  // catalog-writes publica productos: corre al final, una vez, porque otros tests cuentan
+  // el catálogo del seed ("8 perfumes") y en paralelo verían uno de más.
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: CATALOG_WRITES },
+    { name: "mobile", use: { ...devices["Pixel 7"] }, testIgnore: CATALOG_WRITES },
+    {
+      name: "catalog-writes",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: CATALOG_WRITES,
+      dependencies: ["desktop", "mobile"],
+    },
   ],
   webServer: {
     // En CI la build corre en un paso propio del workflow; acá solo se levanta.

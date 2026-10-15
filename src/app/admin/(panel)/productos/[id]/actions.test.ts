@@ -271,20 +271,15 @@ describe("savePhoto", () => {
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
-  it("la pestaña que pierde el compare-and-set borra solo su foto nueva: la publicada no se toca", async () => {
+  // 0 filas: otra pestaña ganó el compare-and-set, o RLS no dejó escribir. En los dos casos
+  // la foto nueva no quedó en ningún producto: se borra, y la publicada no se toca.
+  it("si no tocó ninguna fila (compare-and-set perdido o RLS), borra solo su foto nueva", async () => {
     mocks.updateResult.mockResolvedValue({ data: [], error: null });
 
     await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.save });
     expect(mocks.remove.mock.calls).toEqual([[[NEW_PATH]]]);
     expect(mocks.updateTag).not.toHaveBeenCalled();
     expect(mocks.refresh).not.toHaveBeenCalled();
-  });
-
-  it("si no tocó ninguna fila (RLS), también borra la nueva", async () => {
-    mocks.updateResult.mockResolvedValue({ data: [], error: null });
-
-    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.save });
-    expect(mocks.remove).toHaveBeenCalledWith([NEW_PATH]);
   });
 
   it("si borrar la anterior falla, la foto nueva igual queda guardada (solo se loguea)", async () => {

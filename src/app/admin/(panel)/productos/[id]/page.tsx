@@ -7,6 +7,7 @@ import { AdminVariantList } from "@/components/admin/AdminVariantList";
 import { FocusOnArrival } from "@/components/admin/FocusOnArrival";
 import { ProductDataForm } from "@/components/admin/ProductDataForm";
 import { ProductPhotoField } from "@/components/admin/ProductPhotoField";
+import { ProductPublishControl } from "@/components/admin/ProductPublishControl";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { requireAdmin } from "@/lib/admin/auth";
 import { missingForPublishText } from "@/lib/admin/product-data";
@@ -19,9 +20,8 @@ export const metadata: Metadata = { title: "Producto" };
 type Props = PageProps<"/admin/productos/[id]">;
 
 /**
- * Ficha de un producto (D3, D16): encabezado con lo que falta para publicar, después
- * Foto, Presentaciones y stock, y Datos, una columna. Publicar u Ocultar llegan en el
- * PR 3 de la Fase 7 (documento maestro → Interfaz).
+ * Ficha de un producto (D3, D16): encabezado con lo que falta para publicar y Publicar u
+ * Ocultar, después Foto, Presentaciones y stock, y Datos, una columna.
  */
 export default function AdminProductPage({ params, searchParams }: Props) {
   return (
@@ -74,6 +74,7 @@ async function Product({ params, searchParams }: Pick<Props, "params" | "searchP
             {missing}
           </p>
         )}
+        <ProductPublishControl product={product} missing={missing} missingId="producto-faltantes" />
         {justCreated && <FocusOnArrival targetId="producto-titulo" />}
       </header>
       <ProductSection id="foto" title="Foto">

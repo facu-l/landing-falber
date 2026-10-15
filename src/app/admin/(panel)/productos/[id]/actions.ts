@@ -29,7 +29,11 @@ import { formValues, stringField } from "@/lib/forms/form-data";
  * del admin: Storage y RLS deciden.
  */
 
-export type PhotoActionResult<T = object> = ({ ok: true } & T) | { ok: false; message: string };
+/**
+ * uploadAgain: la ruta no sirve (no es de este producto o el objeto no está en el bucket),
+ * así que reintentar savePhoto con ella no puede salir bien: hay que pedir otra URL y subir.
+ */
+export type PhotoActionResult<T = object> = ({ ok: true } & T) | { ok: false; message: string; uploadAgain?: true };
 
 type Access = Extract<Awaited<ReturnType<typeof requireAdminAction>>, { ok: true }>;
 
@@ -94,7 +98,7 @@ export async function savePhoto(productId: string, path: string): Promise<PhotoA
     return { ok: false, message: PHOTO_ERRORS.save };
   }
   if (!product) return { ok: false, message: PHOTO_ERRORS.notFound };
-  if (!isPhotoPathFor(path, product.slug)) return { ok: false, message: PHOTO_ERRORS.invalidPath };
+  if (!isPhotoPathFor(path, product.slug)) return { ok: false, message: PHOTO_ERRORS.invalidPath, uploadAgain: true };
 
   // exists() da false (con error) si el objeto no está (400/404): la subida no llegó o la ruta
   // es inventada. Un 5xx o la red caída lanzan: eso no prueba que no esté, así que es un
@@ -106,7 +110,7 @@ export async function savePhoto(productId: string, path: string): Promise<PhotoA
     console.error("[admin] verificar la foto subida falló", error instanceof Error ? error.message : error);
     return { ok: false, message: PHOTO_ERRORS.save };
   }
-  if (!exists) return { ok: false, message: PHOTO_ERRORS.invalidPath };
+  if (!exists) return { ok: false, message: PHOTO_ERRORS.invalidPath, uploadAgain: true };
 
   // Compare-and-set: guarda solo si la foto sigue siendo la que se leyó. Con dos pestañas
   // guardando a la vez, la segunda no pisa a la primera (dejaría su foto huérfana): toca

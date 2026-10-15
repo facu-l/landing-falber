@@ -204,7 +204,12 @@ describe("savePhoto", () => {
     ["de otro producto", "creed-aventus-0123456789ab.webp"],
     ["de un slug que empieza igual", "dior-sauvage-edt-0123456789ab.webp"],
   ])("rechaza una ruta %s sin tocar la base ni el bucket (D6)", async (_case, path) => {
-    await expect(savePhoto(PRODUCT_ID, path)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.invalidPath });
+    // uploadAgain: reintentar con esta ruta no sirve; el campo vuelve a pedir una URL y sube.
+    await expect(savePhoto(PRODUCT_ID, path)).resolves.toEqual({
+      ok: false,
+      message: PHOTO_ERRORS.invalidPath,
+      uploadAgain: true,
+    });
     expect(mocks.exists).not.toHaveBeenCalled();
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.remove).not.toHaveBeenCalled();
@@ -213,7 +218,11 @@ describe("savePhoto", () => {
   it("rechaza una ruta que no está en el bucket (subida cortada o inventada)", async () => {
     mocks.exists.mockResolvedValue({ data: false, error: { message: "Object not found" } });
 
-    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({ ok: false, message: PHOTO_ERRORS.invalidPath });
+    await expect(savePhoto(PRODUCT_ID, NEW_PATH)).resolves.toEqual({
+      ok: false,
+      message: PHOTO_ERRORS.invalidPath,
+      uploadAgain: true,
+    });
     expect(mocks.update).not.toHaveBeenCalled();
   });
 

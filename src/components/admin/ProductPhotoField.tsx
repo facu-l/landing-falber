@@ -13,9 +13,14 @@ type Step =
   | { kind: "preparing" }
   /** previewUrl: object URL de la foto preparada, para verla mientras sube. */
   | { kind: "uploading"; previewUrl: string }
+  /** Reintentar con la foto ya en el bucket: solo se vuelve a guardar la ruta. */
+  | { kind: "saving"; previewUrl: string }
   | { kind: "saved" }
-  /** blob: la foto ya preparada, para Reintentar sin volver a elegirla. */
-  | { kind: "error"; message: string; blob?: Blob };
+  /**
+   * blob: la foto ya preparada, para Reintentar sin volver a elegirla.
+   * uploadedPath: la ruta que ya está en el bucket si lo que falló fue guardarla.
+   */
+  | { kind: "error"; message: string; blob?: Blob; uploadedPath?: string };
 
 type Props = { productId: string; imagePath: string | null; alt: string };
 
@@ -29,14 +34,16 @@ export function ProductPhotoField({ productId, imagePath, alt }: Props) {
   // El contenedor Noir de la vista previa: de ahí sale el fondo de la foto en la tienda.
   const noirRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState<Step>({ kind: "idle" });
-  const busy = step.kind === "preparing" || step.kind === "uploading";
+  const busy = step.kind === "preparing" || step.kind === "uploading" || step.kind === "saving";
 
   // La vista previa local se libera cuando termina la subida (o al desmontar).
-  const localUrl = step.kind === "uploading" ? step.previewUrl : null;
+  const localUrl = step.kind === "uploading" || step.kind === "saving" ? step.previewUrl : null;
   useEffect(() => (localUrl ? () => URL.revokeObjectURL(localUrl) : undefined), [localUrl]);
 
   async function upload(blob: Blob) {
     setStep({ kind: "uploading", previewUrl: URL.createObjectURL(blob) });
+    // Desde que la subida llega al bucket, un fallo se reintenta solo guardando esta ruta.
+    let uploadedPath: string | undefined;
     try {
       const target = await requestPhotoUpload(productId, blob.type);
       if (!target.ok) return setStep({ kind: "error", message: target.message, blob });
@@ -45,13 +52,35 @@ export function ProductPhotoField({ productId, imagePath, alt }: Props) {
         return setStep({ kind: "error", message: PHOTO_ERRORS.upload, blob });
       }
 
-      const saved = await savePhoto(productId, target.path);
-      // savePhoto refresca la página: imagePath llega con la foto nueva.
-      setStep(saved.ok ? { kind: "saved" } : { kind: "error", message: saved.message, blob });
+      uploadedPath = target.path;
+      await save(blob, uploadedPath);
     } catch {
       // Una Server Action que no llega (red caída, deploy en curso) rechaza la promesa: sin
       // esto, el campo quedaba en "Subiendo foto" sin error ni Reintentar.
-      setStep({ kind: "error", message: PHOTO_ERRORS.upload, blob });
+      setStep({ kind: "error", message: PHOTO_ERRORS.upload, blob, uploadedPath });
+    }
+  }
+
+  async function save(blob: Blob, path: string) {
+    const saved = await savePhoto(productId, path);
+    // savePhoto refresca la página: imagePath llega con la foto nueva.
+    if (saved.ok) return setStep({ kind: "saved" });
+    // La ruta ya no sirve (el servidor confirmó que no guardó y la borró): se sube de nuevo.
+    if (saved.uploadAgain) return setStep({ kind: "error", message: saved.message, blob });
+    setStep({ kind: "error", message: saved.message, blob, uploadedPath: path });
+  }
+
+  /** Reintentar: si la foto ya está en el bucket solo se guarda (no se suben otros ~300 KB). */
+  async function retry(blob: Blob, uploadedPath: string | undefined) {
+    if (!uploadedPath) return upload(blob);
+    setStep({ kind: "saving", previewUrl: URL.createObjectURL(blob) });
+    try {
+      const saved = await savePhoto(productId, uploadedPath);
+      if (saved.ok) return setStep({ kind: "saved" });
+      if (saved.uploadAgain) return upload(blob);
+      setStep({ kind: "error", message: saved.message, blob, uploadedPath });
+    } catch {
+      setStep({ kind: "error", message: PHOTO_ERRORS.upload, blob, uploadedPath });
     }
   }
 
@@ -111,7 +140,7 @@ export function ProductPhotoField({ productId, imagePath, alt }: Props) {
             {imagePath ? "Cambiar foto" : "Elegir foto"}
           </label>
           {step.kind === "error" && step.blob && (
-            <Button onClick={() => upload(step.blob!)}>Reintentar</Button>
+            <Button onClick={() => retry(step.blob!, step.uploadedPath)}>Reintentar</Button>
           )}
         </div>
         <p className="text-body-sm text-text-muted">
@@ -128,6 +157,8 @@ function StepMessage({ step, hasPhoto }: { step: Step; hasPhoto: boolean }) {
       return <p role="status" className="text-body text-text-secondary">Preparando foto</p>;
     case "uploading":
       return <p role="status" className="text-body text-text-secondary">Subiendo foto</p>;
+    case "saving":
+      return <p role="status" className="text-body text-text-secondary">Guardando foto</p>;
     case "saved":
       return <p role="status" className="text-body text-text-secondary">Foto guardada.</p>;
     case "error":

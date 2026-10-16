@@ -48,12 +48,13 @@ function Hero() {
         </div>
         <div className="relative aspect-[4/3] overflow-hidden rounded-md md:aspect-auto md:h-[min(720px,calc(100dvh-72px-8rem))]">
           <Image
-            src="/brand/hero-placeholder.webp"
-            alt="Frasco de perfume sobre fondo carbón"
+            src="/brand/hero.webp"
+            alt="Frasco de Le Male Elixir de Jean Paul Gaultier"
             fill
             priority
             sizes="(min-width: 768px) 50vw, 100vw"
-            className="object-cover"
+            // Fondo transparente: contain muestra el frasco entero (cover cortaba la tapa en mobile).
+            className="object-contain"
           />
         </div>
       </div>

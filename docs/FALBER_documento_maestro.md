@@ -1,6 +1,6 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v7.3 · 2026-10-15
+Tienda online de decants y perfumes · Next.js + Supabase · v7.4 · 2026-10-16
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
@@ -15,6 +15,7 @@ Tienda online de decants y perfumes · Next.js + Supabase · v7.3 · 2026-10-15
 **v7.1:** Fase 7 (admin de catálogo) planificada y revisada (decisiones 91 a 102, sección 3.O; `/plan-eng-review` y `/plan-design-review`) y su PR 1 mergeado (PR #15): Storage local con el CLI 2.120.0, fotos siempre desde el bucket y la migración `0003`, aplicada en la nube.
 **v7.2:** Fase 7, PR 2 (`feat/admin-catalog-products`): pestaña "Productos", lista con alta corta, ficha con foto (URL firmada, EXIF, borrado de la anterior) y datos, `Textarea` y `Checkbox`, y las migraciones `0004` (el admin no podía borrar fotos del bucket) y `0005` (largo máximo de la descripción). Decisiones 103 a 114.
 **v7.3:** Fase 7, PR 3 (`feat/admin-catalog-stock`, PR #17): presentaciones, movimientos de stock con nota e historial, publicar y ocultar desde la ficha, el proyecto E2E `catalog-writes` y la migración `0006` (largo máximo de la nota de stock), aplicada en la nube. Decisiones 115 a 121.
+**v7.4:** cierre de la Fase 7 (`feat/robots-sitemap`): catálogo real en producción, hero con foto real (PR #19), `robots.txt` y `sitemap.xml`, y el último ítem de la sección 11 tildado.
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -844,6 +845,8 @@ PUBLICADOS                                    ── PRESENTACIONES Y STOCK ─�
 
 **Al cerrar:** el dueño carga el catálogo real, se revisa el Dior Sauvage activo en producción, se reemplaza el hero (`public/brand/hero-placeholder.webp`) y se tilda el último ítem de la sección 11.
 
+**Cerrada (2026-10-16).** Catálogo real cargado desde el admin: 13 perfumes publicados, cada uno con foto y presentaciones; un alta duplicada ("Club de Nuit · Iconic") quedó oculta porque la base no deja borrar productos (decisión 95). El dueño confirmó el stock y los precios del Sauvage y del Le Male Elixir y los tres destacados. Prueba en un iPhone real: foto vertical, reemplazo, corte de señal y PNG transparente. Hero con el Le Male Elixir en `object-contain` (PR #19; la foto propia queda en `TODOS.md`). `robots.txt` y `sitemap.xml` desde `src/lib/seo/` (dominio canónico fijo en `SITE_URL`, el sitemap sale de `getCatalog()`).
+
 ### Flujo completo
 
 ```
@@ -902,7 +905,7 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 - [x] GitHub Action de keepalive + backup corriendo: secretos, `KEEPALIVE_ENABLED` y `BACKUP_ENABLED` cargados (Fase 6 → Backups), una corrida a mano en verde, y el artefacto descargado se descifra con la passphrase.
 - [x] Deploy en Netlify (no Vercel Hobby: prohíbe uso comercial).
 - [x] `https://falber.com.ar` responde con HTTPS válido y la variante sin elegir (con o sin `www`) redirige a la canónica. Site URL de Supabase y hostname del widget de Turnstile con `falber.com.ar` (Fase 6 → Dominio).
-- [ ] Catálogo y fotos reales cargados antes de difundir el dominio (nada del seed de prueba en producción).
+- [x] Catálogo y fotos reales cargados antes de difundir el dominio (nada del seed de prueba en producción). Verificado 2026-10-16: 13 perfumes publicados con foto, stock confirmado por el dueño y hero real.
 - [x] Prueba en iPhone y Android; aviso de datos personales en el checkout. Verificado 2026-10-10: compra completa en los dos, con retiro y con envío; los pedidos de prueba se cancelaron.
 
 ---

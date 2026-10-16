@@ -62,10 +62,14 @@
 
 **Why:** El encargo se asocia al cliente que ya existe con ese número. Alguien que rote IPs y resuelva Turnstile puede hacer que FALBER le escriba una y otra vez a una persona que no pidió nada, con la marca como intermediaria. `/encargos` es más barato de abusar que el checkout: no reserva stock ni necesita carrito. Visto en el `/review` de la Fase 4.
 
-**Context:** `rate_limit_events.action` tiene un `check (action in ('order', 'perfume_request'))`: hay que agregar la acción nueva. La clave no puede ser el número en crudo (es dato personal): HMAC con el mismo `IP_HASH_SECRET` desde el servidor, o `md5` en la base si alcanza. Test en `schema.test.cjs` y un mensaje en `REQUEST_ERRORS` si el código es nuevo. Señal: el primer encargo que el cliente diga no haber pedido.
+**Context:** `rate_limit_events.action` tiene un `check (action in ('order', 'perfume_request'))`: hay que agregar la acción nueva. La clave no puede ser el número en crudo (es dato personal): HMAC con el mismo `IP_HASH_SECRET` desde el servidor, o `md5` en la base si alcanza. Test en `schema.test.cjs` y un mensaje en `REQUEST_ERRORS` si el código es nuevo.
 
-**Effort:** S
-**Priority:** P2
+**Riesgo mientras tanto (revisado el 2026-10-16, decisión de dejarlo para cuando escale):** bajo. Abusarlo exige rotar IPs (tope de 5 por hora por IP) y resolver Turnstile en cada envío, sin ganar nada. Un número que ya existe no pisa al cliente (`on conflict (whatsapp) do nothing`) y ningún WhatsApp sale solo: el dueño escribe a mano y puede frenar. Si pasa, se cierran esos encargos en `/admin/encargos`; no hay nada que limpiar en la base.
+
+**Señal (cualquiera de las tres):** alguien responde que no pidió nada o llegan varios encargos seguidos del mismo número; antes de difundir fuerte (publicidad paga, un influencer); o el volumen de encargos crece al punto de que el dueño no los revisa uno por uno.
+
+**Effort:** S (una sesión de 1 a 2 horas: `0007`, test, mensaje, docs y `db push`)
+**Priority:** P2 (cuando aparezca la señal)
 **Depends on:** —
 
 ### Medir los largos igual que Postgres

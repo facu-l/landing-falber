@@ -886,6 +886,8 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 
 ## 11. Checklist antes de publicar
 
+**Regla permanente (no es un ítem a tildar): nunca `supabase config push` contra producción.** Subiría `supabase/config.toml`, que tiene el secreto de prueba del CAPTCHA (cualquier token pasaría) y la configuración local de Auth. La nube se configura solo desde el dashboard.
+
 - [x] Todos los tests pasan: esquema, Vitest y Playwright.
 - [x] Migraciones probadas una vez contra `supabase start`.
 - [x] La `service_role key` no aparece en el cliente ni con `NEXT_PUBLIC_`.
@@ -895,7 +897,6 @@ Casos de borde que hay que cubrir sí o sí: doble click en "Realizar compra", c
 - [x] En Netlify llega `x-nf-client-connection-ip` (un pedido de prueba deja una fila en `rate_limit_events` con una clave distinta de la de `"unknown"`).
 - [x] Supabase → Authentication → Sign In / Providers: "Allow new users to sign up" **apagado** y el proveedor **Email habilitado** (si se apaga Email, el admin no puede entrar; decisión 61). Admin creado a mano: Authentication → Add user + su fila en `profiles` (nota al final de `0001`).
 - [x] Supabase → Authentication → Attack Protection: CAPTCHA con Turnstile y el **secreto real** (decisión 75). Sin esto el login funciona pero queda sin CAPTCHA; con el secreto de prueba, cualquier token pasa. En Cloudflare, el dominio de producción en el widget. Verificar con una llamada directa a `/auth/v1/token?grant_type=password` sin token: tiene que responder `captcha_failed`.
-- [ ] **Nunca `supabase config push` contra producción:** subiría `supabase/config.toml`, que tiene el secreto de prueba del CAPTCHA (cualquier token pasaría) y la configuración local de Auth. La nube se configura solo desde el dashboard.
 - [x] Login del admin en producción: entra a `/admin/pedidos`; otra cuenta sin perfil ve "sin acceso". En DevTools → Application → Cookies, las `sb-…` son `HttpOnly` y `Secure`. Verificado 2026-10-10: la cookie de sesión es `HttpOnly`, `Secure` y `SameSite=Lax`; la cuenta de prueba sin perfil se borró. El error de CSP por `eval` que muestra DevTools viene del iframe de Turnstile (nuestra CSP es solo `frame-ancestors`).
 - [x] Pedido de prueba completo en el celular: WhatsApp abre con el mensaje correcto.
 - [x] Doble click en "Realizar compra" crea un solo pedido. Verificado 2026-10-10 en producción (pedido cancelado después).

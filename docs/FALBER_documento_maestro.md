@@ -1,6 +1,6 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v7.2 · 2026-10-11
+Tienda online de decants y perfumes · Next.js + Supabase · v7.3 · 2026-10-15
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
@@ -14,6 +14,7 @@ Tienda online de decants y perfumes · Next.js + Supabase · v7.2 · 2026-10-11
 **v6.3:** cierre de la Fase 6, parte B (`docs/phase-6-part-b-closure`): deploy de producción y compra real `FAL-0003` verificados en `falber.com.ar`, y el catálogo vacío deja de hablar de filtros cuando se llega desde el menú (`emptyCatalogMessage()`).
 **v7.1:** Fase 7 (admin de catálogo) planificada y revisada (decisiones 91 a 102, sección 3.O; `/plan-eng-review` y `/plan-design-review`) y su PR 1 mergeado (PR #15): Storage local con el CLI 2.120.0, fotos siempre desde el bucket y la migración `0003`, aplicada en la nube.
 **v7.2:** Fase 7, PR 2 (`feat/admin-catalog-products`): pestaña "Productos", lista con alta corta, ficha con foto (URL firmada, EXIF, borrado de la anterior) y datos, `Textarea` y `Checkbox`, y las migraciones `0004` (el admin no podía borrar fotos del bucket) y `0005` (largo máximo de la descripción). Decisiones 103 a 114.
+**v7.3:** Fase 7, PR 3 (`feat/admin-catalog-stock`, PR #17): presentaciones, movimientos de stock con nota e historial, publicar y ocultar desde la ficha, el proyecto E2E `catalog-writes` y la migración `0006` (largo máximo de la nota de stock), aplicada en la nube. Decisiones 115 a 121.
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -797,8 +798,8 @@ Cargar productos, fotos, presentaciones y stock desde el panel, sin Studio. Es l
 5. **Publicar y ocultar (T4).** `updateProductStatus` y `ProductPublishControl`: Publicar primario con `aria-describedby` a lo que falta, Ocultar con confirmación en dos pasos, "Ver en la tienda" en otra pestaña. Un rechazo deja de mostrarse cuando cambia lo que falta.
 6. **E2E (T5).** `admin-product-publish.catalog-writes.spec.ts` (decisión 120): publicar sin foto, foto, presentación con stock, Dañado, publicar con el caché caliente, ocultar.
 7. **Foto (T6).** Reintentar solo guarda (decisión 121) y los dos tests de 0 filas de `savePhoto` quedaron en uno.
-8. **Antes de aplicar en la nube:** `select count(*) from stock_movements where char_length(note) > 200` da 0. Si no, la `0006` falla y no cambia nada.
-9. **Después del merge:** `supabase db push` para aplicar la `0006` y verificar con SQL de solo lectura que existe `stock_movements_note_length`.
+8. **Antes de aplicar en la nube (hecho, 2026-10-15):** `select count(*) from stock_movements where char_length(note) > 200` dio 0 sobre 20 movimientos. Si no, la `0006` falla y no cambia nada.
+9. **Después del merge (hecho, 2026-10-15):** PR #17 mergeado (`51aeeec`, CI de `main` en verde) y `supabase db push` aplicó solo la `0006` (con `--dry-run` antes). Verificado con SQL de solo lectura: última migración `0006` y `stock_movements_note_length` validado (`convalidated`). La ficha en `falber.com.ar/admin` muestra Publicar u Ocultar y Presentaciones y stock.
 
 **Lecciones del PR 3.**
 - Un E2E que pasa al primer intento no prueba nada hasta verlo fallar: con la invalidación del caché sacada a propósito, la primera versión seguía pasando el paso de publicar, porque la foto y la presentación ya habían vencido el caché.

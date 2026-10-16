@@ -2,17 +2,17 @@
 
 ## Admin
 
-### Admin de productos y stock
+### Ranking de encargos en el admin
 
-**What:** Interfaz en `/admin` para crear y editar productos y variantes (con subida de fotos), cargar movimientos de stock y ver el ranking de encargos (`perfume_requests_ranking`). La lista de encargos con su estado ya existe (`/admin/encargos`, decisión 90).
+**What:** Mostrar en `/admin/encargos` el ranking de perfumes más pedidos (`perfume_requests_ranking`), arriba de la lista que ya existe (decisión 90).
 
-**Why:** En el MVP esto se opera desde Supabase Studio (decisión 10 de la revisión). Sirve para arrancar, pero cargar productos con fotos ahí es incómodo y lento.
+**Why:** Es lo que quedó afuera del admin de catálogo (Fase 7, PR #15 a #17). Sirve para decidir qué frascos comprar según lo que piden los clientes; hoy se mira en Supabase Studio.
 
-**Context:** Las tablas, funciones, permisos y protecciones ya existen y valen también en Studio (la columna `stock` no se edita a mano, el historial no se borra). Falta solo la UI con tema Platinum, `requireAdmin()` en cada acción, sesión del usuario (nunca `service_role`) y `updateTag('catalog')` al guardar (decisión 34). Señal para hacerlo: cuando cargar o editar productos te lleve más de 10 minutos por semana. **En curso en la Fase 7** (decisiones 91 a 110): el PR 2 (`feat/admin-catalog-products`) trae la lista, el alta, la foto y los datos; faltan presentaciones, stock y publicar (PR 3). El ranking de encargos queda afuera: al mergear el PR 3, esta entrada se reduce a ese ranking.
+**Context:** La vista ya existe en la base. Lectura con la sesión del usuario (nunca `service_role`) y `requireAdmin()` en la página, tema Platinum. Señal: cuando haya suficientes encargos como para que contarlos a mano lleve tiempo, o el dueño pregunte qué es lo más pedido.
 
-**Effort:** M
-**Priority:** P2
-**Depends on:** Fase 5 (admin de pedidos), que deja armados el login, el layout y `requireAdmin()`.
+**Effort:** S
+**Priority:** P3
+**Depends on:** —
 
 ## Inventario
 
@@ -80,31 +80,18 @@
 **Priority:** P3
 **Depends on:** —
 
-### robots.txt y sitemap.xml
+## Catálogo
 
-**What:** `src/app/robots.ts` (permitir la tienda, `disallow` de `/admin`, `/carrito`, `/checkout` y `/pedido`) y `src/app/sitemap.ts` con la home, el catálogo, encargos y cada producto activo (desde `getCatalog()`).
+### Hero con una foto propia de FALBER
 
-**Why:** Hoy los dos responden 404 (visto en el `/qa` del 2026-10-09). No expone nada: las páginas privadas ya llevan `noindex`. Ayuda a que Google encuentre los productos nuevos sin esperar a recorrer los links.
+**What:** Reemplazar `public/brand/hero.webp` (la foto oficial del Le Male Elixir, PR #19) por una foto propia: los decants de FALBER o varios frascos juntos, horizontal y de 2000 px de ancho o más.
 
-**Context:** Guías en `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/01-metadata/` (`robots.md`, `sitemap.md`). Señal: cuando el catálogo real esté cargado y se difunda el dominio.
+**Why:** El hero es la cara de la marca: con la foto de un fabricante, la home parece de Jean Paul Gaultier. A 1000 px, además, se ve algo blanda en pantallas retina.
+
+**Context:** El hero usa `object-contain`, así que sirve una foto con fondo transparente o carbón; con fondo opaco, revisar el recorte 4:3 de mobile. Cambiar también el `alt` en `src/app/(store)/page.tsx`. Señal: cuando haya una sesión de fotos de los productos de FALBER.
 
 **Effort:** S
 **Priority:** P3
-**Depends on:** Catálogo real cargado.
-
-## Catálogo
-
-### Reemplazar las fotos placeholder por fotos reales
-
-**What:** Subir las fotos reales de cada producto al bucket `product-images` y la del hero (hoy `public/brand/hero-placeholder.webp`).
-
-**Why:** Las imágenes de `public/product-images/` y el hero son placeholders generados (un frasco genérico sobre carbón) para desarrollo y CI (`supabase start` las sube al bucket local). En producción las fotos salen del bucket de la nube.
-
-**Context:** Formato vertical 4:5, fondo oscuro o neutro (DESIGN.md → Fotos de producto). Desde el PR 2 de la Fase 7 cada foto se sube en `/admin/productos/[id]` (se achica y se endereza sola, y reemplazar borra la anterior): no hace falta Studio. El hero no es un producto: va en `public/brand/` (o en el bucket, si se prefiere editarlo sin deploy).
-
-**Effort:** S
-**Priority:** P1 (antes del lanzamiento)
-**Depends on:** Fotos de la Fase 0.
 
 ### Limpiar fotos huérfanas del bucket
 
@@ -162,6 +149,20 @@
 **Depends on:** None
 
 ## Completed
+
+Hechos en la Fase 7 y el lanzamiento (2026-10-16).
+
+### Admin de productos y stock
+
+Lista, alta, foto, datos, presentaciones, movimientos de stock con historial y publicar u ocultar en `/admin/productos` (PR #15 a #17, decisiones 91 a 121). Queda el ranking de encargos, arriba.
+
+### Reemplazar las fotos placeholder por fotos reales
+
+El catálogo real está cargado desde el admin, con foto en cada producto publicado, y el hero muestra el Le Male Elixir (PR #19). La foto propia del hero sigue arriba.
+
+### robots.txt y sitemap.xml
+
+`src/app/robots.ts` y `src/app/sitemap.ts`, con las reglas puras y sus tests en `src/lib/seo/`.
 
 Hechos en la Fase 6, parte A (`feat/launch-hardening`, 2026-10-07). El detalle está en el documento maestro, sección 3.K.
 

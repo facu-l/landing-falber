@@ -172,7 +172,7 @@
 
 **Why:** El design system solo trae JPG grandes (1,3 a 2,2 MB) con textura metálica sobre negro. No sirven para un favicon nítido, fondos claros ni impresión, y por eso el header usa la tipografía `wordmark` en lugar del logo.
 
-**Context:** Es trabajo de diseño (Facundo o un diseñador), no de código. Cuando exista, se sube al grupo `Logos` del design system en Artifacts y se actualizan `DESIGN.md`, el favicon y el header.
+**Context:** Es trabajo de diseño (Facundo o un diseñador), no de código. Cuando exista, se sube al grupo `Logos` del design system en Artifacts y se actualizan `DESIGN.md`, el favicon y el header. Mientras tanto, el favicon (`src/app/favicon.ico`, `icon.png`, `apple-icon.png`) sale del monograma PNG con fondo transparente (`design/monogram.png`) sobre `carbon-black`: a 16 px las letras se empastan, un SVG simplificado para tamaños chicos lo resolvería.
 
 **Effort:** M
 **Priority:** P3

@@ -119,6 +119,18 @@
 **Priority:** P3
 **Depends on:** Fase 7 mergeada.
 
+### Datos estructurados `Product` en la ficha
+
+**What:** JSON-LD `Product` en `/producto/[slug]`, con un `offer` por presentación (precio en ARS y disponibilidad), armado desde las mismas reglas que el feed de Merchant Center (`src/lib/seo/merchant-feed.ts`).
+
+**Why:** El feed (decisiones 122 a 125) manda un precio por presentación, pero la ficha muestra todas juntas. Merchant Center puede marcar "precio no coincide" y suspender ítems. Además ayuda a los resultados enriquecidos de Google.
+
+**Context:** Reusar `merchantItems()` para que ficha y feed no se contradigan. Señal: un aviso de precio o de disponibilidad en el Diagnóstico de Merchant Center, o el siguiente trabajo de SEO.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
 ## Design system
 
 ### Sincronizar el artifact con los cambios hechos en el código
@@ -167,6 +179,10 @@ El catálogo real está cargado desde el admin, con foto en cada producto public
 ### robots.txt y sitemap.xml
 
 `src/app/robots.ts` y `src/app/sitemap.ts`, con las reglas puras y sus tests en `src/lib/seo/`.
+
+### Feed de Google Merchant Center
+
+`/merchant-feed.xml` (PR #22, decisiones 122 a 125), cargado en Merchant Center desde "Añadir productos desde un archivo".
 
 Hechos en la Fase 6, parte A (`feat/launch-hardening`, 2026-10-07). El detalle está en el documento maestro, sección 3.K.
 

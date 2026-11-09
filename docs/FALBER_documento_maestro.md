@@ -1,6 +1,6 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v7.4 · 2026-10-16
+Tienda online de decants y perfumes · Next.js + Supabase · v7.5 · 2026-11-09
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
@@ -16,6 +16,7 @@ Tienda online de decants y perfumes · Next.js + Supabase · v7.4 · 2026-10-16
 **v7.2:** Fase 7, PR 2 (`feat/admin-catalog-products`): pestaña "Productos", lista con alta corta, ficha con foto (URL firmada, EXIF, borrado de la anterior) y datos, `Textarea` y `Checkbox`, y las migraciones `0004` (el admin no podía borrar fotos del bucket) y `0005` (largo máximo de la descripción). Decisiones 103 a 114.
 **v7.3:** Fase 7, PR 3 (`feat/admin-catalog-stock`, PR #17): presentaciones, movimientos de stock con nota e historial, publicar y ocultar desde la ficha, el proyecto E2E `catalog-writes` y la migración `0006` (largo máximo de la nota de stock), aplicada en la nube. Decisiones 115 a 121.
 **v7.4:** cierre de la Fase 7 (`feat/robots-sitemap`): catálogo real en producción, hero con foto real (PR #19), `robots.txt` y `sitemap.xml`, y el último ítem de la sección 11 tildado.
+**v7.5:** feed de productos para Google Merchant Center (`feat/merchant-feed`, PR #22): `/merchant-feed.xml` desde `getCatalog()`, verificado en producción con 35 ítems. Decisiones 122 a 125 (sección 3.P).
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -342,6 +343,15 @@ Plan acordado antes de codear, pendiente de `/plan-eng-review`. Reemplaza "produ
 | 119 | **El historial de stock es una consulta por presentación con `limit 5`** (`getStockHistories`), con el número de pedido de una venta o cancelación | Cada venta suma una fila para siempre: traer el historial entero del producto crece sin tope. Usa el índice `stock_movements_variant_id_idx (variant_id, created_at desc)` de la `0001` |
 | 120 | **Los E2E que publican productos corren al final, en el proyecto `catalog-writes`** (`*.catalog-writes.spec.ts`, depende de `desktop` y `mobile`), y dejan el producto oculto en un `afterEach` | `catalog.spec.ts` cuenta los perfumes del seed ("8 perfumes"): en paralelo vería uno de más. El `afterEach` evita que un test cortado deje el catálogo roto para las corridas siguientes. El caché se calienta justo antes de publicar: la foto y la presentación ya lo vencen, y sin eso el test pasaba aunque publicar no invalidara nada |
 | 121 | **Reintentar la foto solo guarda si la subida ya llegó al bucket**, y vuelve a subir únicamente si `savePhoto` responde `uploadAgain: true` (la ruta no es del producto o el objeto no está). **La limpieza de fotos huérfanas va a su propio PR** | Antes cada Reintentar subía otra vez (~300 KB por datos móviles) y dejaba la primera huérfana. El campo explícito evita decidir comparando el texto del mensaje. Cambia lo acordado en el PR 2 (las dos juntas): reintentar ya corta la fuente principal de huérfanas, la señal del TODO todavía no se cumple y un borrado masivo en Storage merece su propio review |
+
+### P. Feed de Google Merchant Center (2026-11-09)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 122 | **Los productos entran a Google Shopping por un feed propio, `/merchant-feed.xml`** (RSS 2.0 con el namespace `g:`), no por la carga con IA de Merchant Center. Reglas puras en `src/lib/seo/merchant-feed.ts`; el route handler solo le pasa `getCatalog()`. En Merchant Center: "Añadir productos desde un archivo" → enlace `https://falber.com.ar/merchant-feed.xml`, cada 24 h, sin autenticación | La IA rastrea el sitio y no encontraba todos los productos: las fichas no tienen JSON-LD y cada perfume tiene varios precios. El feed sale de la base y usa el catálogo cacheado (tag `'catalog'`): con Cache Components el GET se prerenderiza y se renueva con la misma invalidación que el sitemap. Va siempre el dominio canónico (`SITE_URL`): los deploy previews responden 401 sin login |
+| 123 | **Un ítem por presentación**, agrupado por perfume con `item_group_id`. El título se arma con tipo y ml (`Dior Sauvage EDT - Decant 5 ml`), **no con `label`** | Google pide un precio y una disponibilidad por ítem, y un decant no es el frasco. `label` lo genera la base y ya trae el tipo ("Decant 5 ml"): el título salía "Decant Decant 5 ml". Lo encontró la prueba manual contra el seed, no los tests, que usaban un `label` inventado |
+| 124 | **Agotados como `out_of_stock`; sin foto, fuera del feed** | Igual que el sitemap: la ficha de un agotado ofrece el encargo. `image_link` es obligatorio y Google rechazaría el ítem; publicar ya exige foto (decisión 93), así que en la práctica no debería faltar |
+| 125 | **Atributos fijos:** `condition = new`, `identifier_exists = no`, `google_product_category = 479` (Perfume & Cologne), `age_group = adult` y `gender` del enum de la base (Google acepta `male`, `female`, `unisex`) | Los decants no tienen GTIN: sin `identifier_exists = no`, Merchant Center marca advertencias. Si aparece "precio no coincide" (la ficha muestra todas las presentaciones juntas), el siguiente paso es JSON-LD `Product` con un `offer` por presentación (`TODOS.md`) |
 
 ---
 

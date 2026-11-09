@@ -1,6 +1,6 @@
 # FALBER — Documento maestro
 
-Tienda online de decants y perfumes · Next.js + Supabase · v7.5 · 2026-11-09
+Tienda online de decants y perfumes · Next.js + Supabase · v7.6 · 2026-11-09
 
 **v2.0:** incorpora el design system FALBER y las 15 decisiones de la revisión de ingeniería (`/plan-eng-review`). El reporte está al final del documento.
 **v2.1:** Fase 1 terminada (PR #1). Prompt real de la Fase 1 y las decisiones 16 a 25, tomadas al implementarla (sección 3.F).
@@ -17,6 +17,7 @@ Tienda online de decants y perfumes · Next.js + Supabase · v7.5 · 2026-11-09
 **v7.3:** Fase 7, PR 3 (`feat/admin-catalog-stock`, PR #17): presentaciones, movimientos de stock con nota e historial, publicar y ocultar desde la ficha, el proyecto E2E `catalog-writes` y la migración `0006` (largo máximo de la nota de stock), aplicada en la nube. Decisiones 115 a 121.
 **v7.4:** cierre de la Fase 7 (`feat/robots-sitemap`): catálogo real en producción, hero con foto real (PR #19), `robots.txt` y `sitemap.xml`, y el último ítem de la sección 11 tildado.
 **v7.5:** feed de productos para Google Merchant Center (`feat/merchant-feed`, PR #22): `/merchant-feed.xml` desde `getCatalog()`, verificado en producción con 35 ítems. Decisiones 122 a 125 (sección 3.P).
+**v7.6:** política de cambios y devoluciones (`feat/returns-policy`): `/cambios-y-devoluciones`, enlazada en el footer y en el sitemap, y su carga en Merchant Center. Decisiones 126 a 128 (sección 3.Q).
 
 | Archivo | Para qué sirve |
 |---|---|
@@ -353,6 +354,14 @@ Plan acordado antes de codear, pendiente de `/plan-eng-review`. Reemplaza "produ
 | 124 | **Agotados como `out_of_stock`; sin foto, fuera del feed** | Igual que el sitemap: la ficha de un agotado ofrece el encargo. `image_link` es obligatorio y Google rechazaría el ítem; publicar ya exige foto (decisión 93), así que en la práctica no debería faltar |
 | 125 | **Atributos fijos:** `condition = new`, `identifier_exists = no`, `google_product_category = 479` (Perfume & Cologne), `age_group = adult` y `gender` del enum de la base (Google acepta `male`, `female`, `unisex`) | Los decants no tienen GTIN: sin `identifier_exists = no`, Merchant Center marca advertencias. Si aparece "precio no coincide" (la ficha muestra todas las presentaciones juntas), el siguiente paso es JSON-LD `Product` con un `offer` por presentación (`TODOS.md`) |
 
+### Q. Política de cambios y devoluciones (2026-11-09)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 126 | **Devolución por arrepentimiento: 10 días corridos desde la entrega, solo sin abrir ni usar**, con precinto o sello y empaque. Vale para frascos y decants. El envío de vuelta y el reintegro (por el mismo medio de pago) corren por FALBER. Abiertos o usados: no se aceptan, salvo defecto | En una venta a distancia el arrepentimiento de 10 días es obligatorio e irrenunciable (Ley 24.240, art. 34): "no aceptamos devoluciones" lo contradecía. El producto tiene que volver como se entregó, y un perfume abierto no se puede volver a vender. Los decants entran igual que los frascos: excluirlos por fraccionados (CCyC art. 1116) queda para una consulta legal, y un decant cerrado casi nunca se devuelve. Texto pendiente de validar con un abogado o contador |
+| 127 | **Cambios solo por defecto o error del pedido** (dañado, con pérdida o distinto de lo pedido): mismo producto o reintegro, sin costo. Sin cambios por gusto. El trámite es por WhatsApp con el número `FAL-…` | Lo decidió el dueño. Un perfume cerrado que no convence ya tiene salida con el arrepentimiento. No se fija un plazo para avisar de un defecto: uno más corto que la garantía legal no vale |
+| 128 | **`/cambios-y-devoluciones` es una página estática** (sin consultas, entra en el shell prerenderizado), enlazada en la columna "Tienda" del footer y listada en `PUBLIC_PAGES` del sitemap. En Merchant Center: devoluciones de defectuosos y no defectuosos, cambios "No", estado "nuevo", 10 días, devolución gratis | Merchant Center pide la URL de la política en el sitio y la compara con lo cargado: lo de Merchant Center y la página tienen que decir lo mismo (el comentario de la página lo recuerda). Los cambios por defecto Google ya los cuenta como devolución de un defectuoso: marcar "Sí" le diría que hay cambios por gusto. El botón de arrepentimiento (Resolución 424/2020) queda en `TODOS.md` |
+
 ---
 
 ## 4. Arquitectura
@@ -381,6 +390,7 @@ Plan acordado antes de codear, pendiente de `/plan-eng-review`. Reemplaza "produ
 | `/checkout` | Datos, entrega, pago, aclaración, Turnstile |
 | `/pedido/[id]` | "Detalle de tu compra" + "Completar pedido en WhatsApp" (`id` = UUID) |
 | `/encargos` | "¿No encontrás tu perfume?" |
+| `/cambios-y-devoluciones` | Política de cambios y devoluciones (decisiones 126 a 128), estática |
 | `/admin/login` | Login (Supabase Auth, email y contraseña). Una cuenta sin perfil de admin ve "sin acceso" |
 | `/admin/pedidos` | Lista: todos los activos (pendientes primero, el más viejo arriba) y los últimos 100 cerrados; aviso de cancelación automática desde las 24 h, envíos sin costo |
 | `/admin/pedidos/[id]` | Detalle, cambio de estado (solo transiciones válidas) y costo de envío |

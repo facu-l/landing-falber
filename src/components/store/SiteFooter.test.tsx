@@ -11,6 +11,14 @@ describe("SiteFooter", () => {
     ).toBeTruthy();
   });
 
+  // Google Merchant Center exige que la política se encuentre desde el sitio.
+  it("enlaza la política de cambios y devoluciones", () => {
+    render(<SiteFooter />);
+    const tienda = screen.getByRole("navigation", { name: "Tienda" });
+    const link = within(tienda).getByRole("link", { name: "Cambios y devoluciones" });
+    expect(link.getAttribute("href")).toBe("/cambios-y-devoluciones");
+  });
+
   // El nombre accesible incluye la red: un lector de pantalla no ve el logo.
   it.each([
     ["Instagram @falber.parfum", "https://www.instagram.com/falber.parfum/"],

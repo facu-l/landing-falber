@@ -23,7 +23,7 @@ son la copia que usa el código. Si el design system cambia en el artifact, se r
 
 | Zona | Tema | Cómo |
 |---|---|---|
-| Tienda pública (`/`, `/catalogo`, `/producto`, `/carrito`, `/checkout`, `/pedido`, `/encargos`) | Noir | `<html data-theme="dark">` en el layout público |
+| Tienda pública (`/`, `/catalogo`, `/producto`, `/carrito`, `/checkout`, `/pedido`, `/encargos`, `/cambios-y-devoluciones`) | Noir | `<html data-theme="dark">` en el layout público |
 | Panel `/admin` | Platinum | `data-theme="light"` en el layout de admin |
 
 ## Color (tokens semánticos)

@@ -54,6 +54,20 @@
 **Priority:** P3
 **Depends on:** —
 
+## Legal
+
+### Botón de arrepentimiento
+
+**What:** Un acceso visible desde la home (el footer alcanza) para pedir la revocación de una compra, con el número de pedido. Lo más simple: un link a WhatsApp con el mensaje armado, como "Enviar por WhatsApp" de los encargos (decisión 89), o un formulario con su propia acción de Turnstile.
+
+**Why:** La Resolución 424/2020 lo exige a las tiendas online, aparte de publicar la política (decisiones 126 a 128). Hoy el arrepentimiento solo se explica en `/cambios-y-devoluciones`.
+
+**Context:** Confirmar con un abogado o contador el texto y si la revocación tiene que dejar constancia (un número o un mail de confirmación). Si es un formulario, reusar lo de `src/lib/forms/` y `TurnstileField`. Señal: antes de pautar o de crecer en ventas; hoy es un incumplimiento chico pero real.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** —
+
 ## Anti-abuso
 
 ### Límite de encargos por número de WhatsApp
@@ -179,6 +193,10 @@ El catálogo real está cargado desde el admin, con foto en cada producto public
 ### robots.txt y sitemap.xml
 
 `src/app/robots.ts` y `src/app/sitemap.ts`, con las reglas puras y sus tests en `src/lib/seo/`.
+
+### Política de cambios y devoluciones
+
+`/cambios-y-devoluciones` (decisiones 126 a 128), enlazada en el footer y cargada en Merchant Center. Queda el botón de arrepentimiento, arriba.
 
 ### Feed de Google Merchant Center
 

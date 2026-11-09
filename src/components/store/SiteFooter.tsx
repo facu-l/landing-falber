@@ -64,6 +64,9 @@ export function SiteFooter() {
           <Link href="/catalogo?tipo=full_bottle" className={linkClasses}>
             Frascos
           </Link>
+          <Link href="/cambios-y-devoluciones" className={linkClasses}>
+            Cambios y devoluciones
+          </Link>
         </nav>
 
         <div className="-mt-3 flex flex-col">

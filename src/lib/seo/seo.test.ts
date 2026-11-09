@@ -5,8 +5,13 @@ import { PRIVATE_PATHS, SITE_URL, robotsRules, sitemapEntries } from "./seo";
 const urls = (slugs: string[]) => sitemapEntries(slugs.map((slug) => ({ slug }))).map((e) => e.url);
 
 describe("sitemapEntries", () => {
-  it("lista la home, el catálogo y encargos aunque no haya productos", () => {
-    expect(urls([])).toEqual([`${SITE_URL}/`, `${SITE_URL}/catalogo`, `${SITE_URL}/encargos`]);
+  it("lista las páginas públicas aunque no haya productos", () => {
+    expect(urls([])).toEqual([
+      `${SITE_URL}/`,
+      `${SITE_URL}/catalogo`,
+      `${SITE_URL}/encargos`,
+      `${SITE_URL}/cambios-y-devoluciones`,
+    ]);
   });
 
   it("agrega una URL por producto con su slug", () => {

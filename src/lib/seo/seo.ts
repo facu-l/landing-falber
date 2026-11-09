@@ -14,7 +14,7 @@ export const SITE_URL = "https://falber.com.ar";
 /** Rutas que no se indexan. Las páginas ya llevan `noindex`; esto ahorra el rastreo. */
 export const PRIVATE_PATHS = ["/admin", "/carrito", "/checkout", "/pedido"] as const;
 
-const PUBLIC_PAGES = ["/", "/catalogo", "/encargos"] as const;
+const PUBLIC_PAGES = ["/", "/catalogo", "/encargos", "/cambios-y-devoluciones"] as const;
 
 export function robotsRules(): MetadataRoute.Robots {
   return {

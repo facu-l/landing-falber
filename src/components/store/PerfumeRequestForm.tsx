@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { startTransition, useActionState, useLayoutEffect, useRef, useState } from "react";
 import { createPerfumeRequest } from "@/app/(store)/encargos/actions";
+import { WhatsAppButton } from "@/components/store/WhatsAppButton";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -194,14 +195,12 @@ function Confirmation({ perfumeName, whatsappUrl }: { perfumeName: string; whats
         disponibilidad y precio: el mensaje ya va armado.
       </p>
       <div className="flex w-full flex-col items-start gap-6 md:w-auto md:flex-row md:items-center">
-        <a
+        <WhatsAppButton
           href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+          label="Enviar por WhatsApp"
+          source="encargo"
           className={buttonClasses("primary", "w-full md:w-auto")}
-        >
-          Enviar por WhatsApp
-        </a>
+        />
         <Link
           href="/catalogo"
           className="inline-flex min-h-11 items-center text-label text-text-secondary uppercase underline-offset-8 hover:text-text hover:underline"

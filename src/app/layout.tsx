@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Cinzel, Montserrat } from "next/font/google";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
+import { clarityProjectId, gaMeasurementId } from "@/lib/analytics/env";
 import { SITE_NAME, SITE_URL, organizationJsonLd } from "@/lib/seo/seo";
 import "./globals.css";
 
@@ -47,6 +50,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  const gaId = gaMeasurementId();
+  const clarityId = clarityProjectId();
+
   return (
     <html
       lang="es-AR"
@@ -59,6 +65,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           // JSON propio, sin input de usuario: no hay riesgo de inyección.
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }}
         />
+        {gaId && <GoogleAnalytics measurementId={gaId} />}
+        {clarityId && <MicrosoftClarity projectId={clarityId} />}
         {children}
       </body>
     </html>

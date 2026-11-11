@@ -6,8 +6,10 @@ import { AddToCart } from "@/components/store/AddToCart";
 import { ProductImage } from "@/components/store/ProductImage";
 import { buttonClasses } from "@/components/ui/Button";
 import { type CatalogProduct, GENDER_LABELS, isSoldOut, sortVariants } from "@/lib/catalog/catalog";
+import { productImageSrc } from "@/lib/catalog/images";
 import { getProductBySlug } from "@/lib/catalog/queries";
 import { formatARS } from "@/lib/format";
+import { productJsonLd } from "@/lib/seo/seo";
 
 /*
  * Sin generateStaticParams a propósito: con Cache Components tiene que devolver al
@@ -20,9 +22,23 @@ export async function generateMetadata({ params }: PageProps<"/producto/[slug]">
   const { slug } = await params;
   const product = await getProductBySlug(slug);
   if (!product) return { title: "Producto no encontrado" };
+
+  const title = `${product.name} de ${product.brand}`;
+  const description = product.description ?? `${product.name} de ${product.brand}. Decants y perfumes FALBER.`;
+  const image = productImageSrc(product.imagePath);
+  const url = `/producto/${slug}`;
+
   return {
-    title: `${product.name} de ${product.brand}`,
-    description: product.description ?? `${product.name} de ${product.brand}. Decants y perfumes FALBER.`,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      url,
+      title,
+      description,
+      // Sin foto (producto sin imagen) cae al OG de marca del layout raíz.
+      ...(image ? { images: [{ url: image }] } : {}),
+    },
   };
 }
 
@@ -49,6 +65,11 @@ async function ProductDetails({ params }: Pick<PageProps<"/producto/[slug]">, "p
 
   return (
     <article className="grid gap-10 md:grid-cols-2 md:gap-16">
+      <script
+        type="application/ld+json"
+        // JSON propio a partir del catálogo, sin input de usuario: no hay riesgo de inyección.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd(product, productImageSrc(product.imagePath))) }}
+      />
       <ProductImage
         imagePath={product.imagePath}
         alt={`${product.brand} ${product.name}`}

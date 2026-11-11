@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+const DESCRIPTION =
+  "Política de cambios y devoluciones de FALBER: arrepentimiento en 10 días con el producto sin abrir, y cambio sin costo si llega defectuoso.";
+
 export const metadata: Metadata = {
   title: "Cambios y devoluciones",
-  description:
-    "Política de cambios y devoluciones de FALBER: arrepentimiento en 10 días con el producto sin abrir, y cambio sin costo si llega defectuoso.",
+  description: DESCRIPTION,
+  alternates: { canonical: "/cambios-y-devoluciones" },
+  openGraph: { url: "/cambios-y-devoluciones", title: "Cambios y devoluciones", description: DESCRIPTION },
 };
 
 /*

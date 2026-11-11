@@ -20,6 +20,10 @@ import { getCatalog } from "@/lib/catalog/queries";
 export const metadata: Metadata = {
   title: "Catálogo",
   description: "Decants y perfumes FALBER. Buscá por marca, género o presentación.",
+  // Canonical fijo en /catalogo (sin filtros): los ?marca=/?genero=/?tipo= son la misma
+  // página para SEO, no variantes a indexar aparte.
+  alternates: { canonical: "/catalogo" },
+  openGraph: { url: "/catalogo", title: "Catálogo", description: "Decants y perfumes FALBER. Buscá por marca, género o presentación." },
 };
 
 const container = "mx-auto w-full max-w-7xl px-4 md:px-8";

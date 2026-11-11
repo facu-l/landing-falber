@@ -3,11 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AddToCart } from "@/components/store/AddToCart";
+import { ProductCard } from "@/components/store/ProductCard";
 import { ProductImage } from "@/components/store/ProductImage";
 import { buttonClasses } from "@/components/ui/Button";
-import { type CatalogProduct, GENDER_LABELS, isSoldOut, sortVariants } from "@/lib/catalog/catalog";
+import { type CatalogProduct, GENDER_LABELS, isSoldOut, relatedProducts, sortVariants } from "@/lib/catalog/catalog";
 import { productImageSrc } from "@/lib/catalog/images";
-import { getProductBySlug } from "@/lib/catalog/queries";
+import { getCatalog, getProductBySlug } from "@/lib/catalog/queries";
 import { formatARS } from "@/lib/format";
 import { productJsonLd } from "@/lib/seo/seo";
 
@@ -60,34 +61,61 @@ export default function ProductPage({ params }: PageProps<"/producto/[slug]">) {
 
 async function ProductDetails({ params }: Pick<PageProps<"/producto/[slug]">, "params">) {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  // getCatalog() está cacheado (tag 'catalog'): getProductBySlug ya la usa por dentro,
+  // así que pedirla de nuevo acá para las sugerencias no agrega una consulta extra.
+  const [product, catalog] = await Promise.all([getProductBySlug(slug), getCatalog()]);
   if (!product) notFound();
 
   return (
-    <article className="grid gap-10 md:grid-cols-2 md:gap-16">
-      <script
-        type="application/ld+json"
-        // JSON propio a partir del catálogo, sin input de usuario: no hay riesgo de inyección.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd(product, productImageSrc(product.imagePath))) }}
-      />
-      <ProductImage
-        imagePath={product.imagePath}
-        alt={`${product.brand} ${product.name}`}
-        sizes="(min-width: 768px) 50vw, 100vw"
-        priority
-      />
-      <div className="flex flex-col gap-10 md:sticky md:top-28 md:self-start">
-        <header className="flex flex-col gap-3">
-          <p className="text-label text-text-muted uppercase">{product.brand}</p>
-          <h1 className="text-h1 text-text">{product.name}</h1>
-          {product.gender && <p className="text-body-sm text-text-secondary">{GENDER_LABELS[product.gender]}</p>}
-        </header>
-        {product.description && (
-          <p className="max-w-[56ch] text-body text-text-secondary">{product.description}</p>
-        )}
-        <Variants product={product} />
-      </div>
-    </article>
+    <>
+      <article className="grid gap-10 md:grid-cols-2 md:gap-16">
+        <script
+          type="application/ld+json"
+          // JSON propio a partir del catálogo, sin input de usuario: no hay riesgo de inyección.
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd(product, productImageSrc(product.imagePath))) }}
+        />
+        <ProductImage
+          imagePath={product.imagePath}
+          alt={`${product.brand} ${product.name}`}
+          sizes="(min-width: 768px) 50vw, 100vw"
+          priority
+        />
+        <div className="flex flex-col gap-10 md:sticky md:top-28 md:self-start">
+          <header className="flex flex-col gap-3">
+            <p className="text-label text-text-muted uppercase">{product.brand}</p>
+            <h1 className="text-h1 text-text">{product.name}</h1>
+            {product.gender && <p className="text-body-sm text-text-secondary">{GENDER_LABELS[product.gender]}</p>}
+          </header>
+          {product.description && (
+            <p className="max-w-[56ch] text-body text-text-secondary">{product.description}</p>
+          )}
+          <Variants product={product} />
+        </div>
+      </article>
+      <RelatedProducts product={product} catalog={catalog} />
+    </>
+  );
+}
+
+// "También te puede interesar": cross-sell para quien no compró, y enlace contextual
+// entre fichas (antes solo se llegaba a cada una desde /catalogo).
+function RelatedProducts({ product, catalog }: { product: CatalogProduct; catalog: CatalogProduct[] }) {
+  const related = relatedProducts(catalog, product);
+  if (related.length === 0) return null;
+
+  return (
+    <section aria-labelledby="relacionados" className="flex flex-col gap-6 border-t border-border pt-10">
+      <h2 id="relacionados" className="text-label text-text-secondary uppercase">
+        También te puede interesar
+      </h2>
+      <ul className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-3">
+        {related.map((p) => (
+          <li key={p.id}>
+            <ProductCard product={p} sizes="(min-width: 768px) 33vw, 50vw" />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

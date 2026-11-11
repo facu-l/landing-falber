@@ -7,6 +7,13 @@ import { requestPrefill } from "@/lib/requests/prefill";
 export const metadata: Metadata = {
   title: "Encargos",
   description: "¿No encontrás tu perfume? Encargalo en FALBER y te escribimos por WhatsApp.",
+  // Canonical fijo: ?producto=<slug> prellena el form, no es una página distinta.
+  alternates: { canonical: "/encargos" },
+  openGraph: {
+    url: "/encargos",
+    title: "Encargos",
+    description: "¿No encontrás tu perfume? Encargalo en FALBER y te escribimos por WhatsApp.",
+  },
 };
 
 /**

@@ -1,3 +1,4 @@
+import { WhatsAppButton } from "@/components/store/WhatsAppButton";
 import { buttonClasses } from "@/components/ui/Button";
 import { formatARS } from "@/lib/format";
 import { DELIVERY_LABELS, ORDER_STATUS_LABELS, type OrderSummary, PAYMENT_LABELS } from "@/lib/orders/summary";
@@ -76,14 +77,12 @@ export function OrderDetails({ order, whatsAppUrl }: { order: OrderSummary; what
             Gracias, {order.customerFirstName}. Para confirmar tu pedido, escribinos por WhatsApp: el mensaje
             ya va armado con el detalle.
           </p>
-          <a
+          <WhatsAppButton
             href={whatsAppUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+            label="Completar pedido en WhatsApp"
+            source="checkout"
             className={buttonClasses("primary", "w-full md:w-auto")}
-          >
-            Completar pedido en WhatsApp
-          </a>
+          />
         </div>
       )}
     </article>

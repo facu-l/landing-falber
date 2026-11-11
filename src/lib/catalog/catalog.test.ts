@@ -12,6 +12,7 @@ import {
   normalizeText,
   parseCatalogFilters,
   productsWithType,
+  relatedProducts,
   sortVariants,
 } from "./catalog";
 
@@ -190,4 +191,38 @@ describe("emptyCatalogMessage", () => {
       );
     },
   );
+});
+
+describe("relatedProducts", () => {
+  it("prioriza la misma marca antes que el mismo género", () => {
+    const current = product({ brand: "Dior", gender: "male" });
+    const sameBrand = product({ brand: "Dior", gender: "female" });
+    const sameGender = product({ brand: "Armaf", gender: "male" });
+    const other = product({ brand: "Azzaro", gender: "unisex" });
+
+    const result = relatedProducts([current, other, sameGender, sameBrand], current);
+
+    expect(result).toEqual([sameBrand, sameGender, other]);
+  });
+
+  it("nunca incluye al producto actual", () => {
+    const current = product();
+    expect(relatedProducts([current], current)).toEqual([]);
+  });
+
+  it("respeta el límite", () => {
+    const current = product({ brand: "Dior" });
+    const candidates = Array.from({ length: 5 }, () => product({ brand: "Dior" }));
+    expect(relatedProducts([current, ...candidates], current, 2)).toHaveLength(2);
+  });
+
+  it("muestra los que tienen stock antes que los agotados, conservando la prioridad de marca/género", () => {
+    const current = product({ brand: "Dior", gender: "male" });
+    const sameBrandSoldOut = product({ brand: "Dior", gender: "female", variants: [variant({ inStock: false })] });
+    const sameGenderInStock = product({ brand: "Armaf", gender: "male" });
+
+    const result = relatedProducts([current, sameBrandSoldOut, sameGenderInStock], current);
+
+    expect(result).toEqual([sameGenderInStock, sameBrandSoldOut]);
+  });
 });

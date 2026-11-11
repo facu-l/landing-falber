@@ -99,6 +99,22 @@ export function brandsOf(products: CatalogProduct[]): string[] {
   return [...new Set(products.map((p) => p.brand))].sort((a, b) => a.localeCompare(b, "es"));
 }
 
+/**
+ * Sugerencias para la ficha de producto ("También de la marca" / "Similares"):
+ * primero la misma marca, después el mismo género, el resto al final. El orden del
+ * catálogo (marca, nombre) ya viene de la consulta, así que acá no hace falta ordenar
+ * dentro de cada grupo. sortForDisplay es estable: dentro de "con stock" y "agotado"
+ * se conserva ese orden marca → género → resto.
+ */
+export function relatedProducts(products: CatalogProduct[], current: CatalogProduct, limit = 3): CatalogProduct[] {
+  const others = products.filter((p) => p.id !== current.id);
+  const sameBrand = others.filter((p) => p.brand === current.brand);
+  const sameGender = others.filter((p) => p.brand !== current.brand && p.gender === current.gender);
+  const rest = others.filter((p) => p.brand !== current.brand && p.gender !== current.gender);
+
+  return sortForDisplay([...sameBrand, ...sameGender, ...rest]).slice(0, limit);
+}
+
 // ---------------------------------------------------------------------------
 // Filtros de /catalogo (viven en la URL: ?q=&marca=&genero=&tipo=)
 // ---------------------------------------------------------------------------
